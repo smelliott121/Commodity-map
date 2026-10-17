@@ -114,13 +114,18 @@ R.forEach((r,i)=>{const e=document.createElement("div");e.className="pin";e.styl
 e.innerHTML=`<div class="chip" id="c${i}" style="transform:translate(${(OFF[r.n]||[0,0])[0]}px,${(OFF[r.n]||[0,0])[1]}px)"><b>${r.n}</b><span id="p${i}"></span></div><div class="dot"></div>`;e.onclick=()=>{show(i);document.querySelectorAll(".pin").forEach(x=>x.classList.remove("sel"));e.classList.add("sel");const s=$("#scroll");s.scrollTo({left:e.offsetLeft-s.clientWidth/2,top:Math.max(0,e.offsetTop-s.clientHeight/3),behavior:"smooth"})};map.appendChild(e)});
 const f=(v,d=1)=>v==null?"—":Number(v).toLocaleString("en",{maximumFractionDigits:d});
 function paint(i){const r=R[i];$("#p"+i).innerHTML=f(r.p,r.p<20?2:0)+(r.ch!=null?` <i class="${r.ch>=0?"up":"dn"}">${r.ch>=0?"▲":"▼"}${f(Math.abs(r.ch))}%</i>`:"");
-const c=$("#c"+i);c.classList.remove("wet","dry");c.classList.toggle("smp",!r.live);if(r.w){if(r.w.past>=60)c.classList.add("wet");else if(r.w.past<=5&&r.w.next<=5)c.classList.add("dry")}}
-function show(i){const r=R[i],w=r.w;let flag="No weather data";
-if(w)flag=w.past>=60?"Wet: heavy rain over last 7 days":w.past<=5&&w.next<=5?"Dry: little rain past and next 7 days":"Rainfall unremarkable (rough thresholds)";
+const c=$("#c"+i);c.classList.remove("wet","dry");c.classList.toggle("smp",!r.live);const sg=sig(r)[0];if(sg)c.classList.add(sg)}
+function sig(r){const w=r.w;if(!w)return["","No weather data"];const n=r.cn;
+if(n==null)return w.past>=60?["wet","Wet: heavy rain over last 7 days"]:(w.past<=5&&w.next<=5)?["dry","Dry: little rain past and next 7 days"]:["","Rainfall unremarkable (no seasonal data yet)"];
+const d=w.past-n,pc=n>=5?Math.round(d/n*100):null;
+if(w.past>n*1.5&&d>15)return["wet","Wet: "+(pc!=null?"+"+pc+"% vs normal":"well above normal")];
+if(w.past<n*.5&&-d>15)return["dry","Dry: "+(pc!=null?pc+"% vs normal":"well below normal")];
+return["","Close to normal for the season"]}
+function show(i){const r=R[i],w=r.w,flag=sig(r)[1];
 info(`<h2>${r.n} · ${r.loc}</h2>
 <div class="row"><span>Price ${r.live?"(delayed)":"(SAMPLE)"}</span><b>${f(r.p,r.p<20?2:0)} ${r.u}</b></div>
-<div class="row"><span>Rain, last 7 days</span><b>${w?f(w.past)+" mm":"—"}</b></div>
-<div class="row"><span>Rain, next 7 days</span><b>${w?f(w.next)+" mm":"—"}</b></div>
+<div class="row"><span>Rain, last 7 days</span><b>${w?f(w.past)+" mm":"—"}${r.cn!=null?" (normal "+f(r.cn)+")":""}</b></div>
+<div class="row"><span>Rain, next 7 days</span><b>${w?f(w.next)+" mm":"—"}${r.cx!=null?" (normal "+f(r.cx)+")":""}</b></div>
 <div class="row"><span>Now</span><b>${w?f(w.t)+"°C · cloud "+f(w.cl,0)+"%":"—"}</b></div>
 <div class="row"><span>Signal</span><b>${flag}</b></div>
 <div class="note">Weather is a leading indicator, not a guarantee: markets already price forecasts.</div>`)}
@@ -132,7 +137,8 @@ const a=Array.isArray(j)?j:[j];a.forEach((d,i)=>{const s=d.daily.precipitation_s
 R[i].w={past:sum(s.slice(0,7)),next:sum(s.slice(7,14)),t:d.current.temperature_2m,cl:d.current.cloud_cover};paint(i)});wOK=true}catch(e){}}
 let pT=0;
 async function prices(){try{const j=await(await fetch("prices.json?t="+Date.now())).json();pT=j.updated;R.forEach((r,i)=>{const m=r.sym&&j.prices[r.sym];if(!m)return;r.p=m.price;r.ch=(m.price/m.prev-1)*100;r.live=1;pOK++;paint(i)})}catch(e){}}
-Promise.all([weather(),prices()]).then(()=>{$("#st").innerHTML=`Weather: ${wOK?"live":"unavailable here"}<br>Prices: ${pOK?"delayed, "+new Date(pT*1000).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"sample values"}`});
+async function climate(){try{const j=await(await fetch("climate.json?t="+Date.now())).json();R.forEach(r=>{const c=j.regions[r.n];if(c){r.cn=c.past;r.cx=c.next}})}catch(e){}}
+Promise.all([weather(),prices(),climate()]).then(()=>{R.forEach((r,i)=>paint(i));$("#st").innerHTML=`Weather: ${wOK?"live":"unavailable here"}<br>Prices: ${pOK?"delayed, "+new Date(pT*1000).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"sample values"}`});
 let z=1;const zz=d=>{z=Math.min(3,Math.max(.7,z+d));map.style.width=900*z+"px";map.classList.toggle("big",z>=1.7)};
 $("#zi").onclick=()=>zz(.4);$("#zo").onclick=()=>zz(-.4);
 $("#scroll").scrollLeft=150;
