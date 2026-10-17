@@ -17,7 +17,7 @@ button{background:var(--card);color:var(--ink);border:1px solid var(--line);bord
 .chip b{display:block;font-size:12px}.chip span{font-variant-numeric:tabular-nums}
 .chip.wet{border-color:var(--wet)}.chip.dry{border-color:var(--dry)}
 .dot{position:absolute;left:50%;top:100%;width:10px;height:10px;margin:-1px 0 0 -5px;border-radius:50%;background:var(--ink);opacity:.7}
-.up{color:var(--up)}.dn{color:var(--dn)}
+.chip.smp span{opacity:.55;font-style:italic}.up{color:var(--up)}.dn{color:var(--dn)}
 #panel{margin-top:10px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px}
 #panel h2{font-size:16px;margin:0 0 6px}.row{display:flex;justify-content:space-between;padding:3px 0;border-top:1px solid var(--line)}
 .note{color:var(--mut);font-size:11px;margin-top:8px}
@@ -113,7 +113,7 @@ R.forEach((r,i)=>{const e=document.createElement("div");e.className="pin";e.styl
 e.innerHTML=`<div class="chip" id="c${i}"><b>${r.n}</b><span id="p${i}"></span></div><div class="dot"></div>`;e.onclick=()=>show(i);map.appendChild(e)});
 const f=(v,d=1)=>v==null?"—":Number(v).toLocaleString("en",{maximumFractionDigits:d});
 function paint(i){const r=R[i];$("#p"+i).innerHTML=f(r.p,r.p<20?2:0)+(r.ch!=null?` <i class="${r.ch>=0?"up":"dn"}">${r.ch>=0?"▲":"▼"}${f(Math.abs(r.ch))}%</i>`:"");
-const c=$("#c"+i);c.classList.remove("wet","dry");if(r.w){if(r.w.past>=60)c.classList.add("wet");else if(r.w.past<=5&&r.w.next<=5)c.classList.add("dry")}}
+const c=$("#c"+i);c.classList.remove("wet","dry");c.classList.toggle("smp",!r.live);if(r.w){if(r.w.past>=60)c.classList.add("wet");else if(r.w.past<=5&&r.w.next<=5)c.classList.add("dry")}}
 function show(i){const r=R[i],w=r.w;let flag="No weather data";
 if(w)flag=w.past>=60?"Wet: heavy rain over last 7 days":w.past<=5&&w.next<=5?"Dry: little rain past and next 7 days":"Rainfall unremarkable (rough thresholds)";
 $("#panel").innerHTML=`<h2>${r.n} · ${r.loc}</h2>
@@ -129,9 +129,9 @@ async function weather(){try{const q=k=>R.map(r=>r[k]).join(",");
 const j=await(await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${q("lat")}&longitude=${q("lon")}&current=temperature_2m,cloud_cover&daily=precipitation_sum&past_days=7&forecast_days=7&timezone=auto`)).json();
 const a=Array.isArray(j)?j:[j];a.forEach((d,i)=>{const s=d.daily.precipitation_sum,sum=x=>x.reduce((m,v)=>m+(v||0),0);
 R[i].w={past:sum(s.slice(0,7)),next:sum(s.slice(7,14)),t:d.current.temperature_2m,cl:d.current.cloud_cover};paint(i)});wOK=true}catch(e){}}
-async function prices(){await Promise.all(R.map(async(r,i)=>{if(!r.sym)return;try{const m=(await(await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${r.sym}?interval=1d&range=5d`)).json()).chart.result[0].meta;
-r.p=m.regularMarketPrice;r.ch=(m.regularMarketPrice/m.chartPreviousClose-1)*100;r.live=1;pOK++;paint(i)}catch(e){}}))}
-Promise.all([weather(),prices()]).then(()=>{$("#st").innerHTML=`Weather: ${wOK?"live":"unavailable here"}<br>Prices: ${pOK?pOK+" delayed":"sample values"}`});
+let pT=0;
+async function prices(){try{const j=await(await fetch("prices.json?t="+Date.now())).json();pT=j.updated;R.forEach((r,i)=>{const m=r.sym&&j.prices[r.sym];if(!m)return;r.p=m.price;r.ch=(m.price/m.prev-1)*100;r.live=1;pOK++;paint(i)})}catch(e){}}
+Promise.all([weather(),prices()]).then(()=>{$("#st").innerHTML=`Weather: ${wOK?"live":"unavailable here"}<br>Prices: ${pOK?"delayed, "+new Date(pT*1000).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"sample values"}`});
 let z=1;const zz=d=>{z=Math.min(3,Math.max(.7,z+d));map.style.width=900*z+"px";map.classList.toggle("big",z>=1.7)};
 $("#zi").onclick=()=>zz(.4);$("#zo").onclick=()=>zz(-.4);
 $("#scroll").scrollLeft=150;
