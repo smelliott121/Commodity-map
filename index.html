@@ -13,12 +13,12 @@ button{background:var(--card);color:var(--ink);border:1px solid var(--line);bord
 #map svg{position:absolute;inset:0;width:100%;height:100%}
 .land{fill:var(--land);stroke:var(--line);stroke-width:.3}.g{stroke:var(--line);stroke-width:.15;fill:none}
 .pin{position:absolute;transform:translate(-50%,-100%);cursor:pointer}
-.chip{background:var(--card);border:2px solid var(--line);border-radius:10px;padding:3px 7px;white-space:nowrap;font-size:12px;box-shadow:0 1px 4px #0003}
-.chip b{display:block;font-size:12px}.chip span{font-variant-numeric:tabular-nums}
+.chip{background:var(--card);border:2px solid var(--line);border-radius:10px;padding:2px 6px;white-space:nowrap;font-size:11px;box-shadow:0 1px 4px #0003}
+.chip b{display:block;font-size:11px}.chip span{font-variant-numeric:tabular-nums}
 .chip.wet{border-color:var(--wet)}.chip.dry{border-color:var(--dry)}
 .dot{position:absolute;left:50%;top:100%;width:10px;height:10px;margin:-1px 0 0 -5px;border-radius:50%;background:var(--ink);opacity:.7}
 .chip.smp span{opacity:.55;font-style:italic}.up{color:var(--up)}.dn{color:var(--dn)}
-#panel{margin-top:10px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px}
+#panel{display:none;position:fixed;left:0;right:0;bottom:0;max-height:48vh;overflow:auto;z-index:20;background:var(--card);border-top:1px solid var(--line);border-radius:16px 16px 0 0;padding:14px 14px calc(14px + env(safe-area-inset-bottom,0px));box-shadow:0 -4px 20px #0006}#panel.open{display:block}#panel h2{padding-right:40px}.x{position:absolute;top:8px;right:10px;font-size:22px;line-height:1;padding:2px 11px;border-radius:50%}.pin.sel{z-index:5}.pin.sel .chip{border-color:var(--ink)}
 #panel h2{font-size:16px;margin:0 0 6px}.row{display:flex;justify-content:space-between;padding:3px 0;border-top:1px solid var(--line)}
 .note{color:var(--mut);font-size:11px;margin-top:8px}
 .ln{fill:none;stroke-width:1.8;vector-effect:non-scaling-stroke;opacity:.85}.pl{stroke-dasharray:6 3}
@@ -37,7 +37,7 @@ button{background:var(--card);color:var(--ink);border:1px solid var(--line);bord
 <div id="bar"><button id="zi">+</button><button id="zo">−</button><div id="st">loading…</div></div>
 <div id="tg"></div>
 <div id="scroll"><div id="map"></div></div>
-<div id="panel">Tap a commodity on the map for detail.</div>
+<div id="panel"></div>
 <script>
 const R=[
 {n:"Cocoa",loc:"Ivory Coast",lat:6.8,lon:-5.3,sym:"CC=F",u:"$/t",p:6000},
@@ -61,7 +61,7 @@ let g='<svg viewBox="0 0 360 180" preserveAspectRatio="none">';
 for(let i=-150;i<=150;i+=30)g+=`<path class="g" d="M${X(i)} 0V180"/>`;
 for(let i=-60;i<=60;i+=30)g+=`<path class="g" d="M0 ${Y(i)}H360"/>`;
 L.forEach(p=>{let d="";for(let i=0;i<p.length;i+=2)d+=(i?"L":"M")+X(p[i])+" "+Y(p[i+1]);g+=`<path class="land" d="${d}Z"/>`});
-const info=h=>{$("#panel").innerHTML=h};
+const info=h=>{const p=$("#panel");p.innerHTML='<button class="x" id="px">×</button>'+h;p.classList.add("open");$("#px").onclick=()=>{p.classList.remove("open");document.querySelectorAll(".pin.sel").forEach(x=>x.classList.remove("sel"))}};
 const D=p=>{const q=a=>{let d="";for(let i=0;i<a.length;i+=2)d+=(i?"L":"M")+X(a[i])+" "+Y(a[i+1]);return d};return Array.isArray(p[0])?p.map(q).join(""):q(p)};
 const CL={o:"#d9692a",a:"#4aa35a",m:"#6b86c9",g:"#a86bd6"};
 const LN=[
@@ -109,20 +109,21 @@ map.querySelectorAll(".hit").forEach(h=>h.onclick=()=>{const r=(h.dataset.k=="l"
 MK.forEach(m=>{const e=document.createElement("div");e.className="mk L-"+m.k;e.style.left=X(m.lon)/3.6+"%";e.style.top=Y(m.lat)/1.8+"%";e.innerHTML=`<span>${m.n}</span>`;e.onclick=()=>info(`<h2>${m.n}</h2><div class="row"><span>Type</span><b>${m.k=="choke"?"Chokepoint":"Port"}</b></div><div class="row"><span>Why it matters</span><b>${m.w}</b></div>`);map.appendChild(e)});
 [["lanes","Sea lanes"],["pipes","Pipelines"],["choke","Chokepoints"],["ports","Ports"],["pins","Prices"]].forEach(([k,t])=>{const b=document.createElement("button");b.textContent=t;b.style.cssText="font-size:12px;padding:4px 9px";b.onclick=()=>{b.style.opacity=map.classList.toggle("off-"+k)?.4:1};$("#tg").appendChild(b)});
 $("#tg").insertAdjacentHTML("beforeend",'<div class="lg"><i style="color:#d9692a">━ oil</i><i style="color:#4aa35a">━ ag</i><i style="color:#6b86c9">━ metals</i><i style="color:#a86bd6">╌ gas</i><i>dashed = pipeline</i></div>');
+const OFF={Corn:[24,-6],Cotton:[-30,0],Copper:[-20,0],Coffee:[20,0]};
 R.forEach((r,i)=>{const e=document.createElement("div");e.className="pin";e.style.left=X(r.lon)/3.6+"%";e.style.top=Y(r.lat)/1.8+"%";
-e.innerHTML=`<div class="chip" id="c${i}"><b>${r.n}</b><span id="p${i}"></span></div><div class="dot"></div>`;e.onclick=()=>show(i);map.appendChild(e)});
+e.innerHTML=`<div class="chip" id="c${i}" style="transform:translate(${(OFF[r.n]||[0,0])[0]}px,${(OFF[r.n]||[0,0])[1]}px)"><b>${r.n}</b><span id="p${i}"></span></div><div class="dot"></div>`;e.onclick=()=>{show(i);document.querySelectorAll(".pin").forEach(x=>x.classList.remove("sel"));e.classList.add("sel");const s=$("#scroll");s.scrollTo({left:e.offsetLeft-s.clientWidth/2,top:Math.max(0,e.offsetTop-s.clientHeight/3),behavior:"smooth"})};map.appendChild(e)});
 const f=(v,d=1)=>v==null?"—":Number(v).toLocaleString("en",{maximumFractionDigits:d});
 function paint(i){const r=R[i];$("#p"+i).innerHTML=f(r.p,r.p<20?2:0)+(r.ch!=null?` <i class="${r.ch>=0?"up":"dn"}">${r.ch>=0?"▲":"▼"}${f(Math.abs(r.ch))}%</i>`:"");
 const c=$("#c"+i);c.classList.remove("wet","dry");c.classList.toggle("smp",!r.live);if(r.w){if(r.w.past>=60)c.classList.add("wet");else if(r.w.past<=5&&r.w.next<=5)c.classList.add("dry")}}
 function show(i){const r=R[i],w=r.w;let flag="No weather data";
 if(w)flag=w.past>=60?"Wet: heavy rain over last 7 days":w.past<=5&&w.next<=5?"Dry: little rain past and next 7 days":"Rainfall unremarkable (rough thresholds)";
-$("#panel").innerHTML=`<h2>${r.n} · ${r.loc}</h2>
+info(`<h2>${r.n} · ${r.loc}</h2>
 <div class="row"><span>Price ${r.live?"(delayed)":"(SAMPLE)"}</span><b>${f(r.p,r.p<20?2:0)} ${r.u}</b></div>
 <div class="row"><span>Rain, last 7 days</span><b>${w?f(w.past)+" mm":"—"}</b></div>
 <div class="row"><span>Rain, next 7 days</span><b>${w?f(w.next)+" mm":"—"}</b></div>
 <div class="row"><span>Now</span><b>${w?f(w.t)+"°C · cloud "+f(w.cl,0)+"%":"—"}</b></div>
 <div class="row"><span>Signal</span><b>${flag}</b></div>
-<div class="note">Weather is a leading indicator, not a guarantee: markets already price forecasts.</div>`}
+<div class="note">Weather is a leading indicator, not a guarantee: markets already price forecasts.</div>`)}
 R.forEach((r,i)=>paint(i));
 let wOK=false,pOK=0;
 async function weather(){try{const q=k=>R.map(r=>r[k]).join(",");
