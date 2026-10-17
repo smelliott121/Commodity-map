@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Commodity Weather Map</title>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><link rel="manifest" href="manifest.json"><meta name="theme-color" content="#14181a"><link rel="icon" href="icon-192.png"><title>Commodity Weather Map</title>
 <style>
 :root{--bg:#f4f1ea;--sea:#dfe9ee;--land:#c5d0b3;--ink:#1d2327;--mut:#5d676d;--card:#fff;--line:#0002;--wet:#1f6fb5;--dry:#b5651f;--up:#2d7a4f;--dn:#b3382c;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14181a;--sea:#1b2a33;--land:#34402f;--ink:#e8ecee;--mut:#9aa5ab;--card:#20272b;--line:#fff3;--wet:#5aa9f0;--dry:#e0924f;--up:#5cc08a;--dn:#ee7a6d}}
@@ -135,4 +135,5 @@ Promise.all([weather(),prices()]).then(()=>{$("#st").innerHTML=`Weather: ${wOK?"
 let z=1;const zz=d=>{z=Math.min(3,Math.max(.7,z+d));map.style.width=900*z+"px";map.classList.toggle("big",z>=1.7)};
 $("#zi").onclick=()=>zz(.4);$("#zo").onclick=()=>zz(-.4);
 $("#scroll").scrollLeft=150;
+if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script></body></html>
