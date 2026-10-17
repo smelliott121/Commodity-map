@@ -1,0 +1,38 @@
+name: Update prices
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  prices:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch delayed prices
+        run: |
+          python3 - <<'PY'
+          import json, time, urllib.request
+          SYMS = ["CC=F","KC=F","ZW=F","HG=F","SB=F","ZC=F","CT=F","CL=F","NG=F","ZS=F","GC=F"]
+          out = {}
+          for s in SYMS:
+              for host in ("query1", "query2"):
+                  try:
+                      url = f"https://{host}.finance.yahoo.com/v8/finance/chart/{s}?interval=1d&range=5d"
+                      req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+                      m = json.load(urllib.request.urlopen(req, timeout=20))["chart"]["result"][0]["meta"]
+                      out[s] = {"price": m["regularMarketPrice"], "prev": m["chartPreviousClose"]}
+                      break
+                  except Exception as e:
+                      print("fail", s, host, e)
+          print("got", len(out), "of", len(SYMS))
+          if out:
+              json.dump({"updated": int(time.time()), "prices": out}, open("prices.json", "w"))
+          PY
+      - name: Commit if changed
+        run: |
+          git config user.name "price-bot"
+          git config user.email "price-bot@users.noreply.github.com"
+          git add prices.json || true
+          git diff --cached --quiet || (git commit -m "Update prices" && git push)
