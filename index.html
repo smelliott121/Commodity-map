@@ -1,0 +1,138 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Commodity Weather Map</title>
+<style>
+:root{--bg:#f4f1ea;--sea:#dfe9ee;--land:#c5d0b3;--ink:#1d2327;--mut:#5d676d;--card:#fff;--line:#0002;--wet:#1f6fb5;--dry:#b5651f;--up:#2d7a4f;--dn:#b3382c;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14181a;--sea:#1b2a33;--land:#34402f;--ink:#e8ecee;--mut:#9aa5ab;--card:#20272b;--line:#fff3;--wet:#5aa9f0;--dry:#e0924f;--up:#5cc08a;--dn:#ee7a6d}}
+:root[data-theme="dark"]{--bg:#14181a;--sea:#1b2a33;--land:#34402f;--ink:#e8ecee;--mut:#9aa5ab;--card:#20272b;--line:#fff3;--wet:#5aa9f0;--dry:#e0924f;--up:#5cc08a;--dn:#ee7a6d}
+*{box-sizing:border-box}html,body{margin:0}body{background:var(--bg);color:var(--ink);font:14px/1.4 system-ui,-apple-system,Segoe UI,sans-serif;padding:10px}
+h1{font-size:17px;margin:0 0 2px}.sub{color:var(--mut);font-size:12px;margin-bottom:8px}
+#bar{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+button{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:15px}
+#st{color:var(--mut);font-size:11px;margin-left:auto;text-align:right}
+#scroll{overflow:auto;height:58vh;border:1px solid var(--line);border-radius:10px;background:var(--sea);-webkit-overflow-scrolling:touch}
+#map{position:relative;width:900px;aspect-ratio:2/1}
+#map svg{position:absolute;inset:0;width:100%;height:100%}
+.land{fill:var(--land);stroke:var(--line);stroke-width:.3}.g{stroke:var(--line);stroke-width:.15;fill:none}
+.pin{position:absolute;transform:translate(-50%,-100%);cursor:pointer}
+.chip{background:var(--card);border:2px solid var(--line);border-radius:10px;padding:3px 7px;white-space:nowrap;font-size:12px;box-shadow:0 1px 4px #0003}
+.chip b{display:block;font-size:12px}.chip span{font-variant-numeric:tabular-nums}
+.chip.wet{border-color:var(--wet)}.chip.dry{border-color:var(--dry)}
+.dot{position:absolute;left:50%;top:100%;width:10px;height:10px;margin:-1px 0 0 -5px;border-radius:50%;background:var(--ink);opacity:.7}
+.up{color:var(--up)}.dn{color:var(--dn)}
+#panel{margin-top:10px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px}
+#panel h2{font-size:16px;margin:0 0 6px}.row{display:flex;justify-content:space-between;padding:3px 0;border-top:1px solid var(--line)}
+.note{color:var(--mut);font-size:11px;margin-top:8px}
+.ln{fill:none;stroke-width:1.8;vector-effect:non-scaling-stroke;opacity:.85}.pl{stroke-dasharray:6 3}
+.hit{fill:none;stroke:transparent;stroke-width:16;vector-effect:non-scaling-stroke;pointer-events:stroke;cursor:pointer}
+.mk{position:absolute;transform:translate(-50%,-50%);width:14px;height:14px;border:2px solid var(--ink);background:var(--card);cursor:pointer}
+.mk::after{content:"";position:absolute;inset:-9px}
+.mk.L-choke{border-color:#d33;border-radius:50%}.mk.L-ports{border-radius:3px}
+.mk span{position:absolute;left:17px;top:-2px;white-space:nowrap;font-size:10px;display:none;color:var(--ink);text-shadow:0 0 3px var(--bg),0 0 3px var(--bg)}
+#map.big .mk span{display:block}
+#map.off-lanes .L-lanes,#map.off-pipes .L-pipes,#map.off-choke .L-choke,#map.off-ports .L-ports,#map.off-pins .pin{display:none}
+#tg{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px}.lg{width:100%;font-size:11px;color:var(--mut)}.lg i{font-style:normal;margin-right:8px}
+.row{gap:12px}.row b{text-align:right}
+</style></head><body>
+<h1>Commodity Weather Map</h1>
+<div class="sub">Growing regions, shipping lanes, pipelines, chokepoints. Tap anything; toggle layers below.</div>
+<div id="bar"><button id="zi">+</button><button id="zo">−</button><div id="st">loading…</div></div>
+<div id="tg"></div>
+<div id="scroll"><div id="map"></div></div>
+<div id="panel">Tap a commodity on the map for detail.</div>
+<script>
+const R=[
+{n:"Cocoa",loc:"Ivory Coast",lat:6.8,lon:-5.3,sym:"CC=F",u:"$/t",p:6000},
+{n:"Coffee",loc:"Minas Gerais, Brazil",lat:-19,lon:-46,sym:"KC=F",u:"¢/lb",p:300},
+{n:"Wheat",loc:"Ukraine",lat:49,lon:32,sym:"ZW=F",u:"¢/bu",p:550},
+{n:"Palm oil",loc:"Sumatra, Indonesia",lat:2,lon:101,sym:null,u:"MYR/t",p:4000},
+{n:"Copper",loc:"Chile",lat:-24,lon:-69,sym:"HG=F",u:"$/lb",p:4.5},
+{n:"Sugar",loc:"Maharashtra, India",lat:18.5,lon:76,sym:"SB=F",u:"¢/lb",p:15},
+{n:"Corn",loc:"Iowa, USA",lat:42,lon:-93.5,sym:"ZC=F",u:"¢/bu",p:430},
+{n:"Cotton",loc:"Texas, USA",lat:32,lon:-101,sym:"CT=F",u:"¢/lb",p:68}];
+const L=[[-168,66,-156,71,-125,70,-95,72,-80,70,-62,60,-55,50,-67,44,-76,35,-81,25,-97,26,-97,18,-88,16,-83,9,-78,8,-86,14,-95,16,-105,22,-112,30,-118,34,-124,40,-124,48,-135,58,-150,60,-165,60],
+[-55,60,-45,60,-20,70,-20,82,-60,82,-70,76],
+[-78,8,-62,10,-50,0,-35,-6,-40,-22,-48,-28,-58,-38,-65,-42,-68,-52,-74,-50,-72,-30,-80,-5],
+[-10,36,-9,43,-2,48,5,53,8,58,12,55,22,55,28,60,25,70,40,68,60,70,80,73,110,77,140,72,170,70,180,66,160,58,142,52,135,43,128,35,122,30,120,22,108,20,106,10,104,1,98,8,92,20,80,8,72,20,66,25,57,25,50,30,58,22,44,12,35,28,34,31,36,36,28,36,26,40,20,40,12,38,10,44,3,43,-5,36],
+[-17,21,-10,35,10,37,32,31,35,28,43,12,51,12,40,-3,40,-15,33,-26,20,-35,12,-18,13,-5,9,4,-8,5,-17,14],
+[114,-22,122,-18,130,-12,137,-12,142,-11,146,-19,153,-26,150,-37,140,-38,130,-32,115,-34],
+[95,5,106,-6,103,-5,98,0],[109,1,117,7,119,0,115,-4,110,-3],[-6,50,-3,58,1,53],[130,31,141,41,142,45,135,35]];
+const X=o=>o+180,Y=a=>90-a;
+const $=s=>document.querySelector(s),map=$("#map");
+let g='<svg viewBox="0 0 360 180" preserveAspectRatio="none">';
+for(let i=-150;i<=150;i+=30)g+=`<path class="g" d="M${X(i)} 0V180"/>`;
+for(let i=-60;i<=60;i+=30)g+=`<path class="g" d="M0 ${Y(i)}H360"/>`;
+L.forEach(p=>{let d="";for(let i=0;i<p.length;i+=2)d+=(i?"L":"M")+X(p[i])+" "+Y(p[i+1]);g+=`<path class="land" d="${d}Z"/>`});
+const info=h=>{$("#panel").innerHTML=h};
+const D=p=>{const q=a=>{let d="";for(let i=0;i<a.length;i+=2)d+=(i?"L":"M")+X(a[i])+" "+Y(a[i+1]);return d};return Array.isArray(p[0])?p.map(q).join(""):q(p)};
+const CL={o:"#d9692a",a:"#4aa35a",m:"#6b86c9",g:"#a86bd6"};
+const LN=[
+{n:"Gulf → Asia",c:"o",w:"Crude and LNG to China, Japan, Korea, India",v:"Hormuz, Malacca",p:[56.5,26.5,60,23,70,10,80,5,95,5,103,1.3,110,8,122,20,125,30]},
+{n:"Gulf → Europe",c:"o",w:"Crude, products, LNG to Europe",v:"Hormuz, Bab el-Mandeb, Suez",p:[56.5,26.5,60,22,50,13,43.3,12.6,38,20,32.5,30,28,33,20,34,12,37.5,0,37,-5.6,36,-10,40,-5,48,4,52]},
+{n:"Asia → Europe via the Cape",c:"o",w:"Oil, products, containers when the Red Sea is avoided",v:"Cape of Good Hope",p:[80,4,60,-10,40,-25,20,-36,5,-25,-10,5,-17,20,-10,40,-5,48,4,52]},
+{n:"Transpacific",c:"a",w:"Grain, LNG, crude, containers",v:"North Pacific",p:[[122,30,145,38,179,45],[-179,45,-150,45,-125,38]]},
+{n:"US Gulf → Europe",c:"o",w:"US crude, LNG, grain",v:"Florida Straits, North Atlantic",p:[-94,29,-85,24,-80,25,-60,32,-30,42,-10,49,4,52]},
+{n:"US Gulf → Panama → Asia",c:"a",w:"Grain, LNG, products",v:"Panama Canal",p:[[-94,29,-85,24,-80,12,-79.7,9.3],[-79.5,8.5,-120,10,-160,12],[-179,12,150,18,125,22]]},
+{n:"Brazil → China",c:"a",w:"Soy, iron ore, sugar, coffee",v:"South Atlantic, Cape, Indian Ocean",p:[-44,-23.5,-30,-30,15,-37,60,-30,95,-12,105,-4,112,5,122,20]},
+{n:"Australia → China",c:"m",w:"Iron ore, coal, LNG",v:"Celebes Sea",p:[115,-22,120,-8,118,5,122,20]},
+{n:"Black Sea grain",c:"a",w:"Wheat, corn, sunflower oil",v:"Bosphorus",p:[31,46.5,30,42,29,41,26,38,24,35,12,37.5]},
+{n:"West Africa → Europe",c:"a",w:"Cocoa and other West African exports",v:"Atlantic coast",p:[-4,5,-15,10,-20,25,-10,40,-5,48,4,52]},
+{n:"Chile → China",c:"m",w:"Copper cathode and concentrate",v:"Pacific",p:[[-71.5,-33,-100,-25,-140,-10,-170,5],[-179,5,160,15,125,22]]}];
+const PL=[
+{n:"Druzhba",c:"o",w:"Russian crude to Central Europe",p:[52,53,45,53,37,52,30,52,22,52,14,52]},
+{n:"Power of Siberia",c:"g",w:"Russian gas to China",p:[128,56,126,50,123,45]},
+{n:"TurkStream",c:"g",w:"Russian gas to Turkey and southeast Europe",p:[37,45,32,42,28,41.5]},
+{n:"Baku–Tbilisi–Ceyhan",c:"o",w:"Caspian crude to the Mediterranean",p:[49.9,40.4,44.8,41.7,35.9,36.9]},
+{n:"Saudi East–West",c:"o",w:"Saudi crude to the Red Sea, bypassing Hormuz",p:[49.7,26.5,38.1,24]},
+{n:"Keystone",c:"o",w:"Canadian crude to US refineries",p:[-110,53,-98,49,-97,36,-95,29]},
+{n:"Colonial",c:"o",w:"Gulf Coast refined products to the US East Coast",p:[-95,29.7,-88,32,-84,34,-78,36,-74,40.7]},
+{n:"Trans-Alaska",c:"o",w:"North Slope crude to Valdez",p:[-148.5,70,-146,64,-146,61]}];
+const MK=[
+{k:"choke",n:"Strait of Hormuz",lat:26.5,lon:56.3,w:"Roughly a fifth of world oil and much of Qatar's LNG"},
+{k:"choke",n:"Bab el-Mandeb",lat:12.6,lon:43.3,w:"Red Sea gateway; trouble here pushes ships round the Cape"},
+{k:"choke",n:"Suez Canal",lat:30.5,lon:32.4,w:"Oil, LNG, grain, containers between Asia and Europe"},
+{k:"choke",n:"Strait of Malacca",lat:2.5,lon:101.4,w:"Gulf oil, palm oil and LNG heading to East Asia"},
+{k:"choke",n:"Panama Canal",lat:9.1,lon:-79.7,w:"US grain, LNG, products to Asia; sensitive to drought"},
+{k:"choke",n:"Bosphorus",lat:41.1,lon:29.1,w:"Black Sea grain, sunflower oil, oil exports"},
+{k:"choke",n:"Gibraltar",lat:36,lon:-5.6,w:"Atlantic to Mediterranean entry"},
+{k:"choke",n:"Cape of Good Hope",lat:-34.4,lon:18.5,w:"Diversion route when Suez or the Red Sea is avoided"},
+{k:"ports",n:"Rotterdam",lat:51.9,lon:4.4,w:"Europe's main oil and bulk hub"},
+{k:"ports",n:"Singapore",lat:1.3,lon:103.8,w:"Oil trading and bunkering hub"},
+{k:"ports",n:"Shanghai",lat:31.2,lon:121.8,w:"Huge importer of metals, oil and agricultural goods"},
+{k:"ports",n:"Houston",lat:29.7,lon:-95,w:"US oil, products and LNG"},
+{k:"ports",n:"Santos",lat:-23.9,lon:-46.3,w:"Brazil's coffee, sugar and soy outlet"},
+{k:"ports",n:"Port Hedland",lat:-20.3,lon:118.6,w:"Iron ore"},
+{k:"ports",n:"Odesa",lat:46.5,lon:30.7,w:"Black Sea grain"},
+{k:"ports",n:"Abidjan",lat:5.3,lon:-4,w:"Cocoa"},
+{k:"ports",n:"Ras Tanura",lat:26.6,lon:50,w:"Saudi crude"}];
+const lay=(a,k,c)=>`<g class="${c}">`+a.map((r,i)=>`<path class="ln ${k=="p"?"pl":""}" stroke="${CL[r.c]}" d="${D(r.p)}"/><path class="hit" data-k="${k}" data-i="${i}" d="${D(r.p)}"/>`).join("")+"</g>";
+map.innerHTML=g+lay(LN,"l","L-lanes")+lay(PL,"p","L-pipes")+"</svg>";
+map.querySelectorAll(".hit").forEach(h=>h.onclick=()=>{const r=(h.dataset.k=="l"?LN:PL)[h.dataset.i];info(`<h2>${r.n}</h2><div class="row"><span>Carries</span><b>${r.w}</b></div>${r.v?`<div class="row"><span>Via</span><b>${r.v}</b></div>`:""}<div class="note">Indicative route, not an exact track. Flows and status change with politics and sanctions.</div>`)});
+MK.forEach(m=>{const e=document.createElement("div");e.className="mk L-"+m.k;e.style.left=X(m.lon)/3.6+"%";e.style.top=Y(m.lat)/1.8+"%";e.innerHTML=`<span>${m.n}</span>`;e.onclick=()=>info(`<h2>${m.n}</h2><div class="row"><span>Type</span><b>${m.k=="choke"?"Chokepoint":"Port"}</b></div><div class="row"><span>Why it matters</span><b>${m.w}</b></div>`);map.appendChild(e)});
+[["lanes","Sea lanes"],["pipes","Pipelines"],["choke","Chokepoints"],["ports","Ports"],["pins","Prices"]].forEach(([k,t])=>{const b=document.createElement("button");b.textContent=t;b.style.cssText="font-size:12px;padding:4px 9px";b.onclick=()=>{b.style.opacity=map.classList.toggle("off-"+k)?.4:1};$("#tg").appendChild(b)});
+$("#tg").insertAdjacentHTML("beforeend",'<div class="lg"><i style="color:#d9692a">━ oil</i><i style="color:#4aa35a">━ ag</i><i style="color:#6b86c9">━ metals</i><i style="color:#a86bd6">╌ gas</i><i>dashed = pipeline</i></div>');
+R.forEach((r,i)=>{const e=document.createElement("div");e.className="pin";e.style.left=X(r.lon)/3.6+"%";e.style.top=Y(r.lat)/1.8+"%";
+e.innerHTML=`<div class="chip" id="c${i}"><b>${r.n}</b><span id="p${i}"></span></div><div class="dot"></div>`;e.onclick=()=>show(i);map.appendChild(e)});
+const f=(v,d=1)=>v==null?"—":Number(v).toLocaleString("en",{maximumFractionDigits:d});
+function paint(i){const r=R[i];$("#p"+i).innerHTML=f(r.p,r.p<20?2:0)+(r.ch!=null?` <i class="${r.ch>=0?"up":"dn"}">${r.ch>=0?"▲":"▼"}${f(Math.abs(r.ch))}%</i>`:"");
+const c=$("#c"+i);c.classList.remove("wet","dry");if(r.w){if(r.w.past>=60)c.classList.add("wet");else if(r.w.past<=5&&r.w.next<=5)c.classList.add("dry")}}
+function show(i){const r=R[i],w=r.w;let flag="No weather data";
+if(w)flag=w.past>=60?"Wet: heavy rain over last 7 days":w.past<=5&&w.next<=5?"Dry: little rain past and next 7 days":"Rainfall unremarkable (rough thresholds)";
+$("#panel").innerHTML=`<h2>${r.n} · ${r.loc}</h2>
+<div class="row"><span>Price ${r.live?"(delayed)":"(SAMPLE)"}</span><b>${f(r.p,r.p<20?2:0)} ${r.u}</b></div>
+<div class="row"><span>Rain, last 7 days</span><b>${w?f(w.past)+" mm":"—"}</b></div>
+<div class="row"><span>Rain, next 7 days</span><b>${w?f(w.next)+" mm":"—"}</b></div>
+<div class="row"><span>Now</span><b>${w?f(w.t)+"°C · cloud "+f(w.cl,0)+"%":"—"}</b></div>
+<div class="row"><span>Signal</span><b>${flag}</b></div>
+<div class="note">Weather is a leading indicator, not a guarantee: markets already price forecasts.</div>`}
+R.forEach((r,i)=>paint(i));
+let wOK=false,pOK=0;
+async function weather(){try{const q=k=>R.map(r=>r[k]).join(",");
+const j=await(await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${q("lat")}&longitude=${q("lon")}&current=temperature_2m,cloud_cover&daily=precipitation_sum&past_days=7&forecast_days=7&timezone=auto`)).json();
+const a=Array.isArray(j)?j:[j];a.forEach((d,i)=>{const s=d.daily.precipitation_sum,sum=x=>x.reduce((m,v)=>m+(v||0),0);
+R[i].w={past:sum(s.slice(0,7)),next:sum(s.slice(7,14)),t:d.current.temperature_2m,cl:d.current.cloud_cover};paint(i)});wOK=true}catch(e){}}
+async function prices(){await Promise.all(R.map(async(r,i)=>{if(!r.sym)return;try{const m=(await(await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${r.sym}?interval=1d&range=5d`)).json()).chart.result[0].meta;
+r.p=m.regularMarketPrice;r.ch=(m.regularMarketPrice/m.chartPreviousClose-1)*100;r.live=1;pOK++;paint(i)}catch(e){}}))}
+Promise.all([weather(),prices()]).then(()=>{$("#st").innerHTML=`Weather: ${wOK?"live":"unavailable here"}<br>Prices: ${pOK?pOK+" delayed":"sample values"}`});
+let z=1;const zz=d=>{z=Math.min(3,Math.max(.7,z+d));map.style.width=900*z+"px";map.classList.toggle("big",z>=1.7)};
+$("#zi").onclick=()=>zz(.4);$("#zo").onclick=()=>zz(-.4);
+$("#scroll").scrollLeft=150;
+</script></body></html>
