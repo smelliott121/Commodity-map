@@ -1,0 +1,58 @@
+name: Update climate normals
+on:
+  schedule:
+    - cron: "30 4 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  climate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build seasonal rainfall normals
+        run: |
+          python3 - <<'PY'
+          import json, time, datetime as dt, urllib.request, urllib.parse
+          R = {"Cocoa":(6.8,-5.3),"Coffee":(-19,-46),"Wheat":(49,32),"Palm oil":(2,101),
+               "Copper":(-24,-69),"Sugar":(18.5,76),"Corn":(42,-93.5),"Cotton":(32,-101)}
+          today = dt.date.today()
+          y1 = today.year - 1
+          y0 = y1 - 14
+          out = {}
+          for name, (lat, lon) in R.items():
+              try:
+                  q = urllib.parse.urlencode({"latitude": lat, "longitude": lon,
+                      "start_date": f"{y0}-01-01", "end_date": f"{y1}-12-31",
+                      "daily": "precipitation_sum", "timezone": "UTC"})
+                  j = json.load(urllib.request.urlopen("https://archive-api.open-meteo.com/v1/archive?" + q, timeout=90))
+                  days = dict(zip(j["daily"]["time"], j["daily"]["precipitation_sum"]))
+                  def win(y, a, b):
+                      s = 0
+                      for k in range(a, b):
+                          try:
+                              d = dt.date(y, today.month, today.day) + dt.timedelta(days=k)
+                          except ValueError:
+                              return None
+                          v = days.get(d.isoformat())
+                          if v is None:
+                              return None
+                          s += v
+                      return s
+                  past = [x for x in (win(y, -7, 0) for y in range(y0, y1 + 1)) if x is not None]
+                  nxt = [x for x in (win(y, 0, 7) for y in range(y0, y1 + 1)) if x is not None]
+                  if past and nxt:
+                      out[name] = {"past": round(sum(past) / len(past), 1), "next": round(sum(nxt) / len(nxt), 1)}
+              except Exception as e:
+                  print("fail", name, e)
+              time.sleep(2)
+          print("got", len(out), "of", len(R))
+          if out:
+              json.dump({"updated": int(time.time()), "regions": out}, open("climate.json", "w"))
+          PY
+      - name: Commit if changed
+        run: |
+          git config user.name "price-bot"
+          git config user.email "price-bot@users.noreply.github.com"
+          git add climate.json || true
+          git diff --cached --quiet || (git commit -m "Update climate" && git pull --rebase && git push)
