@@ -34,11 +34,18 @@ button{background:var(--card);color:var(--ink);border:1px solid var(--line);bord
 #ld{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}.ln.hl{stroke-width:4;opacity:1}#map.hlmode .ln:not(.hl){opacity:.18}.kr{display:flex;gap:10px;padding:7px 0;border-top:1px solid var(--line);cursor:pointer}.kr i{flex:0 0 22px;height:0;border-top:3px solid;margin-top:9px}.kr.pl i{border-top-style:dashed}.kr b{display:block;font-size:13px}.kr small{color:var(--mut);display:block;font-size:11px;line-height:1.3}.kh{font-size:11px;color:var(--mut);margin:10px 0 2px;text-transform:uppercase;letter-spacing:.05em}
 .chip.hid{display:none}.pin.sel .chip.hid{display:block}.dot{cursor:pointer}
 .chip.hot{border-color:#e0563f}.chip.cold{border-color:#7cc4ff}.row small.dn2{display:block;color:var(--mut);font-size:10.5px;font-weight:400;line-height:1.3;margin-top:1px}.row span{flex:1 1 auto}.row b{flex:0 0 auto;white-space:nowrap}.dl{margin:6px 0 0;padding-left:18px;color:var(--mut);font-size:12px;line-height:1.45}
+#wx,#wp{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}#wx{opacity:.62}
+#ov{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}#ov .hit{pointer-events:stroke}
+.cst{fill:none;stroke:#ffffff59;stroke-width:.35;vector-effect:non-scaling-stroke}
+#wxc{margin:0 0 6px}.seg{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:5px}.seg button{font-size:12px;padding:4px 10px}.seg button.on{background:var(--ink);color:var(--bg)}
+.wrow{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--mut);margin-bottom:3px}#wxt{flex:1;accent-color:#4aa8e8}#wxtl{min-width:118px;text-align:right}
+#wxlg{display:flex;align-items:center;gap:6px;flex:1}#wxlg i{display:block;height:8px;flex:1;border-radius:4px;border:1px solid var(--line)}#wxs{font-size:10px}
 </style></head><body>
 <h1>Commodity Weather Map</h1>
 <div class="sub">Growing regions, shipping lanes, pipelines, chokepoints. Tap anything; toggle layers below.</div>
 <div id="bar"><button id="zi">+</button><button id="zo">−</button><div id="st">loading…</div></div>
 <div id="tg"></div>
+<div id="wxc"><div class="seg" id="wxm"></div><div class="wrow"><input type="range" id="wxt" min="0" max="12" value="0" step="1"><span id="wxtl">—</span></div><div class="wrow"><span id="wxlg"></span><span id="wxs"></span></div></div>
 <div id="scroll"><div id="map"></div></div>
 <div id="panel"></div>
 <script>
@@ -146,6 +153,56 @@ function openKey(){let s='<h2>Key</h2><div class="note" style="margin:0 0 4px">T
 LN.forEach((r,i)=>s+=kr("l",i,r));s+='<div class="kh">Pipelines (dashed)</div>';PL.forEach((r,i)=>s+=kr("p",i,r));
 info(s);document.querySelectorAll("#panel .kr").forEach(e=>e.onclick=()=>hl(e.dataset.k,+e.dataset.i))}
 const kb=document.createElement("button");kb.textContent="Key";kb.style.cssText="font-size:12px;padding:4px 9px";kb.onclick=openKey;$("#tg").appendChild(kb);
+
+const SV=map.querySelector("svg"),wx=document.createElement("canvas"),wp=document.createElement("canvas"),OV=document.createElementNS("http://www.w3.org/2000/svg","svg");
+wx.id="wx";wp.id="wp";OV.id="ov";OV.setAttribute("viewBox","0 0 360 180");OV.setAttribute("preserveAspectRatio","none");
+OV.innerHTML=`<path class="cst" d="${LAND}"/>`;SV.after(wx,wp,OV);
+[".bd",".L-lanes",".L-pipes"].forEach(s=>{const n=SV.querySelector(s);if(n)OV.appendChild(n)});
+const SC={t:[[-35,"#7b3fa0"],[-20,"#3b5bd6"],[-8,"#4aa8e8"],[0,"#a9e3f2"],[8,"#5cc489"],[16,"#c9de52"],[24,"#f2b632"],[32,"#ea6a2a"],[42,"#b51f3a"]],
+p:[[0,"#2a7fd400"],[.3,"#4aa3ff66"],[1.5,"#2f7de0cc"],[4,"#36b37e"],[8,"#f0d43a"],[15,"#f08a2a"],[30,"#d0304a"],[60,"#a03cc0"]],
+w:[[0,"#2b3d7a"],[3,"#2f78b8"],[6,"#2fb0a8"],[9,"#5cc45c"],[12,"#d6d64a"],[16,"#f0a03a"],[20,"#e0503a"],[28,"#a8307a"]]};
+const UN={t:"°C",p:"mm / 6h",w:"m/s"};
+function hx(c){const n=parseInt(c.slice(1),16);return c.length>7?[n>>>24&255,n>>16&255,n>>8&255,(n&255)/255]:[n>>16&255,n>>8&255,n&255,1]}
+const SCX={};for(const k in SC)SCX[k]=SC[k].map(([v,c])=>[v,hx(c)]);
+function col(k,v){const s=SCX[k];if(v<=s[0][0])return s[0][1];for(let i=1;i<s.length;i++)if(v<=s[i][0]){const a=s[i-1],b=s[i],f=(v-a[0])/(b[0]-a[0]);return a[1].map((x,j)=>x+(b[1][j]-x)*f)}return s[s.length-1][1]}
+let G=null,wm="p",wf=0,streak=true,PA=[],raf=0;
+function gval(k,fr,ri,ci){const C=G.lons.length;ri=Math.max(0,Math.min(G.lats.length-1,ri));ci=((ci%C)+C)%C;const i=ri*C+ci;
+if(k=="w"){const u=G.u[fr][i],v=G.v[fr][i];return Math.hypot(u,v)/10}return k=="p"?G.p[fr][i]/10:G.t[fr][i]}
+function drawWx(){const W=map.offsetWidth,H=map.offsetHeight,c=wx.getContext("2d");wx.width=W;wx.height=H;c.clearRect(0,0,W,H);
+if(!G||wm=="off"){legend();return}
+const R=G.lats.length,C=G.lons.length,sm=document.createElement("canvas");sm.width=C+1;sm.height=R+2;const sx=sm.getContext("2d"),im=sx.createImageData(C+1,R+2);
+for(let y=0;y<R+2;y++)for(let x=0;x<=C;x++){const v=gval(wm,wf,y-1,x),q=col(wm,v),o=(y*(C+1)+x)*4;im.data[o]=q[0];im.data[o+1]=q[1];im.data[o+2]=q[2];im.data[o+3]=q[3]*255}
+sx.putImageData(im,0,0);const cw=W/C,ch=H/(R+1);c.imageSmoothingEnabled=true;c.imageSmoothingQuality="high";c.drawImage(sm,-cw/2,-ch/2,W+cw,H+ch);legend()}
+function uv(lon,lat){const C=G.lons.length,R=G.lats.length,fx=(lon+180)/G.step,fy=(G.lats[0]-lat)/G.step,x0=Math.floor(fx),y0=Math.floor(fy),tx=fx-x0,ty=fy-y0;
+const g=(a,ri,ci)=>{ri=Math.max(0,Math.min(R-1,ri));ci=((ci%C)+C)%C;return a[wf][ri*C+ci]/10};
+const bl=a=>g(a,y0,x0)*(1-tx)*(1-ty)+g(a,y0,x0+1)*tx*(1-ty)+g(a,y0+1,x0)*(1-tx)*ty+g(a,y0+1,x0+1)*tx*ty;return[bl(G.u),bl(G.v)]}
+function seed(W,H){return{x:Math.random()*W,y:Math.random()*H,a:Math.random()*80|0}}
+function sizeP(){const W=map.offsetWidth,H=map.offsetHeight;wp.width=W;wp.height=H;const n=Math.min(2200,Math.round(W*H/1100));PA=Array.from({length:n},()=>seed(W,H))}
+function anim(){raf=0;if(!G||wm=="off"||!streak){wp.getContext("2d").clearRect(0,0,wp.width,wp.height);return}
+const W=wp.width,H=wp.height,c=wp.getContext("2d"),k=W/900*.16;
+c.globalCompositeOperation="destination-in";c.fillStyle="rgba(0,0,0,.9)";c.fillRect(0,0,W,H);c.globalCompositeOperation="source-over";
+c.strokeStyle="rgba(255,255,255,.75)";c.lineWidth=1;c.beginPath();
+for(const p of PA){if(p.a--<=0){Object.assign(p,seed(W,H),{a:60+Math.random()*60|0});continue}
+const lon=p.x/W*360-180,lat=90-p.y/H*180;if(lat>84||lat<-84){p.a=0;continue}const[u,v]=uv(lon,lat),nx=p.x+u*k,ny=p.y-v*k;
+c.moveTo(p.x,p.y);c.lineTo(nx,ny);p.x=nx;p.y=ny;if(nx<0||nx>W||ny<0||ny>H)p.a=0}
+c.stroke();raf=requestAnimationFrame(anim)}
+function startA(){if(!raf)raf=requestAnimationFrame(anim)}
+function legend(){const L=$("#wxlg");if(!G){L.innerHTML="";return}if(wm=="off"){L.innerHTML="";return}
+const s=SC[wm],g=s.map(([v,c],i)=>`${c.length>7?c.slice(0,7)+(i?"":"00"):c} ${i/(s.length-1)*100}%`).join(",");
+L.innerHTML=`<i style="background:linear-gradient(90deg,${g})"></i><small>${s[0][0]}</small><small>${UN[wm]}</small><small>${s[s.length-1][0]}+</small>`}
+function tlabel(){if(!G){$("#wxtl").textContent="weather loading…";return}const d=new Date(G.times[wf]+"Z"),fh=wf*6;
+$("#wxtl").textContent=(fh?"+"+fh+"h · ":"Now · ")+d.toLocaleString([],{weekday:"short",hour:"2-digit",minute:"2-digit"})}
+function wxResize(){drawWx();sizeP();startA()}
+[["off","Off"],["p","Rain"],["t","Temp"],["w","Wind"],["s","Streaks"]].forEach(([k,t])=>{const b=document.createElement("button");b.textContent=t;b.dataset.k=k;
+b.onclick=()=>{if(k=="s"){streak=!streak}else wm=k;segs();drawWx();startA()};$("#wxm").appendChild(b)});
+function segs(){document.querySelectorAll("#wxm button").forEach(b=>b.classList.toggle("on",b.dataset.k=="s"?streak&&wm!="off":b.dataset.k==wm))}
+$("#wxt").oninput=e=>{wf=+e.target.value;tlabel();drawWx()};
+async function grid(){const m=location.hostname.match(/^([^.]+)\.github\.io$/),rp=location.pathname.split("/")[1];
+const urls=m&&rp?[`https://raw.githubusercontent.com/${m[1]}/${rp}/data/grid.json?t=${Date.now()/3e5|0}`,"grid.json"]:["grid.json"];
+for(const u of urls){try{const r=await fetch(u);if(r.ok){G=await r.json();break}}catch(e){}}
+if(G){$("#wxt").max=G.times.length-1;$("#wxs").textContent="Model data via Open-Meteo, updated "+new Date(G.updated*1000).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}
+else $("#wxs").textContent="Weather layer not available yet";tlabel();wxResize()}
+segs();grid();
 $("#tg").insertAdjacentHTML("beforeend",'<div class="lg"><i style="color:#d9692a">━ oil</i><i style="color:#4aa35a">━ ag</i><i style="color:#6b86c9">━ metals</i><i style="color:#a86bd6">╌ gas</i><i>dashed = pipeline</i></div>');
 const LD=document.createElementNS("http://www.w3.org/2000/svg","svg");LD.id="ld";map.appendChild(LD);
 R.forEach((r,i)=>{const e=document.createElement("div");e.className="pin";e.style.left=X(r.lon)/3.6+"%";e.style.top=Y(r.lat)/1.8+"%";
@@ -229,7 +286,7 @@ let pT=0;
 async function prices(){try{const j=await(await fetch("prices.json?t="+Date.now())).json();pT=j.updated;PX=j.prices;R.forEach((r,i)=>{const m=r.sym&&j.prices[r.sym];if(!m)return;r.p=m.price;r.ch=(m.price/m.prev-1)*100;r.live=1;pOK++;paint(i)})}catch(e){}}
 async function climate(){try{const j=await(await fetch("climate.json?t="+Date.now())).json();R.forEach(r=>{const c=j.regions[r.n];if(c){r.cn=c.past;r.cx=c.next;r.ct=c.tnext}})}catch(e){}}
 Promise.all([weather(),prices(),climate()]).then(()=>{R.forEach((r,i)=>paint(i));layout();$("#st").innerHTML=`Weather: ${wOK?"live":"unavailable here"}<br>Prices: ${pOK?"delayed, "+new Date(pT*1000).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"sample values"}`});
-let z=1.5;map.style.width=900*z+"px";const zz=d=>{z=Math.min(3,Math.max(.7,z+d));map.style.width=900*z+"px";map.classList.toggle("big",z>=1.7);layout()};
+let z=1.5;map.style.width=900*z+"px";const zz=d=>{z=Math.min(3,Math.max(.7,z+d));map.style.width=900*z+"px";map.classList.toggle("big",z>=1.7);layout();wxResize()};
 $("#zi").onclick=()=>zz(.4);$("#zo").onclick=()=>zz(-.4);
 $("#scroll").scrollLeft=900*z*0.38;
 if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
