@@ -1,8 +1,8 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><link rel="manifest" href="manifest.json"><meta name="theme-color" content="#14181a"><link rel="icon" href="icon-192.png"><title>Commodity Weather Map</title>
 <style>
-:root{--bg:#f4f1ea;--sea:#dfe9ee;--land:#c5d0b3;--ink:#1d2327;--mut:#5d676d;--card:#fff;--line:#0002;--wet:#1f6fb5;--dry:#b5651f;--up:#2d7a4f;--dn:#b3382c;--s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s4:#eda100;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14181a;--sea:#1b2a33;--land:#34402f;--ink:#e8ecee;--mut:#9aa5ab;--card:#20272b;--line:#fff3;--wet:#5aa9f0;--dry:#e0924f;--up:#5cc08a;--dn:#ee7a6d;--s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500}}
-:root[data-theme="dark"]{--bg:#14181a;--sea:#1b2a33;--land:#34402f;--ink:#e8ecee;--mut:#9aa5ab;--card:#20272b;--line:#fff3;--wet:#5aa9f0;--dry:#e0924f;--up:#5cc08a;--dn:#ee7a6d;--s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500}
+:root{--cone:#1d232726;--conel:#1d232799;--trk:#1d2327;--bg:#f4f1ea;--sea:#dfe9ee;--land:#c5d0b3;--ink:#1d2327;--mut:#5d676d;--card:#fff;--line:#0002;--wet:#1f6fb5;--dry:#b5651f;--up:#2d7a4f;--dn:#b3382c;--s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s4:#eda100;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14181a;--sea:#1b2a33;--land:#34402f;--ink:#e8ecee;--mut:#9aa5ab;--card:#20272b;--line:#fff3;--wet:#5aa9f0;--dry:#e0924f;--up:#5cc08a;--dn:#ee7a6d;--cone:#ffffff24;--conel:#ffffffaa;--trk:#f2f2f2;--s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500}}
+:root[data-theme="dark"]{--bg:#14181a;--sea:#1b2a33;--land:#34402f;--ink:#e8ecee;--mut:#9aa5ab;--card:#20272b;--line:#fff3;--wet:#5aa9f0;--dry:#e0924f;--up:#5cc08a;--dn:#ee7a6d;--cone:#ffffff24;--conel:#ffffffaa;--trk:#f2f2f2;--s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500}
 *{box-sizing:border-box}html,body{margin:0}body{background:var(--bg);color:var(--ink);font:14px/1.4 system-ui,-apple-system,Segoe UI,sans-serif;padding:10px}
 h1{font-size:17px;margin:0 0 2px}.sub{color:var(--mut);font-size:12px;margin-bottom:8px}
 #bar{display:flex;gap:6px;align-items:center;margin-bottom:6px}
@@ -44,8 +44,14 @@ button{background:var(--card);color:var(--ink);border:1px solid var(--line);bord
 .cm.s0,.cl i.s0{background:#8a949a33}.cm.s1,.cl i.s1{background:#e0a03a66}.cm.s2,.cl i.s2{background:#e0563fbb}.cm.now{outline:2px solid var(--ink);font-weight:700}
 .cl{display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--mut)}.cl i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-left:6px}.cl i:first-child{margin-left:0}
 b.wrap{white-space:normal;text-align:right;flex:0 1 60%}
-.stc{fill:#ff4fd833;stroke:#ff8fe6aa;stroke-width:1;vector-effect:non-scaling-stroke}.stt{fill:none;stroke:#ff8fe6;stroke-width:2;stroke-dasharray:5 3;vector-effect:non-scaling-stroke}
-.mk.L-storms{border:none;background:none;width:20px;height:20px;font-size:18px;line-height:20px;text-align:center;z-index:4}.mk.L-storms span{display:block;left:22px;top:1px;font-weight:700;font-size:11px;color:#ff8fe6}
+.stc{fill:var(--cone);stroke:var(--conel);stroke-width:1.2;vector-effect:non-scaling-stroke}.stt{fill:none;stroke:var(--trk);stroke-width:1.8;stroke-dasharray:5 4;vector-effect:non-scaling-stroke}.stp{fill:none;stroke:var(--trk);stroke-width:2;opacity:.75;vector-effect:non-scaling-stroke}
+.mk.L-storms{border:none;background:none;width:34px;height:34px;z-index:4}.mk.L-storms.sfp{width:16px;height:16px;z-index:3}.mk.L-storms.sfp i{display:block;width:8px;height:8px;margin:4px;border-radius:50%;background:var(--trk)}
+.mk.L-storms .ssym{display:block;filter:drop-shadow(0 1px 2px #0008)}.spccw{animation:spn 6s linear infinite reverse;transform-origin:0 0}.spcw{animation:spn 6s linear infinite;transform-origin:0 0}@keyframes spn{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spccw,.spcw{animation:none}}
+.mk.L-storms span.stag{display:block;position:absolute;left:36px;top:7px;white-space:nowrap;font:700 10.5px/1 ui-monospace,Menlo,Consolas,monospace;letter-spacing:.04em;color:var(--ink);background:color-mix(in srgb,var(--card) 82%,transparent);border:1px solid var(--line);border-left:3px solid var(--c);border-radius:4px;padding:3px 6px;text-shadow:none}
+.ssk{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin:2px 0 2px}.ssk span{text-align:center;font:700 10px/1 ui-monospace,Menlo,monospace;padding:5px 0;border-radius:3px;background:color-mix(in srgb,var(--c) 30%,transparent);color:var(--ink)}.ssk span.on{background:var(--c);color:#0b0f12;outline:2px solid var(--ink)}
+.sskl{display:flex;justify-content:space-between;font-size:10px;color:var(--mut);margin-bottom:6px}
+.ftb{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:2px}.ftb th{text-align:left;color:var(--mut);font-weight:600;padding:3px 0;border-bottom:1px solid var(--line)}.ftb td{padding:4px 4px 4px 0;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}.fsw{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--c);margin-right:5px;vertical-align:-1px;box-shadow:0 0 0 1px #0006}
 .chip.storm{box-shadow:0 0 0 2px #ff4fd8,0 1px 4px #0003}#map.off-storms .L-storms{display:none}
 .rng{display:flex;gap:4px;margin:2px 0 6px}.rng button{font-size:11px;padding:3px 10px}.rng button.on{background:var(--ink);color:var(--bg)}
 .lgd{display:flex;gap:12px;font-size:11px;color:var(--mut);margin-bottom:4px}.lgd i{display:inline-block;width:12px;height:2px;vertical-align:middle;margin-right:5px;border-radius:1px}
@@ -450,6 +456,23 @@ $("#pst").innerHTML=`<div class="row"><span>Change 1M · 3M · 1Y</span><b>${pc(
 <div class="row"><span>Volatility (20-day, annualised)</span><b>${f(vol)}%</b></div>`;
 box.parentNode.querySelectorAll("#rng button").forEach(b=>b.onclick=()=>{CR=+b.dataset.n;box.parentNode.querySelectorAll("#rng button").forEach(x=>x.classList.toggle("on",x==b));drawChart(r)})}
 
+
+const SSC=[[34,"#5ebaff","TD","D","Depression"],[64,"#00d9d0","TS","S","Tropical storm"],[83,"#ffe66d","H1","H","Category 1"],[96,"#ffc140","H2","H","Category 2"],[113,"#ff8f20","H3","M","Category 3"],[137,"#ff5050","H4","M","Category 4"],[999,"#c23cff","H5","M","Category 5"]];
+const ssc=kt=>SSC.find(c=>(kt||0)<c[0]);
+
+function nhcT(t){if(!t)return null;let m=t.match(/(\d{1,2}):(\d{2})\s*(AM|PM)\s*([A-Z]{3,4})\s+([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})/);
+const OFF={EDT:-4,EST:-5,CDT:-5,CST:-6,MDT:-6,MST:-7,PDT:-7,PST:-8,HST:-10,AST:-4,UTC:0,GMT:0,Z:0};
+if(m){let hh=+m[1]%12+(m[3]=="PM"?12:0);const mo=["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"].indexOf(m[5].slice(0,3).toLowerCase());if(mo<0||OFF[m[4]]==null)return null;return new Date(Date.UTC(+m[7],mo,+m[6],hh-OFF[m[4]],+m[2]))}
+m=t.match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);if(m)return new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5]));return null}
+const ukT=t=>{const d=nhcT(t);return d?d.toLocaleString("en-GB",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit",hour12:false,timeZone:"Europe/London"}):(t||"—")};
+function stormSym(kt,south,sz=34,spin=true){const c=ssc(kt),col=c[1],L=c[3],hu=(kt||0)>=64,ts=(kt||0)>=34,sx=south?-1:1;
+const arms=ts?`<g transform="scale(${sx},1)" fill="none" stroke="${col}" stroke-width="${hu?4.2:3}" stroke-linecap="round"><path d="M0,-8 C-5,-15 -12,-16 -17,-12"/><path d="M0,8 C5,15 12,16 17,12"/></g>
+<g transform="scale(${sx},1)" fill="none" stroke="#0b0f12" stroke-width="${hu?1.2:1}" stroke-linecap="round" opacity=".55"><path d="M0,-8 C-5,-15 -12,-16 -17,-12"/><path d="M0,8 C5,15 12,16 17,12"/></g>`:"";
+return`<svg viewBox="-24 -24 48 48" width="${sz}" height="${sz}" class="ssym" overflow="visible" aria-hidden="true"><g class="${spin?(south?"spcw":"spccw"):""}">${arms}</g>
+<circle r="8.2" fill="${hu?col:"#0b0f12cc"}" stroke="${col}" stroke-width="2.4"/><circle r="9.6" fill="none" stroke="#0b0f12" stroke-width="1" opacity=".5"/>
+<text y="3.6" text-anchor="middle" font-size="10" font-weight="800" font-family="ui-monospace,Menlo,Consolas,monospace" fill="${hu?"#0b0f12":col}">${L}</text></svg>`}
+function sscStrip(kt){const lab=["TD","TS","1","2","3","4","5"],cur=SSC.indexOf(ssc(kt));
+return`<div class="ssk">${SSC.map((c,i)=>`<span style="--c:${c[1]}"${i==cur?' class="on"':""}>${lab[i]}</span>`).join("")}</div><div class="sskl"><span>&lt;34 kt</span><span>Saffir–Simpson scale</span><span>≥137 kt</span></div>`}
 function cat(s){const k=s.kt;if(k>=137)return"Cat 5";if(k>=113)return"Cat 4";if(k>=96)return"Cat 3";if(k>=83)return"Cat 2";if(k>=64)return"Cat 1";if(k>=34)return"Trop. storm";return"Depression"}
 function km(a,b,c,d){const r=Math.PI/180,x=Math.sin((c-a)*r/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin((d-b)*r/2)**2;return 12742*Math.asin(Math.sqrt(x))}
 function wrapPath(pts,close){let d="",pl=null;pts.forEach(([lo,la],i)=>{if(pl!==null&&Math.abs(lo-pl)>180)d+="M";else d+=i?"L":"M";d+=(lo+180).toFixed(2)+" "+(90-la).toFixed(2);pl=lo});return d+(close?"Z":"")}
@@ -459,23 +482,28 @@ const near=(la,lo)=>Math.min(...P.map(p=>km(la,lo,p[1],p[0])));
 R.forEach((r,i)=>{const d=near(r.lat,r.lon);if(d<700)out.push({n:r.n,k:"Commodity",d,i})});
 MK.forEach(m=>{const d=near(m.lat,m.lon);if(d<500)out.push({n:m.n,k:m.k=="choke"?"Chokepoint":"Port",d})});return out.sort((a,b)=>a.d-b.d)}
 function showStorm(s){const rk=atRisk(s),age=s.time?Math.round((Date.now()-new Date(s.time.endsWith("Z")?s.time:s.time+"Z"))/36e5):null;
-info(`<h2>🌀 ${s.name} · ${cat(s)}</h2>
+const cc=ssc(s.kt);info(`<h2 style="display:flex;align-items:center;gap:8px">${stormSym(s.kt,s.lat<0,40,false)}<span>${s.name} · ${cc[4]}</span></h2>${sscStrip(s.kt)}
 <div class="row"><span>Max wind</span><b>${s.kt} kt (${Math.round(s.kt*1.852)} km/h)</b></div>
 ${s.mb?`<div class="row"><span>Pressure</span><b>${s.mb} mb</b></div>`:""}
 ${s.spd!=null?`<div class="row"><span>Moving</span><b>${s.spd} mph towards the ${["N","NE","E","SE","S","SW","W","NW"][Math.round(s.dir/45)%8]}</b></div>`:""}
 <div class="row"><span>Position</span><b>${Math.abs(s.lat).toFixed(1)}°${s.lat>=0?"N":"S"} ${Math.abs(s.lon).toFixed(1)}°${s.lon>=0?"E":"W"}</b></div>
 <div class="row"><span>Source</span><b>${s.src=="NHC"?"US National Hurricane Center":"GDACS (global alerts)"}${age!=null?" · "+age+"h ago":""}</b></div>
+${s.fc&&s.fc.length?`<div class="kh">Forecast track</div><table class="ftb"><tr><th>Valid (UK)</th><th>Position</th><th>Wind</th></tr>${s.fc.map(f=>`<tr><td>${ukT(f.t)}</td><td>${Math.abs(f.p[1]).toFixed(1)}°${f.p[1]>=0?"N":"S"} ${Math.abs(f.p[0]).toFixed(1)}°${f.p[0]>=0?"E":"W"}</td><td>${f.kt!=null?`<span class="fsw" style="--c:${ssc(f.kt)[1]}"></span>${f.kt} kt · ${ssc(f.kt)[2]}`:"—"}</td></tr>`).join("")}</table>`:""}
 <div class="kh">Within reach of its forecast path</div>${rk.length?'<ul class="dl">'+rk.map(x=>`<li><b>${x.n}</b> · ${x.k}, ~${Math.round(x.d/50)*50} km</li>`).join("")+"</ul>":'<div class="note" style="margin-top:4px">No tracked commodity regions, ports or chokepoints near its path.</div>'}
 ${s.url?`<div class="note"><a href="${s.url}" target="_blank" rel="noopener" style="color:inherit">Official advisory ↗</a></div>`:""}
-<div class="note">${s.cone.length?(s.src=="NHC"?"Shaded area: forecast cone (likely path of the centre).":"Shaded area: forecast reach of 60 km/h winds."):""} Distances are rough, from the forecast track.</div>`)}
+<div class="note">Solid line: where it has been. Dashed: forecast track${s.fc.some(f=>f.kt!=null)?", dots coloured by forecast strength":""}. ${s.cone.length?(s.src=="NHC"?"Grey area: NHC forecast cone, the likely path of the centre, not the size of the storm.":"Grey area: forecast reach of 60 km/h winds."):""} Distances are rough.</div>`)}
 async function storms(){let j=null;try{const r=await fetch("storms.json?t="+Date.now());if(r.ok)j=await r.json()}catch(e){}
 document.querySelectorAll(".mk.L-storms").forEach(x=>x.remove());document.querySelectorAll(".chip.storm").forEach(x=>x.classList.remove("storm"));
 let g=OV.querySelector("g.L-storms");if(!g){g=document.createElementNS("http://www.w3.org/2000/svg","g");g.setAttribute("class","L-storms");OV.appendChild(g)}g.innerHTML="";
 STM=j?j.storms:[];
-STM.forEach((s,si)=>{s.cone.forEach(c=>g.insertAdjacentHTML("beforeend",`<path class="stc" d="${wrapPath(c,1)}"/>`));
+STM.forEach((s,si)=>{s.past=s.past||[];s.fc=s.fc||[];s.cone.forEach(c=>g.insertAdjacentHTML("beforeend",`<path class="stc" d="${wrapPath(c,1)}"/>`));
+if(s.past.length>1)g.insertAdjacentHTML("beforeend",`<path class="stp" d="${wrapPath(s.past.concat([[s.lon,s.lat]]),0)}"/>`);
 if(s.track.length>1)g.insertAdjacentHTML("beforeend",`<path class="stt" d="${wrapPath(s.track,0)}"/>`);
-const e=document.createElement("div");e.className="mk L-storms";e.style.left=X(s.lon)/3.6+"%";e.style.top=Y(s.lat)/1.8+"%";
-e.innerHTML=`🌀<span>${s.name} · ${cat(s)}</span>`;e.onclick=()=>showStorm(s);map.appendChild(e);
+const south=s.lat<0,cc=ssc(s.kt);
+s.fc.forEach((f,fi)=>{if(fi==0&&Math.abs(f.p[0]-s.lon)<.3&&Math.abs(f.p[1]-s.lat)<.3)return;const e=document.createElement("div");e.className="mk L-storms sfp";e.style.left=X(f.p[0])/3.6+"%";e.style.top=Y(f.p[1])/1.8+"%";
+e.innerHTML=f.kt!=null?stormSym(f.kt,f.p[1]<0,16,false):`<i></i>`;e.title=ukT(f.t)+" UK"+(f.kt?" · "+f.kt+" kt":"");e.onclick=()=>showStorm(s);map.appendChild(e)});
+const e=document.createElement("div");e.className="mk L-storms sym";e.style.left=X(s.lon)/3.6+"%";e.style.top=Y(s.lat)/1.8+"%";
+e.innerHTML=stormSym(s.kt,south)+`<span class="stag" style="--c:${cc[1]}">${s.name.toUpperCase()} · ${cc[2]} · ${s.kt} kt</span>`;e.onclick=()=>showStorm(s);map.appendChild(e);
 atRisk(s).forEach(x=>{if(x.i!=null){const c=$("#c"+x.i);c&&c.classList.add("storm");R[x.i].st={n:s.name,c:cat(s),d:x.d,si}}})});
 layout()}
 storms();
