@@ -1,0 +1,88 @@
+name: Update market holidays
+on:
+  schedule:
+    - cron: "15 6 * * 1"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  holidays:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install calendar libraries
+        run: pip install -q holidays==0.106 pandas_market_calendars==5.5.0
+      - name: Build exchange holiday calendar
+        run: |
+          python3 - <<'PY'
+          import datetime as dt, json, warnings
+          warnings.filterwarnings("ignore")
+          import holidays, pandas_market_calendars as mcal
+          start = dt.date.today(); end = start + dt.timedelta(days=430)
+          Y = list(range(start.year, end.year + 1))
+          def wk(h):
+              return {d: n for d, n in sorted(h.items()) if start <= d <= end and d.weekday() < 5}
+          def fin(code, lang=None):
+              return wk(holidays.financial_holidays(code, years=Y, **({"language": lang} if lang else {})))
+          def mcal_closed(name):
+              c = mcal.get_calendar(name); s = c.schedule(start_date=start, end_date=end)
+              op = set(s.index.date); d = start; out = []
+              while d <= end:
+                  if d.weekday() < 5 and d not in op: out.append(d)
+                  d += dt.timedelta(days=1)
+              return out
+          def named(days, *srcs):
+              out = {}
+              for d in days:
+                  n = None
+                  for s in srcs:
+                      for k in (0, 1, 2, 3):
+                          n = s.get(d - dt.timedelta(days=k))
+                          if n: break
+                      if n: break
+                  out[d] = n or "Exchange holiday"
+              return out
+          nyse = fin("XNYS"); cme = fin("XCME"); eng = wk(holidays.UK(subdiv="ENG", years=Y))
+          ny = mcal.get_calendar("NYSE"); nys = ny.schedule(start_date=start, end_date=end)
+          nyse_early = {d: "Early close" for d in ny.early_closes(nys).index.date}
+          for d in list(nyse_early):
+              nyse_early[d] = "Early close (day after Thanksgiving)" if d.month == 11 else "Early close (Christmas Eve)" if d.month == 12 else "Early close"
+          my = holidays.country_holidays("MY", subdiv="14", years=Y, language="en_US")
+          ecb = holidays.financial_holidays("XECB", years=Y)
+          X = []
+          def put(code, label, flag, cms, closed, short=None, early=None, note=""):
+              X.append({"code": code, "label": label, "flag": flag, "c": cms, "note": note,
+                        "closed": {d.isoformat(): n for d, n in closed.items()},
+                        "short": {d.isoformat(): n for d, n in (short or {}).items()},
+                        "early": {d.isoformat(): n for d, n in (early or {}).items()}})
+          put("CME", "CME Group (CBOT, NYMEX, COMEX)", "🇺🇸",
+              ["Corn", "Wheat", "Soybeans", "Rice", "Crude oil", "Nat gas", "Gold", "Silver", "Copper", "Platinum", "Lumber"],
+              cme, {d: n for d, n in nyse.items() if d not in cme}, nyse_early,
+              "On US holidays marked shortened, Globex trades a short session and there is no settlement that day.")
+          put("ICEUS", "ICE Futures US (softs)", "🇺🇸", ["Cocoa", "Coffee", "Sugar", "Cotton", "Orange juice"], nyse, None, nyse_early)
+          put("IFEU", "ICE Futures Europe (Brent, gasoil)", "🇬🇧", ["Crude oil"], fin("IFEU"),
+              note="Brent usually trades on other UK bank holidays.")
+          put("ICELS", "ICE London softs (cocoa, robusta, white sugar)", "🇬🇧", ["Cocoa", "Coffee", "Sugar"], eng)
+          put("LME", "London Metal Exchange", "🇬🇧", ["Copper"], eng)
+          put("EURONEXT", "Euronext (Paris wheat, rapeseed, corn)", "🇪🇺", ["Wheat", "Corn"], named(mcal_closed("XPAR"), ecb))
+          put("JPX", "Japan Exchange (OSE: gold, platinum, rubber)", "🇯🇵", ["Gold", "Platinum", "Rubber"], fin("XJPX", "en_US"),
+              note="Japanese public holiday. Osaka Exchange runs holiday trading for some derivatives, so check whether your contract trades.")
+          put("CN", "China (SHFE, DCE, ZCE, GFEX)", "🇨🇳",
+              ["Copper", "Iron ore", "Soybeans", "Palm oil", "Rubber", "Cotton", "Sugar", "Lithium", "Gold"], fin("XSHG", "en_US"),
+              note="Next year's dates are provisional until China's State Council publishes them, usually in Nov or Dec. Night sessions also stop before long holidays.")
+          put("SGX", "Singapore Exchange (iron ore, rubber)", "🇸🇬", ["Iron ore", "Rubber"], fin("XSES"))
+          put("BURSA", "Bursa Malaysia (palm oil)", "🇲🇾", ["Palm oil"], named(mcal_closed("XKLS"), my),
+              note="Islamic holiday dates depend on moon sightings and can move by a day.")
+          put("NSE", "India (NSE; MCX similar)", "🇮🇳", ["Gold", "Silver", "Crude oil", "Cotton", "Sugar"], fin("XNSE"),
+              note="MCX often runs its evening session on these days. Check MCX's own list.")
+          put("B3", "B3 Brazil (coffee, soy, corn)", "🇧🇷", ["Coffee", "Soybeans", "Corn"], fin("BVMF", "en_US"))
+          for x in X:
+              print(x["code"], len(x["closed"]), "closed,", len(x["short"]), "shortened,", len(x["early"]), "early")
+          json.dump({"updated": int(dt.datetime.now().timestamp()), "x": X}, open("holidays.json", "w"), separators=(",", ":"), ensure_ascii=False)
+          PY
+      - name: Commit if changed
+        run: |
+          git config user.name "holiday-bot"
+          git config user.email "holiday-bot@users.noreply.github.com"
+          git add holidays.json || true
+          git diff --cached --quiet || (git commit -m "Update market holidays" && git pull --rebase && git push)
