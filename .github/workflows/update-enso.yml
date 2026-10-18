@@ -1,0 +1,65 @@
+name: Update ENSO
+on:
+  schedule:
+    - cron: "0 9 * * 2,5"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  enso:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch NOAA ENSO data
+        run: |
+          python3 - <<'PY'
+          import json, re, time, html, urllib.request
+          UA = {"User-Agent": "commodity-map (github actions)"}
+          B = "https://www.cpc.ncep.noaa.gov/"
+          def get(u):
+              return urllib.request.urlopen(urllib.request.Request(u, headers=UA), timeout=60).read().decode("latin-1")
+          def seasons(txt):
+              out = []
+              for ln in txt.splitlines():
+                  p = ln.split()
+                  if len(p) >= 3 and re.fullmatch(r"[A-Z]{3}", p[0]) and p[1].isdigit():
+                      try: out.append([p[0], int(p[1]), round(float(p[-1]), 2)])
+                      except ValueError: pass
+              return out
+          out = {"updated": int(time.time())}
+          try: out["oni"] = seasons(get(B + "data/indices/oni.ascii.txt"))
+          except Exception as e: print("ONI fail", e)
+          try: out["roni"] = seasons(get(B + "data/indices/RONI.ascii.txt"))
+          except Exception as e: print("RONI fail", e)
+          try:
+              last = None
+              for ln in get(B + "data/indices/wksst9120.for").splitlines():
+                  m = re.match(r"\s*(\d{2}[A-Z]{3}\d{4})(.*)", ln)
+                  if m:
+                      nums = re.findall(r"-?\d+\.\d", m.group(2))
+                      if len(nums) >= 8: last = {"week": m.group(1), "nino34": float(nums[5])}
+              if last: out["weekly"] = last
+          except Exception as e: print("weekly fail", e)
+          try:
+              raw = get(B + "products/analysis_monitoring/enso_advisory/ensodisc.shtml")
+              txt = html.unescape(re.sub(r"<[^>]+>", " ", raw)); txt = re.sub(r"\s+", " ", txt)
+              g = lambda p: (re.search(p, txt) or [None, None])[1]
+              out["status"] = (g(r"ENSO Alert System Status:\s*(.+?)(?= Synopsis| \d{1,2} [A-Z][a-z]+ \d{4}|$)") or "").strip()
+              out["issued"] = g(r"(\d{1,2} (?:January|February|March|April|May|June|July|August|September|October|November|December) \d{4})")
+              syn = g(r"Synopsis:\s*(.+?\.)(?=\s+[A-Z]|\s*$)")
+              out["synopsis"] = (syn or "").strip()
+              out["next"] = g(r"next ENSO Diagnostics Discussion is scheduled for ([^.]+)\.")
+              sents = re.split(r"(?<=[.])\s+", txt)
+              out["odds"] = [s.strip() for s in sents if "%" in s and len(s) < 320 and "Synopsis" not in s and "Alert System" not in s][:3]
+              out["fig1"] = B + "products/analysis_monitoring/enso_advisory/figure01.gif"
+          except Exception as e: print("discussion fail", e)
+          print({k: (v if not isinstance(v, list) else f"{len(v)} rows") for k, v in out.items()})
+          if out.get("oni") or out.get("roni"):
+              json.dump(out, open("enso.json", "w"), separators=(",", ":"), ensure_ascii=False)
+          PY
+      - name: Commit if changed
+        run: |
+          git config user.name "enso-bot"
+          git config user.email "enso-bot@users.noreply.github.com"
+          git add enso.json || true
+          git diff --cached --quiet || (git commit -m "Update ENSO" && git pull --rebase && git push)
