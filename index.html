@@ -40,6 +40,10 @@ button{background:var(--card);color:var(--ink);border:1px solid var(--line);bord
 #wxc{margin:0 0 6px}.seg{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:5px}.seg button{font-size:12px;padding:4px 10px}.seg button.on{background:var(--ink);color:var(--bg)}
 .wrow{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--mut);margin-bottom:3px}#wxt{flex:1;accent-color:#4aa8e8}#wxtl{min-width:118px;text-align:right}
 #wxlg{display:flex;align-items:center;gap:6px;flex:1}#wxlg i{display:block;height:8px;flex:1;border-radius:4px;border:1px solid var(--line)}#wxs{font-size:10px}
+.cal{display:grid;grid-template-columns:repeat(12,1fr);gap:2px;margin:6px 0 4px}.cm{text-align:center;font-size:10px;padding:4px 0;border-radius:4px;color:var(--ink)}
+.cm.s0,.cl i.s0{background:#8a949a33}.cm.s1,.cl i.s1{background:#e0a03a66}.cm.s2,.cl i.s2{background:#e0563fbb}.cm.now{outline:2px solid var(--ink);font-weight:700}
+.cl{display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--mut)}.cl i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-left:6px}.cl i:first-child{margin-left:0}
+b.wrap{white-space:normal;text-align:right;flex:0 1 60%}
 </style></head><body>
 <h1>Commodity Weather Map</h1>
 <div class="sub">Growing regions, shipping lanes, pipelines, chokepoints. Tap anything; toggle layers below.</div>
@@ -159,7 +163,7 @@ wx.id="wx";wp.id="wp";OV.id="ov";OV.setAttribute("viewBox","0 0 360 180");OV.set
 OV.innerHTML=`<path class="cst" d="${LAND}"/>`;SV.after(wx,wp,OV);
 [".bd",".L-lanes",".L-pipes"].forEach(s=>{const n=SV.querySelector(s);if(n)OV.appendChild(n)});
 const SC={t:[[-35,"#7b3fa0"],[-20,"#3b5bd6"],[-8,"#4aa8e8"],[0,"#a9e3f2"],[8,"#5cc489"],[16,"#c9de52"],[24,"#f2b632"],[32,"#ea6a2a"],[42,"#b51f3a"]],
-p:[[0,"#2a7fd400"],[.3,"#4aa3ff66"],[1.5,"#2f7de0cc"],[4,"#36b37e"],[8,"#f0d43a"],[15,"#f08a2a"],[30,"#d0304a"],[60,"#a03cc0"]],
+p:[[0,"#2a7fd400"],[.6,"#4aa3ff00"],[1.5,"#4aa3ff99"],[3,"#2f7de0dd"],[4,"#36b37e"],[8,"#f0d43a"],[15,"#f08a2a"],[30,"#d0304a"],[60,"#a03cc0"]],
 w:[[0,"#2b3d7a"],[3,"#2f78b8"],[6,"#2fb0a8"],[9,"#5cc45c"],[12,"#d6d64a"],[16,"#f0a03a"],[20,"#e0503a"],[28,"#a8307a"]]};
 const UN={t:"°C",p:"mm / 6h",w:"m/s"};
 function hx(c){const n=parseInt(c.slice(1),16);return c.length>7?[n>>>24&255,n>>16&255,n>>8&255,(n&255)/255]:[n>>16&255,n>>8&255,n&255,1]}
@@ -260,7 +264,29 @@ let PX={};
 function drv(r){const d=DRV[r.n];if(!d)return"";let s='<div class="kh">Drivers to watch</div>';
 d[0].forEach(k=>{const m=MAC[k],q=PX[k];s+=`<div class="row"><span>${m[0]}<small class="dn2">${m[2]}</small></span><b>${q?f(q.price,m[1])+` <i class="${q.price>=q.prev?"up":"dn"}">${q.price>=q.prev?"▲":"▼"}${f(Math.abs((q.price/q.prev-1)*100))}%</i>`:"—"}</b></div>`});
 return s+'<ul class="dl">'+d[1].map(x=>"<li>"+x+"</li>").join("")+"</ul>"}
-function sig(r){const w=r.w;if(!w)return["","No weather data"];if(r.n=="Nat gas"){if(w.tn==null)return["","No temperature data"];if(r.ct==null)return["","Temperature normal not loaded yet"];const d=w.tn-r.ct,mo=new Date().getMonth()+1,win=mo>=10||mo<=3,sum=mo>=5&&mo<=9;if(Math.abs(d)<2.5)return["","Temperature close to normal"];if(d<0)return win?["cold","Colder than normal: heating demand up"]:["","Cooler than normal: little effect off-season"];return sum?["hot","Hotter than normal: cooling demand up"]:win?["","Milder than normal: heating demand down"]:["","Warmer than normal: little effect off-season"]}
+const MO="JFMAMJJASOND",MN=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const CAL={
+"Cocoa":[[[12,1,2,3],"Main crop harvest in the Harmattan dry season; dryness hurts next crop",2],[[4,5,6,7],"Main rainy season: mid-crop harvest, pods set for main crop",2],[[8],"Short dry spell",1],[[9,10,11],"Short rains; main crop harvest starts in October",2]],
+"Coffee":[[[12,1,2,3],"Bean filling: needs steady rain",2],[[4,5],"Ripening; harvest starts in May",1],[[6,7,8],"Harvest; frost risk in the coffee belt",2],[[9,10,11],"Flowering after the first rains: critical",2]],
+"Wheat":[[[9,10],"Winter wheat sowing: needs soil moisture",2],[[11,12,1,2],"Winter dormancy; frost-kill risk without snow cover",1],[[3,4],"Spring regrowth",1],[[5,6],"Flowering and grain fill: critical",2],[[7,8],"Harvest; rain hurts quality",1]],
+"Palm oil":[[[1,2,3,4],"Seasonally low output",1],[[5,6,7],"Output rising",1],[[8,9,10,11],"Peak output season",1],[[12],"Output easing; monsoon rain can slow harvesting",1]],
+"Sugar":[[[1,2,3,4],"Crushing season; new planting",1],[[5],"Hot, dry pre-monsoon",1],[[6,7,8,9],"Monsoon: drives cane growth, critical",2],[[10,11,12],"Crushing season begins",1]],
+"Corn":[[[12,1,2,3],"Off-season",0],[[4,5],"Planting: wet fields cause delays",1],[[6],"Vegetative growth",1],[[7],"Pollination: most critical month",2],[[8],"Grain fill: needs rain",2],[[9,10,11],"Harvest",1]],
+"Cotton":[[[12,1,2,3,4],"Off-season",0],[[5,6],"Planting: needs soil moisture",2],[[7,8],"Flowering and boll set: needs rain",2],[[9,10,11],"Harvest; rain hurts fibre quality",1]],
+"Soybeans":[[[5,6,7,8],"Dry season, off-season",0],[[9,10,11],"Planting with the first rains: critical",2],[[12,1],"Flowering and pod fill: critical",2],[[2,3,4],"Harvest; heavy rain delays it",1]],
+"Orange juice":[[[12,1,2],"Harvest; freeze risk",2],[[3,4,5],"Bloom and Valencia harvest",1],[[6,7],"Hurricane season starts",1],[[8,9,10],"Hurricane season peak",2],[[11],"Harvest begins",1]],
+"Rubber":[[[2,3,4],"Wintering: leaf fall, low output",1],[[5,6,7,8,9],"Main tapping season",1],[[10,11,12],"Monsoon: heavy rain stops tapping",2],[[1],"Tapping; output easing",1]],
+"Rice":[[[12,1,2,3,4,5],"Off-season (wheat grown instead)",0],[[6,7],"Transplanting with the monsoon: critical",2],[[8,9],"Growth and flowering: needs rain",2],[[10,11],"Harvest",1]],
+"Lumber":[[[12,1,2],"Winter logging",0],[[3,4,5],"Spring thaw slows logging",1],[[6],"Fire season starts",1],[[7,8,9],"Wildfire peak: dry heat risk",2],[[10,11],"Autumn logging",0]]};
+function stg(r){const c=CAL[r.n];if(!c)return null;const m=new Date().getMonth()+1;return c.find(s=>s[0].includes(m))}
+function cal(r){const c=CAL[r.n];if(!c)return"";const m=new Date().getMonth()+1,s=stg(r);
+let cells="";for(let i=1;i<=12;i++){const q=c.find(x=>x[0].includes(i));cells+=`<span class="cm s${q?q[2]:0}${i==m?" now":""}">${MO[i-1]}</span>`}
+const rng=a=>a.length==1?MN[a[0]-1]:MN[a[0]-1]+"–"+MN[a[a.length-1]-1];
+return `<div class="kh">Crop calendar</div><div class="row"><span>Stage now</span><b class="wrap">${s?s[1]:"—"}</b></div><div class="cal">${cells}</div><div class="cl"><i class="s0"></i>little impact<i class="s1"></i>moderate<i class="s2"></i>weather critical</div><ul class="dl">${c.map(x=>`<li><b>${rng(x[0])}</b> · ${x[1]}</li>`).join("")}</ul>`}
+function sig(r){const s=sig0(r),t=stg(r);if(!t||r.nw||!r.w)return s;
+if(t[2]==0)return["","Off-season, so weather matters little now"+(s[0]?" ("+s[1].split(":")[0].toLowerCase()+")":"")];
+if(!s[0])return s;return t[2]==2?[s[0],s[1]+" · at a critical stage"]:[s[0],s[1]+" · moderate impact at this stage"]}
+function sig0(r){const w=r.w;if(!w)return["","No weather data"];if(r.n=="Nat gas"){if(w.tn==null)return["","No temperature data"];if(r.ct==null)return["","Temperature normal not loaded yet"];const d=w.tn-r.ct,mo=new Date().getMonth()+1,win=mo>=10||mo<=3,sum=mo>=5&&mo<=9;if(Math.abs(d)<2.5)return["","Temperature close to normal"];if(d<0)return win?["cold","Colder than normal: heating demand up"]:["","Cooler than normal: little effect off-season"];return sum?["hot","Hotter than normal: cooling demand up"]:win?["","Milder than normal: heating demand down"]:["","Warmer than normal: little effect off-season"]}
 if(r.nw)return["","Weather is a weak driver: see drivers below"];const n=r.cn;
 if(n==null)return w.past>=60?["wet","Wet: heavy rain over last 7 days"]:(w.past<=5&&w.next<=5)?["dry","Dry: little rain past and next 7 days"]:["","Rainfall unremarkable (no seasonal data yet)"];
 const d=w.past-n,pc=n>=5?Math.round(d/n*100):null;
@@ -274,7 +300,7 @@ ${r.nw?"":`<div class="row"><span>Rain, last 7 days</span><b>${w?f(w.past)+" mm"
 <div class="row"><span>Rain, next 7 days</span><b>${w?f(w.next)+" mm":"—"}${r.cx!=null?" (normal "+f(r.cx)+")":""}</b></div>
 `}${r.nw&&r.n!="Nat gas"?"":`<div class="row"><span>Temp, next 7 days avg</span><b>${w&&w.tn!=null?f(w.tn)+"°C":"—"}${r.ct!=null?" (normal "+f(r.ct)+")":""}</b></div>
 <div class="row"><span>Now</span><b>${w?f(w.t)+"°C · cloud "+f(w.cl,0)+"%":"—"}</b></div>
-`}<div class="row"><span>Signal</span><b>${flag}</b></div>
+`}<div class="row"><span>Signal</span><b class="wrap">${flag}</b></div>${cal(r)}
 ${drv(r)}<div class="note">These are leading indicators, not guarantees: markets already price in forecasts.</div>`)}
 R.forEach((r,i)=>paint(i));
 let wOK=false,pOK=0;
