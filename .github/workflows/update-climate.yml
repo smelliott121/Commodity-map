@@ -15,7 +15,8 @@ jobs:
           python3 - <<'PY'
           import json, time, datetime as dt, urllib.request, urllib.parse
           R = {"Cocoa":(6.8,-5.3),"Coffee":(-19,-46),"Wheat":(49,32),"Palm oil":(2,101),
-               "Copper":(-24,-69),"Sugar":(18.5,76),"Corn":(42,-93.5),"Cotton":(32,-101)}
+               "Copper":(-24,-69),"Sugar":(18.5,76),"Corn":(42,-93.5),"Cotton":(32,-101),
+               "Soybeans":(-12.5,-55.5),"Lumber":(53,-123),"Orange juice":(28,-81.5),"Rubber":(7.5,100),"Rice":(30.5,75.5),"Nat gas":(41,-78)}
           today = dt.date.today()
           y1 = today.year - 1
           y0 = y1 - 14
@@ -24,25 +25,30 @@ jobs:
               try:
                   q = urllib.parse.urlencode({"latitude": lat, "longitude": lon,
                       "start_date": f"{y0}-01-01", "end_date": f"{y1}-12-31",
-                      "daily": "precipitation_sum", "timezone": "UTC"})
+                      "daily": "precipitation_sum,temperature_2m_mean", "timezone": "UTC"})
                   j = json.load(urllib.request.urlopen("https://archive-api.open-meteo.com/v1/archive?" + q, timeout=90))
                   days = dict(zip(j["daily"]["time"], j["daily"]["precipitation_sum"]))
-                  def win(y, a, b):
+                  temps = dict(zip(j["daily"]["time"], j["daily"]["temperature_2m_mean"]))
+                  def win(y, a, b, src=None):
+                      src = days if src is None else src
                       s = 0
                       for k in range(a, b):
                           try:
                               d = dt.date(y, today.month, today.day) + dt.timedelta(days=k)
                           except ValueError:
                               return None
-                          v = days.get(d.isoformat())
+                          v = src.get(d.isoformat())
                           if v is None:
                               return None
                           s += v
                       return s
                   past = [x for x in (win(y, -7, 0) for y in range(y0, y1 + 1)) if x is not None]
                   nxt = [x for x in (win(y, 0, 7) for y in range(y0, y1 + 1)) if x is not None]
+                  tn = [x / 7 for x in (win(y, 0, 7, temps) for y in range(y0, y1 + 1)) if x is not None]
                   if past and nxt:
                       out[name] = {"past": round(sum(past) / len(past), 1), "next": round(sum(nxt) / len(nxt), 1)}
+                      if tn:
+                          out[name]["tnext"] = round(sum(tn) / len(tn), 1)
               except Exception as e:
                   print("fail", name, e)
               time.sleep(2)
