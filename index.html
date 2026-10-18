@@ -238,7 +238,7 @@ const rw=document.createElement("div");rw.className="tr";const k=document.create
 tt.style.display="";const X0=(i-a)*bw,tw=tt.offsetWidth;tt.style.left=(X0>W/2?Math.max(0,X0-tw-8):Math.min(W-tw,X0+bw+8))+"px"};
 hit.addEventListener("pointermove",mv);hit.addEventListener("pointerdown",mv);hit.addEventListener("pointerleave",()=>{tt.style.display="none";box.querySelectorAll("rect.hv").forEach(b=>b.classList.remove("hv"))});
 const L=mm[N-1],wk=N>1?L-mm[N-2]:0,hist=mm.slice(Math.max(0,N-156)),pct=Math.round(hist.filter(v=>v<L).length/(hist.length-1||1)*100);
-const lab=pct>=90?"Crowded long: near a 3-year high":pct>=75?"Heavily long":pct<=10?"Crowded short: near a 3-year low":pct<=25?"Heavily short":"Middle of its 3-year range";
+const lg=L>=0,lab=pct>=90?(lg?"Crowded long: near a 3-year high":"Least short in 3 years"):pct>=75?(lg?"Heavily long vs its history":"Shorts shrinking vs its history"):pct<=10?(lg?"Least long in 3 years":"Crowded short: near a 3-year low"):pct<=25?(lg?"Lightly long vs its history":"Heavily short vs its history"):"Middle of its 3-year range";
 const oi=c.oi[N-1],dt=new Date(c.d[N-1]).toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short",timeZone:"UTC"});
 $("#cst").innerHTML=`<div class="row"><span>Funds net (managed money)</span><b>${fmtK(L)} contracts${oi?` · ${(Math.abs(L)/oi*100).toFixed(0)}% of OI`:""}</b></div>
 <div class="row"><span>Change on the week</span><b><i class="${wk>=0?"up":"dn"}">${wk>=0?"▲":"▼"}${Math.abs(wk).toLocaleString("en")}</i></b></div>
