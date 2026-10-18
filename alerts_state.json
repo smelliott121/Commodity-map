@@ -1,0 +1,62 @@
+{
+"cot": {
+"Cocoa": "crowded short",
+"Coffee": null,
+"Copper": null,
+"Corn": null,
+"Cotton": null,
+"Crude oil": null,
+"Gold": null,
+"Lithium": null,
+"Lumber": "crowded short",
+"Nat gas": "crowded short",
+"Orange juice": null,
+"Palm oil": null,
+"Platinum": null,
+"Rice": null,
+"Silver": null,
+"Soybeans": "crowded long",
+"Sugar": "crowded long",
+"Wheat": null
+},
+"enso": {
+"status": "El Ni\u00f1o Advisory",
+"str": "strong"
+},
+"last_run": "2026-10-18T22:53:50.019133+00:00",
+"seen": {
+"cot:Cocoa:2026-10-13": 1792364030.019133,
+"cot:Lumber:2026-10-13": 1792364030.019133,
+"cot:Nat gas:2026-10-13": 1792364030.019133,
+"cot:Soybeans:2026-10-13": 1792364030.019133,
+"cot:Sugar:2026-10-13": 1792364030.019133,
+"wx:Cocoa:wet": 1792364030.019133,
+"wx:Coffee:wet": 1792364030.019133
+},
+"storms": {
+"1001338": {
+"hits": [],
+"lvl": 3,
+"t": 1792364030.019133
+},
+"ep212026": {
+"hits": [
+"Silver (~600 km)"
+],
+"lvl": 2,
+"t": 1792364030.019133
+}
+},
+"wk": "2026-10-18",
+"wx": {
+"wx:Cocoa": "wet",
+"wx:Coffee": "wet",
+"wx:Corn": null,
+"wx:Lumber": null,
+"wx:Orange juice": null,
+"wx:Rice": null,
+"wx:Soybeans": null,
+"wx:Sugar": "dry",
+"wx:Wheat": null
+}
+}
