@@ -55,6 +55,7 @@ b.wrap{white-space:normal;text-align:right;flex:0 1 60%}
 .tt{position:absolute;top:2px;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-size:11px;box-shadow:0 2px 8px #0004;pointer-events:none;white-space:nowrap}
 .tt .th{color:var(--mut);margin-bottom:2px}.tt .tr{display:flex;align-items:center;gap:6px}.tt .tr i{width:10px;height:2px}.tt .tr b{font-variant-numeric:tabular-nums}.tt .tr span{color:var(--mut)}
 .rb{position:relative;height:6px;border-radius:3px;background:var(--line);margin:2px 0 6px}.rb i{position:absolute;top:-3px;width:4px;height:12px;margin-left:-2px;border-radius:2px;background:var(--ink)}
+.cb1{fill:var(--s1)}.cb2{fill:var(--s2)}rect.hv{opacity:.65}
 </style></head><body>
 <h1>Commodity Weather Map</h1>
 <div class="sub">Growing regions, shipping lanes, pipelines, chokepoints. Tap anything; toggle layers below.</div>
@@ -218,6 +219,33 @@ for(const u of urls){try{const r=await fetch(u);if(r.ok){G=await r.json();break}
 if(G){$("#wxt").max=G.times.length-1;$("#wxs").textContent="Model data via Open-Meteo, updated "+new Date(G.updated*1000).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}
 else $("#wxs").textContent="Weather layer not available yet";tlabel();wxResize()}
 segs();grid();
+let COT=null;(async()=>{try{const r=await fetch("cot.json?t="+(Date.now()/3e5|0));if(r.ok)COT=await r.json()}catch(e){}})();
+function cotHTML(r){if(r.n=="Rubber"||r.n=="Iron ore")return`<div class="kh">Fund positioning</div><div class="note">The CFTC doesn't report this market.</div>`;
+return`<div class="kh">Fund positioning · CFTC, weekly</div><div class="lgd"><span><i style="background:var(--s1)"></i>Net long</span><span><i style="background:var(--s2)"></i>Net short</span><span>managed money, last 52 weeks</span></div><div id="cc" class="pc"><div class="note">Loading positioning…</div></div><div id="cst"></div>`}
+function drawCot(r){const box=$("#cc");if(!box)return;const c=COT&&COT.c[r.n];
+if(!c){box.innerHTML=`<div class="note">${COT?"No CFTC data for this market.":"Positioning not loaded yet. Run the Update COT positioning job."}</div>`;return}
+const N=c.d.length,a=Math.max(0,N-52),mm=c.mm,W=box.clientWidth||340,Ht=120,pr=44,pt=8,pb=18,iw=W-pr,ih=Ht-pt-pb;
+const sl=mm.slice(a),mx=Math.max(1,...sl.map(Math.abs)),y0=pt+ih/2,sc=v=>v/mx*(ih/2),bw=iw/(N-a),fmtK=v=>(v<0?"−":"+")+Math.abs(v).toLocaleString("en");
+let g=`<line x1="0" x2="${iw}" y1="${y0}" y2="${y0}" class="gl"/><text x="${W-2}" y="${pt+8}" class="ax" text-anchor="end">${fmtK(Math.round(mx/1000))}k</text><text x="${W-2}" y="${y0+3.5}" class="ax" text-anchor="end">0</text><text x="${W-2}" y="${pt+ih}" class="ax" text-anchor="end">${fmtK(-Math.round(mx/1000))}k</text>`;
+for(let i=a;i<N;i++){const v=mm[i],hgt=Math.max(1,Math.abs(sc(v))),xx=(i-a)*bw+.75;g+=`<rect x="${xx.toFixed(1)}" y="${(v>=0?y0-hgt:y0).toFixed(1)}" width="${Math.max(1,bw-1.5).toFixed(1)}" height="${hgt.toFixed(1)}" rx="1.5" class="${v>=0?"cb1":"cb2"}" data-i="${i}"/>`}
+let lm=-1;for(let i=a;i<N;i++){const mo=+c.d[i].slice(5,7);if(mo!=lm&&i>a&&mo%3==1)g+=`<text x="${((i-a)*bw).toFixed(1)}" y="${Ht-4}" class="ax">${new Date(c.d[i]).toLocaleDateString("en-GB",{month:"short",timeZone:"UTC"})}</text>`;lm=mo}
+box.innerHTML=`<svg width="${W}" height="${Ht}" class="chs">${g}<rect x="0" y="0" width="${iw}" height="${Ht}" fill="transparent" id="chit2"/></svg><div class="tt" id="tt2" style="display:none"></div>`;
+const hit=box.querySelector("#chit2"),tt=box.querySelector("#tt2");
+const mv=e=>{const px=e.clientX-hit.getBoundingClientRect().left,i=Math.max(a,Math.min(N-1,a+Math.floor(px/bw)));
+box.querySelectorAll("rect[data-i]").forEach(b=>b.classList.toggle("hv",+b.dataset.i==i));
+tt.textContent="";const hd=document.createElement("div");hd.className="th";hd.textContent=new Date(c.d[i]).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric",timeZone:"UTC"});
+const rw=document.createElement("div");rw.className="tr";const k=document.createElement("i");k.style.background=`var(${mm[i]>=0?"--s1":"--s2"})`;const b=document.createElement("b");b.textContent=fmtK(mm[i]);const s=document.createElement("span");s.textContent=(c.oi[i]?(Math.abs(mm[i])/c.oi[i]*100).toFixed(0)+"% of OI":"");rw.append(k,b,s);tt.append(hd,rw);
+tt.style.display="";const X0=(i-a)*bw,tw=tt.offsetWidth;tt.style.left=(X0>W/2?Math.max(0,X0-tw-8):Math.min(W-tw,X0+bw+8))+"px"};
+hit.addEventListener("pointermove",mv);hit.addEventListener("pointerdown",mv);hit.addEventListener("pointerleave",()=>{tt.style.display="none";box.querySelectorAll("rect.hv").forEach(b=>b.classList.remove("hv"))});
+const L=mm[N-1],wk=N>1?L-mm[N-2]:0,hist=mm.slice(Math.max(0,N-156)),pct=Math.round(hist.filter(v=>v<L).length/(hist.length-1||1)*100);
+const lab=pct>=90?"Crowded long: near a 3-year high":pct>=75?"Heavily long":pct<=10?"Crowded short: near a 3-year low":pct<=25?"Heavily short":"Middle of its 3-year range";
+const oi=c.oi[N-1],dt=new Date(c.d[N-1]).toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short",timeZone:"UTC"});
+$("#cst").innerHTML=`<div class="row"><span>Funds net (managed money)</span><b>${fmtK(L)} contracts${oi?` · ${(Math.abs(L)/oi*100).toFixed(0)}% of OI`:""}</b></div>
+<div class="row"><span>Change on the week</span><b><i class="${wk>=0?"up":"dn"}">${wk>=0?"▲":"▼"}${Math.abs(wk).toLocaleString("en")}</i></b></div>
+<div class="row"><span>3-year percentile</span><b class="wrap">${pct}${(pct%100>10&&pct%100<14)?"th":["th","st","nd","rd"][pct%10]||"th"} · ${lab}</b></div><div class="rb"><i style="left:${pct}%"></i></div>
+<div class="row"><span>Producers & merchants net</span><b>${fmtK(c.pm[N-1])}</b></div>
+<div class="note">As of ${dt}, published the following Friday.${r.n=="Crude oil"?" Uses WTI (NYMEX) positioning; Brent is not reported by the CFTC.":""} Extreme positioning can mean a crowded trade at risk of reversing, not a timing signal on its own.</div>`}
+
 let HI=null;
 function rawUrls(br,file){const m=location.hostname.match(/^([^.]+)\.github\.io$/),rp=location.pathname.split("/")[1];
 return m&&rp?[`https://raw.githubusercontent.com/${m[1]}/${rp}/${br}/${file}?t=${Date.now()/3e5|0}`,file]:[file]}
@@ -381,13 +409,13 @@ if(w.past<n*.5&&-d>15)return["dry","Dry: "+(pc!=null?pc+"% vs normal":"well belo
 return["","Close to normal for the season"]}
 function show(i){const r=R[i],w=r.w,flag=sig(r)[1];
 info(`<h2>${r.n} · ${r.loc}</h2>
-<div class="row"><span>Price ${r.live?"(delayed)":"(SAMPLE)"}</span><b>${f(r.p,r.p<20?2:0)} ${r.u}</b></div>${chartHTML(r)}
+<div class="row"><span>Price ${r.live?"(delayed)":"(SAMPLE)"}</span><b>${f(r.p,r.p<20?2:0)} ${r.u}</b></div>${chartHTML(r)}${cotHTML(r)}
 ${r.nw?"":`<div class="row"><span>Rain, last 7 days</span><b>${w?f(w.past)+" mm":"—"}${r.cn!=null?" (normal "+f(r.cn)+")":""}</b></div>
 <div class="row"><span>Rain, next 7 days</span><b>${w?f(w.next)+" mm":"—"}${r.cx!=null?" (normal "+f(r.cx)+")":""}</b></div>
 `}${r.nw&&r.n!="Nat gas"?"":`<div class="row"><span>Temp, next 7 days avg</span><b>${w&&w.tn!=null?f(w.tn)+"°C":"—"}${r.ct!=null?" (normal "+f(r.ct)+")":""}</b></div>
 <div class="row"><span>Now</span><b>${w?f(w.t)+"°C · cloud "+f(w.cl,0)+"%":"—"}</b></div>
 `}${r.st?`<div class="row" style="cursor:pointer" onclick="showStorm(STM[${r.st.si}])"><span>🌀 Storm nearby</span><b class="wrap">${r.st.n} (${r.st.c}), ~${Math.round(r.st.d/50)*50} km from its path ›</b></div>`:""}<div class="row"><span>Signal</span><b class="wrap">${flag}</b></div>${cal(r)}
-${drv(r)}<div class="note">These are leading indicators, not guarantees: markets already price in forecasts.</div>`);setTimeout(()=>drawChart(r),0)}
+${drv(r)}<div class="note">These are leading indicators, not guarantees: markets already price in forecasts.</div>`);setTimeout(()=>{drawChart(r);drawCot(r)},0)}
 R.forEach((r,i)=>paint(i));
 let wOK=false,pOK=0;
 async function weather(){try{const q=k=>R.map(r=>r[k]).join(",");
