@@ -14,7 +14,7 @@ jobs:
         run: |
           python3 - <<'PY'
           import json, time, urllib.request
-          SYMS = ["CC=F","KC=F","ZW=F","HG=F","SB=F","ZC=F","CT=F","CL=F","NG=F","ZS=F","GC=F"]
+          SYMS = ["CC=F","KC=F","ZW=F","HG=F","SB=F","ZC=F","CT=F","BZ=F","NG=F","ZS=F","GC=F","SI=F","PL=F","LBR=F","OJ=F","ZR=F","TIO=F","CL=F","ZL=F","DX-Y.NYB","^TNX","^VIX","BRL=X","ZAR=X","CNY=X","INR=X","MYR=X","CAD=X","000001.SS","LIT","ITB"]
           out = {}
           for s in SYMS:
               for host in ("query1", "query2"):
