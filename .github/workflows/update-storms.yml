@@ -39,9 +39,19 @@ jobs:
                         "lat": s.get("latitudeNumeric"), "lon": s.get("longitudeNumeric"),
                         "dir": s.get("movementDir"), "spd": s.get("movementSpeed"),
                         "time": s.get("lastUpdate"), "url": (s.get("forecastGraphics") or {}).get("url"),
-                        "track": [], "cone": []}
+                        "track": [], "cone": [], "past": [], "fc": []}
                   try:
                       k = kml_of(s["forecastTrack"]["kmzFile"])
+                      for blk in re.findall(r"<Placemark[^>]*>(.*?)</Placemark>", k, re.S):
+                          pt = re.search(r"<Point>.*?<coordinates>(.*?)</coordinates>", blk, re.S)
+                          if not pt:
+                              continue
+                          c = coords(pt.group(1))
+                          if not c:
+                              continue
+                          kt = re.search(r"Maximum Wind:\D{0,60}?(\d{2,3})\s*(?:knots|kt)", blk)
+                          vt = re.search(r"Valid at:\s*(?:</?t[dh][^>]*>\s*)*([^<\n]{6,60})", blk)
+                          st["fc"].append({"p": c[0], "kt": int(kt.group(1)) if kt else None, "t": vt.group(1).strip() if vt else None})
                       ls = re.findall(r"<LineString>.*?<coordinates>(.*?)</coordinates>", k, re.S)
                       if ls:
                           st["track"] = max((coords(x) for x in ls), key=len)
@@ -54,6 +64,14 @@ jobs:
                       st["cone"] = [coords(x) for x in re.findall(r"<outerBoundaryIs>.*?<coordinates>(.*?)</coordinates>", k, re.S)]
                   except Exception as e:
                       print("cone fail", st["name"], e)
+                  try:
+                      k = kml_of(s["bestTrackGIS"]["kmzFile"])
+                      ls = [coords(x) for x in re.findall(r"<LineString>.*?<coordinates>(.*?)</coordinates>", k, re.S)]
+                      if ls:
+                          pts = [c for seg in ls for c in seg]
+                          st["past"] = pts[-120:]
+                  except Exception as e:
+                      print("best track fail", st["name"], e)
                   storms.append(st)
           except Exception as e:
               print("NHC fail", e)
@@ -76,7 +94,7 @@ jobs:
                   kmh = float((p.get("severitydata") or {}).get("severity") or 0)
                   st = {"src": "GDACS", "id": str(p.get("eventid")), "name": p.get("eventname", "").split("-")[0].title(),
                         "cls": "TC", "kt": round(kmh / 1.852), "lat": lat, "lon": lon, "time": p.get("todate"),
-                        "alert": p.get("alertlevel"), "url": (p.get("url") or {}).get("report"), "track": [], "cone": []}
+                        "alert": p.get("alertlevel"), "url": (p.get("url") or {}).get("report"), "track": [], "cone": [], "past": [], "fc": []}
                   try:
                       g = get(f"https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=TC&eventid={p['eventid']}&episodeid={p['episodeid']}")
                       pts = {}
@@ -91,7 +109,11 @@ jobs:
                           elif gp.get("polygonlabel") == "60 km/h" and not gp.get("featuretype"):
                               step = max(1, len(ring) // 300)
                               st["cone"].append([[round(c[0], 2), round(c[1], 2)] for c in ring[::step]])
-                      st["track"] = [pts[k] for k in sorted(pts) if k]
+                      ks = [k for k in sorted(pts) if k]
+                      nowiso = dt.datetime.utcnow().isoformat()
+                      st["past"] = [pts[k] for k in ks if k <= nowiso]
+                      st["track"] = ([st["past"][-1]] if st["past"] else []) + [pts[k] for k in ks if k > nowiso]
+                      st["fc"] = [{"p": pts[k], "kt": None, "t": k[:16].replace("T", " ") + " UTC"} for k in ks if k > nowiso]
                   except Exception as e:
                       print("gdacs geom fail", st["name"], e)
                   storms.append(st)
