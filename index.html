@@ -1,8 +1,8 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><link rel="manifest" href="manifest.json"><meta name="theme-color" content="#14181a"><link rel="icon" href="icon-192.png"><title>Commodity Weather Map</title>
 <style>
-:root{--bg:#f4f1ea;--sea:#dfe9ee;--land:#c5d0b3;--ink:#1d2327;--mut:#5d676d;--card:#fff;--line:#0002;--wet:#1f6fb5;--dry:#b5651f;--up:#2d7a4f;--dn:#b3382c;--s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14181a;--sea:#1b2a33;--land:#34402f;--ink:#e8ecee;--mut:#9aa5ab;--card:#20272b;--line:#fff3;--wet:#5aa9f0;--dry:#e0924f;--up:#5cc08a;--dn:#ee7a6d;--s1:#3987e5;--s2:#d95926;--s3:#199e70}}
-:root[data-theme="dark"]{--bg:#14181a;--sea:#1b2a33;--land:#34402f;--ink:#e8ecee;--mut:#9aa5ab;--card:#20272b;--line:#fff3;--wet:#5aa9f0;--dry:#e0924f;--up:#5cc08a;--dn:#ee7a6d;--s1:#3987e5;--s2:#d95926;--s3:#199e70}
+:root{--bg:#f4f1ea;--sea:#dfe9ee;--land:#c5d0b3;--ink:#1d2327;--mut:#5d676d;--card:#fff;--line:#0002;--wet:#1f6fb5;--dry:#b5651f;--up:#2d7a4f;--dn:#b3382c;--s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s4:#eda100;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14181a;--sea:#1b2a33;--land:#34402f;--ink:#e8ecee;--mut:#9aa5ab;--card:#20272b;--line:#fff3;--wet:#5aa9f0;--dry:#e0924f;--up:#5cc08a;--dn:#ee7a6d;--s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500}}
+:root[data-theme="dark"]{--bg:#14181a;--sea:#1b2a33;--land:#34402f;--ink:#e8ecee;--mut:#9aa5ab;--card:#20272b;--line:#fff3;--wet:#5aa9f0;--dry:#e0924f;--up:#5cc08a;--dn:#ee7a6d;--s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500}
 *{box-sizing:border-box}html,body{margin:0}body{background:var(--bg);color:var(--ink);font:14px/1.4 system-ui,-apple-system,Segoe UI,sans-serif;padding:10px}
 h1{font-size:17px;margin:0 0 2px}.sub{color:var(--mut);font-size:12px;margin-bottom:8px}
 #bar{display:flex;gap:6px;align-items:center;margin-bottom:6px}
@@ -68,10 +68,14 @@ b.wrap{white-space:normal;text-align:right;flex:0 1 60%}
 .evr b{display:block;font-size:13px}.evr small{display:block;color:var(--mut);font-size:11px;line-height:1.35}.evr .tg{font-size:10.5px}
 .chip.evsoon b::after{content:" ⏱";font-weight:400}
 .evr small.hx{color:var(--ink);font-size:11.5px;margin-top:2px}.evr small.hx b{display:inline;font-size:inherit;color:var(--mut);font-weight:600}.evr small.hn{margin:0 0 2px 0;font-style:italic}
+.enb{font-size:12px;padding:5px 10px;border-radius:999px;font-weight:600}.enb.pos{background:#eb683426;border-color:#eb683499}.enb.neg{background:#2a78d626;border-color:#2a78d699}
+.enr{stroke-width:1;vector-effect:non-scaling-stroke;stroke-dasharray:4 3;pointer-events:all;cursor:pointer}.en-dry{fill:#c8742f40;stroke:#e0924f}.en-wet{fill:#2a78d640;stroke:#5aa9f0}.en-warm{fill:#e0563f30;stroke:#ee7a6d}.en-cold{fill:#7cc4ff30;stroke:#7cc4ff}
+#map.off-enso .L-enso{display:none}.ax.bl{font-size:9px;opacity:.85}
+.syn{font-size:13.5px;line-height:1.45;padding:8px 10px;margin:4px 0 8px;border-left:3px solid #eb6834;background:color-mix(in srgb,var(--card) 85%,#eb6834)}.syn small{display:block;color:var(--mut);font-size:11px;margin-top:4px}
 </style></head><body>
 <h1>Commodity Weather Map</h1>
 <div class="sub">Growing regions, shipping lanes, pipelines, chokepoints. Tap anything; toggle layers below.</div>
-<div id="bar"><button id="zi">+</button><button id="zo">−</button><div id="st">loading…</div></div>
+<div id="bar"><button id="zi">+</button><button id="zo">−</button><button id="enb" style="display:none"></button><div id="st">loading…</div></div>
 <div id="tg"></div>
 <div id="wxc"><div class="seg" id="wxm"></div><div class="wrow"><input type="range" id="wxt" min="0" max="12" value="0" step="1"><span id="wxtl">—</span></div><div class="wrow"><span id="wxlg"></span><span id="wxs"></span></div></div>
 <div id="mapw"><div id="scroll"><div id="map"></div></div><div id="tick" role="button" aria-label="Upcoming events, tap for calendar"><div id="tk"></div></div><div id="calside"></div></div>
@@ -174,7 +178,7 @@ const lay=(a,k,c)=>`<g class="${c}">`+a.map((r,i)=>`<path id="ln${k}${i}" class=
 map.innerHTML=g+lay(LN,"l","L-lanes")+lay(PL,"p","L-pipes")+"</svg>";
 map.querySelectorAll(".hit").forEach(h=>h.onclick=()=>{const r=(h.dataset.k=="l"?LN:PL)[h.dataset.i];info(`<h2>${r.n}</h2><div class="row"><span>Carries</span><b>${r.w}</b></div>${r.v?`<div class="row"><span>Via</span><b>${r.v}</b></div>`:""}${r.s?`<div class="row"><span>Status</span><b>${r.s}</b></div>`:""}<div class="note">Indicative route, not an exact track. Flows and status change with politics and sanctions.</div>`)});
 MK.forEach(m=>{const e=document.createElement("div");e.className="mk L-"+m.k;e.style.left=X(m.lon)/3.6+"%";e.style.top=Y(m.lat)/1.8+"%";e.innerHTML=`<span>${m.n}</span>`;e.onclick=()=>info(`<h2>${m.n}</h2><div class="row"><span>Type</span><b>${m.k=="choke"?"Chokepoint":"Port"}</b></div><div class="row"><span>Why it matters</span><b>${m.w}</b></div>`);map.appendChild(e)});
-[["lanes","Sea lanes"],["pipes","Pipelines"],["choke","Chokepoints"],["ports","Ports"],["pins","Prices"],["storms","Storms"]].forEach(([k,t])=>{const b=document.createElement("button");b.textContent=t;b.style.cssText="font-size:12px;padding:4px 9px";b.onclick=()=>{b.style.opacity=map.classList.toggle("off-"+k)?.4:1;layout()};$("#tg").appendChild(b)});
+[["lanes","Sea lanes"],["pipes","Pipelines"],["choke","Chokepoints"],["ports","Ports"],["pins","Prices"],["storms","Storms"],["enso","ENSO impacts"]].forEach(([k,t])=>{const b=document.createElement("button");b.textContent=t;b.dataset.k=k;b.style.cssText="font-size:12px;padding:4px 9px";b.onclick=()=>{b.style.opacity=map.classList.toggle("off-"+k)?.4:1;layout()};$("#tg").appendChild(b)});
 const kr=(k,i,r)=>`<div class="kr${k=="p"?" pl":""}" data-k="${k}" data-i="${i}"><i style="border-color:${CL[r.c]}"></i><div><b>${r.n}</b><small>${r.w}${r.v?" · via "+r.v:""}${r.s?" · "+r.s:""}</small></div></div>`;
 function hl(k,i){map.classList.remove(k=="l"?"off-lanes":"off-pipes");const el=document.getElementById("ln"+k+i),on=el.classList.contains("hl");document.querySelectorAll(".ln.hl").forEach(x=>x.classList.remove("hl"));map.classList.toggle("hlmode",!on);if(on)return;el.classList.add("hl");const b=el.getBBox(),s=$("#scroll"),W=map.offsetWidth/360;s.scrollTo({left:(b.x+b.width/2)*W-s.clientWidth/2,top:(b.y+b.height/2)*W-s.clientHeight/2,behavior:"smooth"})}
 function openKey(){let s='<h2>Key</h2><div class="note" style="margin:0 0 4px">Tap a row to highlight that route on the map.</div><div class="kh">Shipping lanes</div>';
@@ -231,6 +235,86 @@ for(const u of urls){try{const r=await fetch(u);if(r.ok){G=await r.json();break}
 if(G){$("#wxt").max=G.times.length-1;$("#wxs").textContent="Model data via Open-Meteo, updated "+new Date(G.updated*1000).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}
 else $("#wxs").textContent="Weather layer not available yet";tlabel();wxResize()}
 segs();grid();
+map.classList.add("off-enso");{const eb=document.querySelector('#tg button[data-k="enso"]');if(eb)eb.style.opacity=.4}
+const SM=["DJF","JFM","FMA","MAM","AMJ","MJJ","JJA","JAS","ASO","SON","OND","NDJ"],SMN=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const ENI=[
+{n:"West Africa cocoa belt",b:[-9,4,2,10.5],m:[12,1,2],e:"dry"},
+{n:"Southern Africa",b:[16,-34,36,-14],m:[12,1,2,3],e:"dry"},
+{n:"Maritime Southeast Asia",b:[94,-10,142,8.5],m:[6,7,8,9,10,11],e:"dry"},
+{n:"Northern Australia & eastern Indonesia",b:[118,-20,150,-8],m:[12,1,2,3],e:"dry"},
+{n:"Eastern Australia",b:[138,-39,154,-24],m:[6,7,8,9,10,11],e:"dry"},
+{n:"India (monsoon)",b:[68,8,89,31],m:[6,7,8,9],e:"dry"},
+{n:"Northern South America",b:[-76,-5,-44,10],m:[12,1,2,3],e:"dry"},
+{n:"Central America & Caribbean",b:[-92,8,-60,20],m:[6,7,8,9,10],e:"dry"},
+{n:"Sahel",b:[-16,10,30,18],m:[7,8,9],e:"dry"},
+{n:"Southeast South America",b:[-62,-36,-48,-22],m:[9,10,11,12,1],e:"wet"},
+{n:"Peru & Ecuador coast",b:[-82,-9,-78,0],m:[12,1,2,3],e:"wet"},
+{n:"East Africa (short rains)",b:[33,-8,45,5],m:[10,11,12],e:"wet"},
+{n:"Southern US & Gulf coast",b:[-110,25,-78,36],m:[11,12,1,2,3],e:"wet"},
+{n:"Central Chile",b:[-74,-38,-69,-30],m:[6,7,8],e:"wet"},
+{n:"Northern US & Canada",b:[-127,38,-75,58],m:[12,1,2],e:"warm"}];
+let EN=null;
+const enStr=v=>{const a=Math.abs(v);return a<.5?"neutral":a<1?"weak":a<1.5?"moderate":a<2?"strong":"very strong"};
+function enPhase(){if(!EN)return 0;const s=(EN.status||"").toLowerCase(),v=EN.roni&&EN.roni.length?EN.roni[EN.roni.length-1][2]:0;
+if(s.includes("el ni")&&s.includes("advisory"))return 1;if(s.includes("la ni")&&s.includes("advisory"))return -1;return v>=.5?1:v<=-.5?-1:0}
+const effOf=(r,ph)=>ph>0?r.e:r.e=="dry"?"wet":r.e=="wet"?"dry":"cold";
+const effTxt={dry:"drier than usual",wet:"wetter than usual",warm:"milder winter than usual",cold:"colder winter than usual"};
+const mRange=m=>m.length==1?SMN[m[0]-1]:SMN[m[0]-1]+"–"+SMN[m[m.length-1]-1];
+function enRegionsFor(lat,lon){return ENI.filter(r=>lon>=r.b[0]&&lon<=r.b[2]&&lat>=r.b[1]&&lat<=r.b[3])}
+function enNote(r){const ph=enPhase();if(!ph||(r.nw&&r.n!="Nat gas"))return"";const rs=enRegionsFor(r.lat,r.lon);if(!rs.length)return"";const nm=ph>0?"El Niño":"La Niña",m=new Date().getMonth()+1;
+return rs.map(x=>`<div class="row" style="cursor:pointer" onclick="showEnso()"><span>🌊 ${nm} (${enStr(EN.roni.at(-1)[2])})</span><b class="wrap">Typically ${effTxt[effOf(x,ph)]} here ${mRange(x.m)}${x.m.includes(m)?" · now":""} ›</b></div>`).join("")}
+function drawEnLayer(){let g=OV.querySelector("g.L-enso");if(!g){g=document.createElementNS("http://www.w3.org/2000/svg","g");g.setAttribute("class","L-enso");OV.insertBefore(g,OV.firstChild.nextSibling)}g.innerHTML="";
+const ph=enPhase();if(!ph)return;const m=new Date().getMonth()+1,soon=[m,m%12+1,(m+1)%12+1];
+ENI.forEach((r,i)=>{if(!r.m.some(x=>soon.includes(x)))return;const e=effOf(r,ph);
+g.insertAdjacentHTML("beforeend",`<rect class="enr en-${e}" data-i="${i}" x="${r.b[0]+180}" y="${90-r.b[3]}" width="${r.b[2]-r.b[0]}" height="${r.b[3]-r.b[1]}" rx="2"/>`)});
+g.querySelectorAll(".enr").forEach(el=>el.onclick=()=>{const r=ENI[+el.dataset.i];info(`<h2>🌊 ${r.n}</h2><div class="row"><span>Typical ${ph>0?"El Niño":"La Niña"} effect</span><b class="wrap">${effTxt[effOf(r,ph)]}</b></div><div class="row"><span>Season</span><b>${mRange(r.m)}</b></div>
+<div class="note">A typical pattern from past events, not a forecast. Individual events differ. <a href="#" onclick="showEnso();return false" style="color:inherit">ENSO detail ›</a></div>`)})}
+function lineChart(box,o){const W=box.clientWidth||340,Ht=o.h||170,pl=4,pr=40,pt=8,pb=20,iw=W-pl-pr,ih=Ht-pt-pb,N=o.labels.length;
+const all=o.series.flatMap(s=>s.v.filter(v=>v!=null));let lo=Math.min(-.6,...all),hi=Math.max(.6,...all);const pd=(hi-lo)*.06;lo-=pd;hi+=pd;
+const x=i=>pl+i/(N-1)*iw,y=v=>pt+(hi-v)/(hi-lo)*ih;let g="";
+[[.5,1,"#eb683414"],[1,1.5,"#eb683428"],[1.5,2,"#eb68343d"],[2,9,"#eb683455"],[-1,-.5,"#2a78d614"],[-1.5,-1,"#2a78d628"],[-2,-1.5,"#2a78d63d"],[-9,-2,"#2a78d655"]].forEach(([a,b,c])=>{const A=Math.max(lo,Math.min(hi,a)),Bv=Math.max(lo,Math.min(hi,b));if(Bv>A)g+=`<rect x="${pl}" width="${iw}" y="${y(Bv)}" height="${y(A)-y(Bv)}" fill="${c}"/>`});
+[[.5,"weak"],[1,"moderate"],[1.5,"strong"],[2,"very strong"]].forEach(([v,t])=>{if(v<hi-.1)g+=`<text x="${pl+3}" y="${y(v)-3}" class="ax bl">${t}</text>`});
+const tks=[];for(let t=Math.ceil(lo*2)/2;t<=hi;t+=.5)tks.push(t);const st=tks.length>8?2:1;tks.forEach((t,k)=>{if(k%st)return;g+=`<line x1="${pl}" x2="${pl+iw}" y1="${y(t)}" y2="${y(t)}" class="gl"${t==0?' style="stroke:var(--mut)"':""}/><text x="${W-2}" y="${y(t)+3.5}" class="ax" text-anchor="end">${t>0?"+":""}${t.toFixed(1)}</text>`});
+o.labels.forEach((l,i)=>{if(l&&o.tick(i))g+=`<text x="${x(i)}" y="${Ht-5}" class="ax" text-anchor="middle">${l}</text>`});
+o.series.forEach(s=>{let d="",on=0;s.v.forEach((v,i)=>{if(v==null){on=0;return}d+=(on?"L":"M")+x(i).toFixed(1)+" "+y(v).toFixed(1);on=1});g+=`<path d="${d}" fill="none" stroke="${s.c}" stroke-width="${s.w||2}" stroke-linejoin="round" stroke-linecap="round"/>`});
+const last=o.series[0];for(let i=N-1;i>=0;i--)if(last.v[i]!=null){g+=`<circle cx="${x(i)}" cy="${y(last.v[i])}" r="4" fill="${last.c}" stroke="var(--card)" stroke-width="2"/>`;break}
+box.innerHTML=`<svg width="${W}" height="${Ht}" class="chs">${g}<line class="cx" y1="${pt}" y2="${pt+ih}" style="display:none"/><rect x="${pl}" y="0" width="${iw}" height="${Ht}" fill="transparent" class="hz"/></svg><div class="tt" style="display:none"></div>`;
+const hz=box.querySelector(".hz"),cx=box.querySelector(".cx"),tt=box.querySelector(".tt");
+const mv=e=>{const px=e.clientX-hz.getBoundingClientRect().left,i=Math.max(0,Math.min(N-1,Math.round(px/iw*(N-1))));cx.setAttribute("x1",x(i));cx.setAttribute("x2",x(i));cx.style.display="";
+tt.textContent="";const hd=document.createElement("div");hd.className="th";hd.textContent=o.full(i);tt.appendChild(hd);
+o.series.forEach(s=>{const v=s.v[i];if(v==null)return;const rw=document.createElement("div");rw.className="tr";const k=document.createElement("i");k.style.background=s.c;const b=document.createElement("b");b.textContent=(v>0?"+":"")+v.toFixed(2);const sp=document.createElement("span");sp.textContent=s.n+" · "+enStr(v);rw.append(k,b,sp);tt.appendChild(rw)});
+tt.style.display="";const tw=tt.offsetWidth;tt.style.left=(x(i)>W/2?Math.max(0,x(i)-tw-10):Math.min(W-tw,x(i)+10))+"px"};
+hz.addEventListener("pointermove",mv);hz.addEventListener("pointerdown",mv);hz.addEventListener("pointerleave",()=>{cx.style.display="none";tt.style.display="none"})}
+function gauge(v){const a=Math.max(-3,Math.min(3,v)),W=240,H=130,cx=120,cy=115,R=95,ang=t=>Math.PI*(1-(t+3)/6),pt=(t,r)=>[cx+r*Math.cos(ang(t)),cy-r*Math.sin(ang(t))];
+const arc=(t0,t1,c)=>{const[a0,b0]=pt(t0,R),[a1,b1]=pt(t1,R);return`<path d="M${a0} ${b0}A${R} ${R} 0 0 1 ${a1} ${b1}" stroke="${c}" stroke-width="14" fill="none"/>`};
+let s=[[-3,-2,"#2a78d6"],[-2,-1.5,"#2a78d6bb"],[-1.5,-1,"#2a78d688"],[-1,-.5,"#2a78d655"],[-.5,.5,"#8a949a55"],[.5,1,"#eb683455"],[1,1.5,"#eb683488"],[1.5,2,"#eb6834bb"],[2,3,"#eb6834"]].map(([p,q,c])=>arc(p+.02,q-.02,c)).join("");
+const[nx,ny]=pt(a,R-22);s+=`<line x1="${cx}" y1="${cy}" x2="${nx}" y2="${ny}" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"/><circle cx="${cx}" cy="${cy}" r="6" fill="var(--ink)"/>`;
+[[-2,"−2"],[0,"0"],[2,"+2"]].forEach(([t,l])=>{const[a1,b1]=pt(t,R+16);s+=`<text x="${a1}" y="${b1+4}" text-anchor="middle" class="ax">${l}</text>`});
+s+=`<text x="16" y="${H-2}" class="ax">La Niña</text><text x="${W-16}" y="${H-2}" class="ax" text-anchor="end">El Niño</text>`;
+return`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="display:block;margin:6px auto 0" role="img" aria-label="ENSO gauge at ${v.toFixed(2)}">${s}</svg>`}
+function showEnso(){if(!EN)return;const ph=enPhase(),rv=EN.roni.at(-1),ov=EN.oni&&EN.oni.at(-1),nm=ph>0?"El Niño":ph<0?"La Niña":"ENSO-neutral",m=new Date().getMonth()+1,soon=[m,m%12+1,(m+1)%12+1];
+const act=ph?ENI.filter(r=>r.m.some(x=>soon.includes(x))):[];
+info(`<h2>🌊 ${nm}${ph?" · "+enStr(rv[2]):""}</h2>${gauge(rv[2])}<div style="text-align:center;font-size:12px;color:var(--mut);margin-bottom:6px">Official index (RONI) ${rv[2]>0?"+":""}${rv[2].toFixed(2)} for ${rv[0]} ${rv[1]}</div>
+${EN.synopsis?`<div class="syn">“${EN.synopsis}”<small>NOAA Climate Prediction Center${EN.issued?", "+EN.issued:""}</small></div>`:""}
+<div class="row"><span>NOAA alert status</span><b>${EN.status||"—"}</b></div>
+${ov?`<div class="row"><span>Traditional index (ONI), ${ov[0]} ${ov[1]}</span><b>${ov[2]>0?"+":""}${ov[2].toFixed(2)} · ${enStr(ov[2])}</b></div>`:""}
+${EN.weekly?`<div class="row"><span>Latest weekly Niño-3.4</span><b>${EN.weekly.nino34>0?"+":""}${EN.weekly.nino34.toFixed(1)}°C</b></div>`:""}
+${(EN.odds||[]).map(s=>`<div class="note">${s}</div>`).join("")}
+<div class="kh">Intensity, last 2½ years</div><div class="lgd"><span><i style="background:var(--s1)"></i>Official (RONI)</span><span><i style="background:var(--s2)"></i>Traditional (ONI)</span></div><div id="enc1" class="pc"></div>
+<div class="kh">Compared with past big El Niños</div><div class="lgd" style="flex-wrap:wrap"><span><i style="background:var(--s1);height:3px"></i>${new Date().getFullYear()}–${String(new Date().getFullYear()+1).slice(2)}</span><span><i style="background:var(--s2)"></i>1997–98</span><span><i style="background:var(--s3)"></i>2015–16</span><span><i style="background:var(--s4)"></i>2023–24</span></div><div id="enc2" class="pc"></div>
+<div class="note" style="margin-top:2px">Traditional index, lined up by calendar month from January of the onset year.</div>
+${ph?`<div class="kh">Typical ${nm} effects, next 3 months</div><ul class="dl">${act.map(r=>`<li><b>${r.n}</b> · ${effTxt[effOf(r,ph)]} (${mRange(r.m)})</li>`).join("")}</ul><button id="enmap" style="margin-top:8px;font-size:12px;padding:5px 12px">${map.classList.contains("off-enso")?"Show":"Hide"} on map</button>`:""}
+<div class="kh">Ocean temperatures now</div><img src="${EN.fig1}" alt="NOAA map of sea surface temperature anomalies" style="width:100%;border-radius:8px;background:#fff" onerror="this.previousElementSibling.remove();this.nextElementSibling.remove();this.remove()"><div class="note">NOAA's sea surface temperature anomaly map (Figure 1 of its latest discussion). Warm colours along the equatorial Pacific mark El Niño.</div>
+<div class="note">Strength bands (0.5 / 1.0 / 1.5 / 2.0°C) are the conventional thresholds. Impacts are typical patterns, not forecasts.${EN.next?" Next NOAA update: "+EN.next+".":""}</div>`);
+const ix=(a,s,y)=>{const k=a.findIndex(r=>r[0]==s&&r[1]==y);return k<0?null:a[k][2]};
+const tailN=30,R0=EN.roni.slice(-tailN),lab=R0.map(r=>SMN[SM.indexOf(r[0])]),yrs=R0.map(r=>r[1]);
+lineChart($("#enc1"),{labels:lab,tick:i=>SM.indexOf(R0[i][0])%3==0,full:i=>R0[i][0]+" "+R0[i][1],series:[{n:"Official RONI",c:"var(--s1)",v:R0.map(r=>r[2]),w:2.5},{n:"Traditional ONI",c:"var(--s2)",v:R0.map(r=>EN.oni?ix(EN.oni,r[0],r[1]):null)}]});
+const cy=new Date().getFullYear(),evs=[[cy,"var(--s1)",3],[1997,"var(--s2)"],[2015,"var(--s3)"],[2023,"var(--s4)"]],L2=[];for(let k=0;k<24;k++)L2.push(SMN[k%12]);
+lineChart($("#enc2"),{labels:L2,tick:i=>i%6==0,full:i=>SMN[i%12]+(i<12?", onset year":", following year"),h:180,series:evs.map(([y0,c,w])=>({n:y0+"–"+String(y0+1).slice(2),c,w:w||1.75,v:Array.from({length:24},(_,k)=>EN.oni?ix(EN.oni,SM[k%12],y0+(k<12?0:1)):null)}))});
+const bm=$("#enmap");if(bm)bm.onclick=()=>{const off=map.classList.toggle("off-enso");bm.textContent=(off?"Show":"Hide")+" on map";const eb=document.querySelector('#tg button[data-k="enso"]');if(eb)eb.style.opacity=off?.4:1}}
+(async()=>{try{const r=await fetch("enso.json?t="+(Date.now()/36e5|0));if(!r.ok)return;EN=await r.json();if(!EN.roni||!EN.roni.length)return;
+const ph=enPhase(),v=EN.roni.at(-1)[2],b=$("#enb");b.textContent=`🌊 ${ph>0?"El Niño":ph<0?"La Niña":"ENSO neutral"}${ph?" · "+enStr(v):""}`;b.className="enb "+(ph>0?"pos":ph<0?"neg":"");b.style.display="";b.onclick=showEnso;drawEnLayer()}catch(e){}})();
+
 const ALLC=R.map(r=>r.n),GR=["Corn","Wheat","Soybeans","Cotton","Rice"];
 function tzAt(y,mo,d,hh,mi,tz){const g=Date.UTC(y,mo-1,d,hh,mi);const p=new Intl.DateTimeFormat("en-US",{timeZone:tz,timeZoneName:"shortOffset"}).formatToParts(new Date(g)).find(x=>x.type=="timeZoneName").value;
 const m=p.match(/GMT([+-]\d+)(?::(\d+))?/),off=m?(+m[1])*60+Math.sign(+m[1])*(+(m[2]||0)):0;return new Date(g-off*6e4)}
@@ -489,7 +573,7 @@ ${r.nw?"":`<div class="row"><span>Rain, last 7 days</span><b>${w?f(w.past)+" mm"
 <div class="row"><span>Rain, next 7 days</span><b>${w?f(w.next)+" mm":"—"}${r.cx!=null?" (normal "+f(r.cx)+")":""}</b></div>
 `}${r.nw&&r.n!="Nat gas"?"":`<div class="row"><span>Temp, next 7 days avg</span><b>${w&&w.tn!=null?f(w.tn)+"°C":"—"}${r.ct!=null?" (normal "+f(r.ct)+")":""}</b></div>
 <div class="row"><span>Now</span><b>${w?f(w.t)+"°C · cloud "+f(w.cl,0)+"%":"—"}</b></div>
-`}${r.st?`<div class="row" style="cursor:pointer" onclick="showStorm(STM[${r.st.si}])"><span>🌀 Storm nearby</span><b class="wrap">${r.st.n} (${r.st.c}), ~${Math.round(r.st.d/50)*50} km from its path ›</b></div>`:""}<div class="row"><span>Signal</span><b class="wrap">${flag}</b></div>${cal(r)}
+`}${r.st?`<div class="row" style="cursor:pointer" onclick="showStorm(STM[${r.st.si}])"><span>🌀 Storm nearby</span><b class="wrap">${r.st.n} (${r.st.c}), ~${Math.round(r.st.d/50)*50} km from its path ›</b></div>`:""}<div class="row"><span>Signal</span><b class="wrap">${flag}</b></div>${typeof enNote=="function"?enNote(r):""}${cal(r)}
 ${drv(r)}<div class="note">These are leading indicators, not guarantees: markets already price in forecasts.</div>`);setTimeout(()=>{drawChart(r);drawCot(r)},0)}
 R.forEach((r,i)=>paint(i));
 let wOK=false,pOK=0;
