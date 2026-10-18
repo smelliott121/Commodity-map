@@ -1,0 +1,383 @@
+name: Commodity alerts
+on:
+  workflow_run:
+    workflows: ["Update prices", "Update storms", "Update COT positioning", "Update ENSO", "Update climate normals"]
+    types: [completed]
+  schedule:
+    - cron: "5,35 * * * *"
+  workflow_dispatch:
+    inputs:
+      test:
+        description: "Send a test message"
+        type: boolean
+        default: true
+permissions:
+  contents: write
+concurrency:
+  group: alerts
+  cancel-in-progress: false
+jobs:
+  alerts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check data and send alerts
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          ALERT_MODE: ${{ inputs.test && 'test' || 'auto' }}
+        run: |
+          python3 - <<'PY'
+          import json, os, math, time, datetime as dt, urllib.request, urllib.parse
+          from zoneinfo import ZoneInfo
+
+          META = json.loads(r'''{"R":[{"n":"Cocoa","lat":6.8,"lon":-5.3,"sym":"CC=F","nw":false,"loc":"Ivory Coast"},{"n":"Coffee","lat":-19,"lon":-46,"sym":"KC=F","nw":false,"loc":"Minas Gerais, Brazil"},{"n":"Wheat","lat":49,"lon":32,"sym":"ZW=F","nw":false,"loc":"Ukraine"},{"n":"Palm oil","lat":2,"lon":101,"sym":null,"nw":false,"loc":"Sumatra, Indonesia"},{"n":"Copper","lat":-24,"lon":-69,"sym":"HG=F","nw":false,"loc":"Chile"},{"n":"Sugar","lat":18.5,"lon":76,"sym":"SB=F","nw":false,"loc":"Maharashtra, India"},{"n":"Corn","lat":42,"lon":-93.5,"sym":"ZC=F","nw":false,"loc":"Iowa, USA"},{"n":"Cotton","lat":32,"lon":-101,"sym":"CT=F","nw":false,"loc":"Texas, USA"},{"n":"Crude oil","lat":25,"lon":49,"sym":"BZ=F","nw":true,"loc":"Saudi Arabia (Brent)"},{"n":"Nat gas","lat":41,"lon":-78,"sym":"NG=F","nw":true,"loc":"Appalachia, USA (Henry Hub)"},{"n":"Soybeans","lat":-12.5,"lon":-55.5,"sym":"ZS=F","nw":false,"loc":"Mato Grosso, Brazil"},{"n":"Gold","lat":40.5,"lon":-117,"sym":"GC=F","nw":true,"loc":"Nevada, USA"},{"n":"Silver","lat":23,"lon":-102.5,"sym":"SI=F","nw":true,"loc":"Zacatecas, Mexico"},{"n":"Platinum","lat":-25.5,"lon":27.5,"sym":"PL=F","nw":true,"loc":"Bushveld, South Africa"},{"n":"Lumber","lat":53,"lon":-123,"sym":"LBR=F","nw":false,"loc":"British Columbia, Canada"},{"n":"Orange juice","lat":28,"lon":-81.5,"sym":"OJ=F","nw":false,"loc":"Florida, USA"},{"n":"Rubber","lat":7.5,"lon":100,"sym":null,"nw":false,"loc":"Southern Thailand"},{"n":"Rice","lat":30.5,"lon":75.5,"sym":"ZR=F","nw":false,"loc":"Punjab, India"},{"n":"Lithium","lat":-33.9,"lon":116.1,"sym":null,"nw":true,"loc":"Greenbushes, Australia"},{"n":"Iron ore","lat":-22.5,"lon":118.5,"sym":"TIO=F","nw":true,"loc":"Pilbara, Australia"}],"MK":[{"n":"Strait of Hormuz","k":"choke","lat":26.5,"lon":56.3},{"n":"Bab el-Mandeb","k":"choke","lat":12.6,"lon":43.3},{"n":"Suez Canal","k":"choke","lat":30.5,"lon":32.4},{"n":"Strait of Malacca","k":"choke","lat":2.5,"lon":101.4},{"n":"Panama Canal","k":"choke","lat":9.1,"lon":-79.7},{"n":"Bosphorus","k":"choke","lat":41.1,"lon":29.1},{"n":"Gibraltar","k":"choke","lat":36,"lon":-5.6},{"n":"Cape of Good Hope","k":"choke","lat":-35.2,"lon":19},{"n":"Rotterdam","k":"ports","lat":51.9,"lon":4.4},{"n":"Singapore","k":"ports","lat":1.3,"lon":103.8},{"n":"Shanghai","k":"ports","lat":31.2,"lon":121.8},{"n":"Houston","k":"ports","lat":29.7,"lon":-95},{"n":"Santos","k":"ports","lat":-23.9,"lon":-46.3},{"n":"Port Hedland","k":"ports","lat":-20.3,"lon":118.6},{"n":"Odesa","k":"ports","lat":46.5,"lon":30.7},{"n":"Abidjan","k":"ports","lat":5.3,"lon":-4},{"n":"Ras Tanura","k":"ports","lat":26.6,"lon":50},{"n":"Los Angeles","k":"ports","lat":33.7,"lon":-118.3},{"n":"Alexandria","k":"ports","lat":31.2,"lon":29.9},{"n":"San Antonio","k":"ports","lat":-33.6,"lon":-71.6}],"crit":{"Cocoa":[12,1,2,3,4,5,6,7,9,10,11],"Coffee":[12,1,2,3,6,7,8,9,10,11],"Wheat":[9,10,5,6],"Palm oil":[],"Sugar":[6,7,8,9],"Corn":[7,8],"Cotton":[5,6,7,8],"Soybeans":[9,10,11,12,1],"Orange juice":[12,1,2,8,9,10],"Rubber":[10,11,12],"Rice":[6,7,8,9],"Lumber":[7,8,9]},"stage":{"Cocoa":{"1":"Main crop harvest in the Harmattan dry season; dryness hurts next crop","2":"Main crop harvest in the Harmattan dry season; dryness hurts next crop","3":"Main crop harvest in the Harmattan dry season; dryness hurts next crop","4":"Main rainy season: mid-crop harvest, pods set for main crop","5":"Main rainy season: mid-crop harvest, pods set for main crop","6":"Main rainy season: mid-crop harvest, pods set for main crop","7":"Main rainy season: mid-crop harvest, pods set for main crop","8":"Short dry spell","9":"Short rains; main crop harvest starts in October","10":"Short rains; main crop harvest starts in October","11":"Short rains; main crop harvest starts in October","12":"Main crop harvest in the Harmattan dry season; dryness hurts next crop"},"Coffee":{"1":"Bean filling: needs steady rain","2":"Bean filling: needs steady rain","3":"Bean filling: needs steady rain","4":"Ripening; harvest starts in May","5":"Ripening; harvest starts in May","6":"Harvest; frost risk in the coffee belt","7":"Harvest; frost risk in the coffee belt","8":"Harvest; frost risk in the coffee belt","9":"Flowering after the first rains: critical","10":"Flowering after the first rains: critical","11":"Flowering after the first rains: critical","12":"Bean filling: needs steady rain"},"Wheat":{"1":"Winter dormancy; frost-kill risk without snow cover","2":"Winter dormancy; frost-kill risk without snow cover","3":"Spring regrowth","4":"Spring regrowth","5":"Flowering and grain fill: critical","6":"Flowering and grain fill: critical","7":"Harvest; rain hurts quality","8":"Harvest; rain hurts quality","9":"Winter wheat sowing: needs soil moisture","10":"Winter wheat sowing: needs soil moisture","11":"Winter dormancy; frost-kill risk without snow cover","12":"Winter dormancy; frost-kill risk without snow cover"},"Palm oil":{"1":"Seasonally low output","2":"Seasonally low output","3":"Seasonally low output","4":"Seasonally low output","5":"Output rising","6":"Output rising","7":"Output rising","8":"Peak output season","9":"Peak output season","10":"Peak output season","11":"Peak output season","12":"Output easing; monsoon rain can slow harvesting"},"Sugar":{"1":"Crushing season; new planting","2":"Crushing season; new planting","3":"Crushing season; new planting","4":"Crushing season; new planting","5":"Hot, dry pre-monsoon","6":"Monsoon: drives cane growth, critical","7":"Monsoon: drives cane growth, critical","8":"Monsoon: drives cane growth, critical","9":"Monsoon: drives cane growth, critical","10":"Crushing season begins","11":"Crushing season begins","12":"Crushing season begins"},"Corn":{"1":"Off-season","2":"Off-season","3":"Off-season","4":"Planting: wet fields cause delays","5":"Planting: wet fields cause delays","6":"Vegetative growth","7":"Pollination: most critical month","8":"Grain fill: needs rain","9":"Harvest","10":"Harvest","11":"Harvest","12":"Off-season"},"Cotton":{"1":"Off-season","2":"Off-season","3":"Off-season","4":"Off-season","5":"Planting: needs soil moisture","6":"Planting: needs soil moisture","7":"Flowering and boll set: needs rain","8":"Flowering and boll set: needs rain","9":"Harvest; rain hurts fibre quality","10":"Harvest; rain hurts fibre quality","11":"Harvest; rain hurts fibre quality","12":"Off-season"},"Soybeans":{"1":"Flowering and pod fill: critical","2":"Harvest; heavy rain delays it","3":"Harvest; heavy rain delays it","4":"Harvest; heavy rain delays it","5":"Dry season, off-season","6":"Dry season, off-season","7":"Dry season, off-season","8":"Dry season, off-season","9":"Planting with the first rains: critical","10":"Planting with the first rains: critical","11":"Planting with the first rains: critical","12":"Flowering and pod fill: critical"},"Orange juice":{"1":"Harvest; freeze risk","2":"Harvest; freeze risk","3":"Bloom and Valencia harvest","4":"Bloom and Valencia harvest","5":"Bloom and Valencia harvest","6":"Hurricane season starts","7":"Hurricane season starts","8":"Hurricane season peak","9":"Hurricane season peak","10":"Hurricane season peak","11":"Harvest begins","12":"Harvest; freeze risk"},"Rubber":{"1":"Tapping; output easing","2":"Wintering: leaf fall, low output","3":"Wintering: leaf fall, low output","4":"Wintering: leaf fall, low output","5":"Main tapping season","6":"Main tapping season","7":"Main tapping season","8":"Main tapping season","9":"Main tapping season","10":"Monsoon: heavy rain stops tapping","11":"Monsoon: heavy rain stops tapping","12":"Monsoon: heavy rain stops tapping"},"Rice":{"1":"Off-season (wheat grown instead)","2":"Off-season (wheat grown instead)","3":"Off-season (wheat grown instead)","4":"Off-season (wheat grown instead)","5":"Off-season (wheat grown instead)","6":"Transplanting with the monsoon: critical","7":"Transplanting with the monsoon: critical","8":"Growth and flowering: needs rain","9":"Growth and flowering: needs rain","10":"Harvest","11":"Harvest","12":"Off-season (wheat grown instead)"},"Lumber":{"1":"Winter logging","2":"Winter logging","3":"Spring thaw slows logging","4":"Spring thaw slows logging","5":"Spring thaw slows logging","6":"Fire season starts","7":"Wildfire peak: dry heat risk","8":"Wildfire peak: dry heat risk","9":"Wildfire peak: dry heat risk","10":"Autumn logging","11":"Autumn logging","12":"Winter logging"}}}''')
+          R, MK, CRIT, STAGE = META["R"], META["MK"], META["crit"], META["stage"]
+          UK, NY = ZoneInfo("Europe/London"), ZoneInfo("America/New_York")
+          REPO = os.environ.get("GITHUB_REPOSITORY", "owner/Commodity-map")
+          OWNER, NAME = REPO.split("/")
+          APP = f"https://{OWNER.lower()}.github.io/{NAME}/"
+          TG_TOKEN = os.environ.get("TELEGRAM_TOKEN", "").strip()
+          TG_CHAT = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
+          NTFY = os.environ.get("NTFY_TOPIC", "").strip()
+          MODE = os.environ.get("ALERT_MODE", "auto")
+          NOW = dt.datetime.now(dt.timezone.utc)
+          if os.environ.get("FAKE_NOW"):
+              NOW = dt.datetime.fromisoformat(os.environ["FAKE_NOW"])
+          UKNOW = NOW.astimezone(UK)
+
+          def load(p, d=None):
+              try:
+                  return json.load(open(p))
+              except Exception:
+                  return d
+
+          def http(url, data=None, headers=None, timeout=30):
+              req = urllib.request.Request(url, data=data, headers=headers or {"User-Agent": "commodity-alerts"})
+              return urllib.request.urlopen(req, timeout=timeout).read()
+
+          ST = load("alerts_state.json", {}) or {}
+          FIRST = not ST
+          ST.setdefault("seen", {})
+          OUT = []
+
+          def once(key, days=7):
+              t = ST["seen"].get(key)
+              if t and NOW.timestamp() - t < days * 86400:
+                  return False
+              ST["seen"][key] = NOW.timestamp()
+              return True
+
+          def alert(title, body, prio="high", tag="warning"):
+              OUT.append({"title": title, "body": body, "prio": prio, "tag": tag})
+
+          def km(a, b, c, d):
+              r = math.pi / 180
+              x = math.sin((c - a) * r / 2) ** 2 + math.cos(a * r) * math.cos(c * r) * math.sin((d - b) * r / 2) ** 2
+              return 12742 * math.asin(math.sqrt(x))
+
+          def ordn(n):
+              return f"{n}{'th' if 10 < n % 100 < 14 else {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')}"
+
+          def sstr(v):
+              a = abs(v)
+              return "neutral" if a < .5 else "weak" if a < 1 else "moderate" if a < 1.5 else "strong" if a < 2 else "very strong"
+
+          # ---------- price shocks ----------
+          def price_shocks():
+              P = load("prices.json")
+              if not P:
+                  return
+              H = None
+              try:
+                  H = json.loads(http(f"https://raw.githubusercontent.com/{REPO}/hist/history.json"))
+              except Exception:
+                  H = load("history.json")
+              if not H:
+                  return
+              age = NOW.timestamp() - P.get("updated", 0)
+              if age > 6 * 3600:
+                  return
+              for r in R:
+                  s = r.get("sym")
+                  m = s and P["prices"].get(s)
+                  h = s and H["s"].get(s)
+                  if not m or not h or not m.get("prev"):
+                      continue
+                  c = h["c"][-41:]
+                  rets = [math.log(c[i] / c[i - 1]) for i in range(1, len(c)) if c[i - 1] > 0 and c[i] > 0]
+                  if len(rets) < 15:
+                      continue
+                  mu = sum(rets) / len(rets)
+                  sd = math.sqrt(sum((x - mu) ** 2 for x in rets) / (len(rets) - 1))
+                  ret = math.log(m["price"] / m["prev"])
+                  if abs(ret) > 0.25:
+                      print("skipping implausible move (likely contract roll or data glitch):", s, m)
+                      continue
+                  if sd > 0 and abs(ret) >= 3 * sd and abs(ret) >= 0.02:
+                      day = UKNOW.strftime("%Y-%m-%d")
+                      if once(f"px:{s}:{day}:{'up' if ret > 0 else 'dn'}", 1):
+                          pc = (math.exp(ret) - 1) * 100
+                          alert(f"{'📈' if ret > 0 else '📉'} {r['n']} {pc:+.1f}% today",
+                                f"A {abs(ret) / sd:.1f}× normal daily move (typical day ±{sd * 100:.1f}%). Price {m['price']:,.4g}.", "high", "chart_with_upwards_trend" if ret > 0 else "chart_with_downwards_trend")
+
+          # ---------- weather at critical crop stages ----------
+          def weather():
+              C = load("climate.json")
+              if not C:
+                  return
+              crops = [r for r in R if r["n"] in CRIT and r["n"] in C.get("regions", {})]
+              if not crops:
+                  return
+              q = urllib.parse.urlencode({"latitude": ",".join(str(r["lat"]) for r in crops), "longitude": ",".join(str(r["lon"]) for r in crops),
+                                          "daily": "precipitation_sum", "past_days": 7, "forecast_days": 7, "timezone": "UTC"})
+              try:
+                  J = json.loads(http("https://api.open-meteo.com/v1/forecast?" + q))
+              except Exception as e:
+                  print("weather fail", e); return
+              J = J if isinstance(J, list) else [J]
+              mo = UKNOW.month
+              for r, d in zip(crops, J):
+                  s = d["daily"]["precipitation_sum"]
+                  past = sum(x or 0 for x in s[:7]); nxt = sum(x or 0 for x in s[7:14])
+                  n = C["regions"][r["n"]]; np_, nn = n["past"], n["next"]
+                  crit = mo in CRIT[r["n"]]
+                  kind = None
+                  if past > np_ * 1.5 and past - np_ > 15: kind = "wet"
+                  elif past < np_ * .5 and np_ - past > 15: kind = "dry"
+                  key = f"wx:{r['n']}"
+                  prev = ST.setdefault("wx", {}).get(key)
+                  ST["wx"][key] = kind
+                  if kind and crit and kind != prev and once(f"{key}:{kind}", 10):
+                      pc = (past / np_ - 1) * 100 if np_ >= 5 else None
+                      alert(f"{'🌧️' if kind == 'wet' else '☀️'} {r['n']}: unusually {kind} at a critical stage",
+                            f"{r['loc']}: {past:.0f} mm in the last 7 days vs {np_:.0f} mm normal" + (f" ({pc:+.0f}%)" if pc is not None else "") +
+                            f". Next 7 days: {nxt:.0f} mm (normal {nn:.0f}). Stage: {STAGE.get(r['n'], {}).get(str(mo)) or STAGE.get(r['n'], {}).get(mo, '')}.", "high", "umbrella" if kind == "wet" else "sunny")
+
+          # ---------- storms ----------
+          def cat(kt):
+              kt = kt or 0
+              return "Cat 5" if kt >= 137 else "Cat 4" if kt >= 113 else "Cat 3" if kt >= 96 else "Cat 2" if kt >= 83 else "Cat 1" if kt >= 64 else "Tropical storm" if kt >= 34 else "Depression"
+
+          def lvl(kt):
+              kt = kt or 0
+              return 3 if kt >= 96 else 2 if kt >= 64 else 1 if kt >= 34 else 0
+
+          def storms():
+              S = load("storms.json")
+              if not S:
+                  return
+              seen = ST.setdefault("storms", {})
+              for s in S.get("storms", []):
+                  P = [[s["lon"], s["lat"]]] + (s.get("track") or [])
+                  near = lambda la, lo: min(km(la, lo, p[1], p[0]) for p in P)
+                  hits = [f"{r['n']} (~{round(near(r['lat'], r['lon']) / 50) * 50} km)" for r in R if near(r["lat"], r["lon"]) < 700]
+                  hits += [f"{m['n']} {'chokepoint' if m['k'] == 'choke' else 'port'} (~{round(near(m['lat'], m['lon']) / 50) * 50} km)" for m in MK if near(m["lat"], m["lon"]) < 500]
+                  key = s.get("id") or s["name"]
+                  old = seen.get(key, {"lvl": -1, "hits": []})
+                  new_hits = [h for h in hits if h.split(" (")[0] not in [x.split(" (")[0] for x in old["hits"]]]
+                  L = lvl(s["kt"])
+                  if hits and (new_hits or L > old["lvl"]):
+                      why = "now forecast near: " + ", ".join(new_hits) if new_hits else f"strengthened to {cat(s['kt'])}"
+                      alert(f"🌀 {s['name']} ({cat(s['kt'])}, {s['kt']} kt)", f"{why[0].upper() + why[1:]}." + (f" Also near: {', '.join(h for h in hits if h not in new_hits)}." if new_hits and len(hits) > len(new_hits) else "") +
+                            (f"\nAdvisory: {s['url']}" if s.get("url") else ""), "urgent" if L >= 3 else "high", "cyclone")
+                  seen[key] = {"lvl": max(L, old["lvl"]), "hits": sorted(set(old["hits"] + hits)), "t": NOW.timestamp()}
+              for k in list(seen):
+                  if NOW.timestamp() - seen[k].get("t", 0) > 20 * 86400:
+                      del seen[k]
+
+          # ---------- COT crowding ----------
+          def cot():
+              C = load("cot.json")
+              if not C:
+                  return
+              last = ST.setdefault("cot", {})
+              for n, c in C.get("c", {}).items():
+                  mm = c["mm"]
+                  if len(mm) < 30:
+                      continue
+                  L = mm[-1]; h = mm[-156:]; pct = round(sum(1 for v in h if v < L) / (len(h) - 1) * 100)
+                  lab = "crowded long" if L >= 0 and pct >= 90 else "crowded short" if L < 0 and pct <= 10 else None
+                  k = n + ":" + c["d"][-1]
+                  if lab and last.get(n) != lab and once("cot:" + k, 30):
+                      oi = c["oi"][-1]
+                      alert(f"👥 {n}: funds {lab}", f"Managed money net {L:+,} contracts ({abs(L) / oi * 100:.0f}% of open interest), {ordn(pct)} percentile of 3 years. As of {c['d'][-1]}. Crowded trades can reverse sharply.", "default", "busts_in_silhouette")
+                  last[n] = lab
+
+          # ---------- ENSO ----------
+          def enso():
+              E = load("enso.json")
+              if not E or not E.get("roni"):
+                  return
+              st = (E.get("status") or "").strip(); v = E["roni"][-1][2]; s = sstr(v)
+              old = ST.get("enso", {})
+              if old and (old.get("status") != st or old.get("str") != s):
+                  alert(f"🌊 ENSO update: {st or 'status changed'}", f"Official index (RONI) {v:+.2f} for {E['roni'][-1][0]} {E['roni'][-1][1]}: {s}. {E.get('synopsis', '')}", "high", "ocean")
+              ST["enso"] = {"status": st, "str": s}
+
+          # ---------- digests ----------
+          FIXED = [("2026-11-10 12:00", "USDA WASDE"), ("2026-12-10 12:00", "USDA WASDE"),
+                   ("2026-10-28 14:00", "Fed rate decision"), ("2026-12-09 14:00", "Fed rate decision"), ("2027-01-27 14:00", "Fed rate decision"),
+                   ("2027-03-17 14:00", "Fed rate decision"), ("2027-04-28 14:00", "Fed rate decision"), ("2027-06-09 14:00", "Fed rate decision"),
+                   ("2027-07-28 14:00", "Fed rate decision"), ("2027-09-15 14:00", "Fed rate decision"), ("2027-10-27 14:00", "Fed rate decision"), ("2027-12-08 14:00", "Fed rate decision"),
+                   ("2026-11-10 08:30", "US CPI"), ("2026-12-10 08:30", "US CPI"), ("2027-01-13 08:30", "US CPI"), ("2027-02-11 08:30", "US CPI"), ("2027-03-10 08:30", "US CPI"),
+                   ("2027-04-13 08:30", "US CPI"), ("2027-05-12 08:30", "US CPI"), ("2027-06-10 08:30", "US CPI"), ("2027-07-14 08:30", "US CPI"), ("2027-08-11 08:30", "US CPI"),
+                   ("2027-09-14 08:30", "US CPI"), ("2027-10-14 08:30", "US CPI"), ("2027-11-10 08:30", "US CPI"), ("2027-12-10 08:30", "US CPI"),
+                   ("2026-11-01 09:00", "OPEC+ meeting (time TBC)")]
+          WEEKLY = {2: [("10:30", "EIA crude inventories")], 3: [("08:30", "USDA export sales"), ("10:30", "EIA nat gas storage")],
+                    4: [("13:00", "Baker Hughes rig count"), ("15:30", "CFTC positioning (COT)")]}
+
+          def events_on(day):
+              out = []
+              for t, n in FIXED:
+                  d = dt.datetime.strptime(t, "%Y-%m-%d %H:%M").replace(tzinfo=NY)
+                  if d.astimezone(UK).date() == day:
+                      out.append((d.astimezone(UK), n))
+              for hm, n in WEEKLY.get(day.weekday(), []):
+                  d = dt.datetime.combine(day, dt.time(*map(int, hm.split(":"))), NY)
+                  out.append((d.astimezone(UK), n))
+              if day.weekday() == 0 and (day.month in range(4, 12)):
+                  out.append((dt.datetime.combine(day, dt.time(16, 0), NY).astimezone(UK), "USDA crop progress"))
+              return sorted(out)
+
+          def hols_on(day):
+              Hj = load("holidays.json", {}) or {}
+              grp = {}
+              for x in Hj.get("x", []):
+                  for k, st in (("closed", "closed"), ("short", "shortened session"), ("early", "early close")):
+                      n = x[k].get(day.isoformat())
+                      if n:
+                          n = n.replace(" (observed)", "")
+                          if n.startswith("Early close"):
+                              n = n.replace("Early close (", "").rstrip(")") or "early close"
+                          g = grp.setdefault((st, n), {"f": [], "c": []})
+                          if x["flag"] not in g["f"]: g["f"].append(x["flag"])
+                          g["c"].append(x["code"])
+              return [f"{''.join(g['f'])} {', '.join(g['c'])} {st} ({n})" for (st, n), g in grp.items()]
+
+          def context_lines():
+              L = []
+              S = load("storms.json") or {}
+              for s in S.get("storms", []):
+                  L.append(f"🌀 {s['name']}: {cat(s['kt'])}, {s['kt']} kt")
+              E = load("enso.json") or {}
+              if E.get("roni"):
+                  L.append(f"🌊 ENSO: {E.get('status') or ''} · RONI {E['roni'][-1][2]:+.2f} ({sstr(E['roni'][-1][2])})")
+              return L
+
+          def digests():
+              d = UKNOW.date()
+              if UKNOW.weekday() < 5 and UKNOW.hour >= 7 and ST.get("dig") != str(d) and UKNOW.hour < 12:
+                  ST["dig"] = str(d)
+                  ev = events_on(d); hl = hols_on(d)
+                  body = ["Today (UK time):"] + ([f"• {t:%H:%M} {n}" for t, n in ev] or ["• No scheduled reports"])
+                  if hl: body += ["Market holidays today:"] + [f"• {h}" for h in hl]
+                  cx = context_lines()
+                  if cx: body += [""] + cx
+                  alert(f"☀️ Morning brief · {UKNOW:%a %d %b}", "\n".join(body), "default", "sunrise")
+              if UKNOW.weekday() == 6 and UKNOW.hour >= 17 and ST.get("wk") != str(d):
+                  ST["wk"] = str(d)
+                  body = ["Week ahead (UK time):"]
+                  for i in range(1, 6):
+                      day = d + dt.timedelta(days=i)
+                      ev = [f"{t:%H:%M} {n}" for t, n in events_on(day) if n in ("USDA WASDE", "Fed rate decision", "US CPI") or "OPEC" in n]
+                      hl = hols_on(day)
+                      if ev or hl:
+                          body.append(f"{day:%a %d %b}: " + "; ".join(ev + hl))
+                  if len(body) == 1:
+                      body.append("Only the usual weekly reports, no market holidays.")
+                  else:
+                      body.append("Plus the usual weekly EIA, USDA and COT releases.")
+                  alert("🗓️ Week ahead", "\n".join(body), "default", "calendar")
+
+          # ---------- send ----------
+          def tg_chat():
+              global TG_CHAT
+              if TG_CHAT:
+                  return TG_CHAT
+              if ST.get("tg_chat"):
+                  return ST["tg_chat"]
+              try:
+                  u = json.loads(http(f"https://api.telegram.org/bot{TG_TOKEN}/getUpdates"))
+                  for x in reversed(u.get("result", [])):
+                      ch = (x.get("message") or x.get("channel_post") or {}).get("chat")
+                      if ch:
+                          ST["tg_chat"] = ch["id"]; return ch["id"]
+              except Exception as e:
+                  print("getUpdates failed", e)
+              print("No Telegram chat found yet: open your bot in Telegram and send it any message, then run this job again.")
+              return None
+
+          def esc(s):
+              return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+          def send(a):
+              if TG_TOKEN:
+                  ch = tg_chat()
+                  if ch:
+                      txt = f"<b>{esc(a['title'])}</b>\n{esc(a['body'])}\n<a href=\"{APP}\">Open map</a>"
+                      http(f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage",
+                           urllib.parse.urlencode({"chat_id": ch, "text": txt, "parse_mode": "HTML", "disable_web_page_preview": "true"}).encode())
+                      return True
+              if NTFY:
+                  http(f"https://ntfy.sh/{NTFY}", a["body"].encode(), {"Title": a["title"].encode("ascii", "ignore").decode().strip() or "Commodity alert",
+                       "Priority": {"urgent": "5", "high": "4"}.get(a["prio"], "3"), "Tags": a["tag"], "Click": APP, "User-Agent": "commodity-alerts"})
+                  return True
+              print("No delivery set up (add TELEGRAM_TOKEN or NTFY_TOPIC secret).")
+              return False
+
+          def main():
+              for f in (price_shocks, weather, storms, cot, enso):
+                  try:
+                      f()
+                  except Exception as e:
+                      print(f.__name__, "failed:", e)
+              if FIRST or MODE == "test":
+                  OUT.clear()
+                  cx = context_lines()
+                  alert("✅ Commodity alerts connected", "You'll get alerts for big price moves, unusual weather at critical crop stages, storms near markets, crowded fund positioning and El Niño/La Niña changes, plus a 07:00 morning brief and a Sunday week-ahead." + ("\n\nRight now:\n" + "\n".join(cx) if cx else ""), "default", "white_check_mark")
+              try:
+                  digests()
+              except Exception as e:
+                  print("digest failed:", e)
+              groups = {}
+              for a in OUT:
+                  groups.setdefault(a["tag"] if a["tag"] in ("chart_with_upwards_trend", "chart_with_downwards_trend") else a["tag"] + a["title"] if a["tag"] != "busts_in_silhouette" else "cot", []).append(a)
+              px = [a for a in OUT if a["tag"].startswith("chart_with")]
+              cots = [a for a in OUT if a["tag"] == "busts_in_silhouette"]
+              wxs = [a for a in OUT if a["tag"] in ("umbrella", "sunny")]
+              rest = [a for a in OUT if a not in px and a not in cots and a not in wxs]
+              final = list(rest)
+              if len(wxs) > 2:
+                  final.insert(0, {"title": f"🌦️ Unusual weather at {len(wxs)} crops' critical stages", "body": "\n".join("• " + a["title"][3:].replace(" at a critical stage", "") + ": " + a["body"].split(". Next")[0].split(": ", 1)[1] for a in wxs), "prio": "high", "tag": "cloud_with_rain"})
+              else:
+                  final[:0] = wxs
+              if len(px) > 2:
+                  final.insert(0, {"title": f"📊 {len(px)} big price moves today", "body": "\n".join("• " + a["title"][2:].replace(" today", "") + " (" + a["body"].split(" normal")[0].replace("A ", "") + " a normal day)" for a in px), "prio": "high", "tag": "bar_chart"})
+              else:
+                  final[:0] = px
+              if len(cots) > 1:
+                  final.append({"title": "👥 Fund positioning extremes (CFTC)", "body": "\n".join("• " + a["title"][2:].replace(": funds", ":") + " · " + a["body"].split(", ")[1].split(" of 3")[0] for a in cots) + "\nCrowded trades can reverse sharply.", "prio": "default", "tag": "busts_in_silhouette"})
+              else:
+                  final += cots
+              for a in final[:8]:
+                  print("ALERT:", a["title"], "|", a["body"].replace("\n", " / "))
+                  try:
+                      send(a)
+                  except Exception as e:
+                      print("send failed:", e)
+              ST["last_run"] = NOW.isoformat()
+              json.dump(ST, open("alerts_state.json", "w"), indent=0, sort_keys=True)
+
+          main()
+          PY
+      - name: Save alert memory
+        run: |
+          git config user.name "alert-bot"
+          git config user.email "alert-bot@users.noreply.github.com"
+          git add alerts_state.json || true
+          if ! git diff --cached --quiet; then
+            git commit -q -m "Update alert state"
+            for i in 1 2 3; do git pull -q --rebase && git push -q && break; sleep 5; done
+          fi
