@@ -44,6 +44,9 @@ button{background:var(--card);color:var(--ink);border:1px solid var(--line);bord
 .cm.s0,.cl i.s0{background:#8a949a33}.cm.s1,.cl i.s1{background:#e0a03a66}.cm.s2,.cl i.s2{background:#e0563fbb}.cm.now{outline:2px solid var(--ink);font-weight:700}
 .cl{display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--mut)}.cl i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-left:6px}.cl i:first-child{margin-left:0}
 b.wrap{white-space:normal;text-align:right;flex:0 1 60%}
+.stc{fill:#ff4fd833;stroke:#ff8fe6aa;stroke-width:1;vector-effect:non-scaling-stroke}.stt{fill:none;stroke:#ff8fe6;stroke-width:2;stroke-dasharray:5 3;vector-effect:non-scaling-stroke}
+.mk.L-storms{border:none;background:none;width:20px;height:20px;font-size:18px;line-height:20px;text-align:center;z-index:4}.mk.L-storms span{display:block;left:22px;top:1px;font-weight:700;font-size:11px;color:#ff8fe6}
+.chip.storm{box-shadow:0 0 0 2px #ff4fd8,0 1px 4px #0003}#map.off-storms .L-storms{display:none}
 </style></head><body>
 <h1>Commodity Weather Map</h1>
 <div class="sub">Growing regions, shipping lanes, pipelines, chokepoints. Tap anything; toggle layers below.</div>
@@ -150,7 +153,7 @@ const lay=(a,k,c)=>`<g class="${c}">`+a.map((r,i)=>`<path id="ln${k}${i}" class=
 map.innerHTML=g+lay(LN,"l","L-lanes")+lay(PL,"p","L-pipes")+"</svg>";
 map.querySelectorAll(".hit").forEach(h=>h.onclick=()=>{const r=(h.dataset.k=="l"?LN:PL)[h.dataset.i];info(`<h2>${r.n}</h2><div class="row"><span>Carries</span><b>${r.w}</b></div>${r.v?`<div class="row"><span>Via</span><b>${r.v}</b></div>`:""}${r.s?`<div class="row"><span>Status</span><b>${r.s}</b></div>`:""}<div class="note">Indicative route, not an exact track. Flows and status change with politics and sanctions.</div>`)});
 MK.forEach(m=>{const e=document.createElement("div");e.className="mk L-"+m.k;e.style.left=X(m.lon)/3.6+"%";e.style.top=Y(m.lat)/1.8+"%";e.innerHTML=`<span>${m.n}</span>`;e.onclick=()=>info(`<h2>${m.n}</h2><div class="row"><span>Type</span><b>${m.k=="choke"?"Chokepoint":"Port"}</b></div><div class="row"><span>Why it matters</span><b>${m.w}</b></div>`);map.appendChild(e)});
-[["lanes","Sea lanes"],["pipes","Pipelines"],["choke","Chokepoints"],["ports","Ports"],["pins","Prices"]].forEach(([k,t])=>{const b=document.createElement("button");b.textContent=t;b.style.cssText="font-size:12px;padding:4px 9px";b.onclick=()=>{b.style.opacity=map.classList.toggle("off-"+k)?.4:1;layout()};$("#tg").appendChild(b)});
+[["lanes","Sea lanes"],["pipes","Pipelines"],["choke","Chokepoints"],["ports","Ports"],["pins","Prices"],["storms","Storms"]].forEach(([k,t])=>{const b=document.createElement("button");b.textContent=t;b.style.cssText="font-size:12px;padding:4px 9px";b.onclick=()=>{b.style.opacity=map.classList.toggle("off-"+k)?.4:1;layout()};$("#tg").appendChild(b)});
 const kr=(k,i,r)=>`<div class="kr${k=="p"?" pl":""}" data-k="${k}" data-i="${i}"><i style="border-color:${CL[r.c]}"></i><div><b>${r.n}</b><small>${r.w}${r.v?" · via "+r.v:""}${r.s?" · "+r.s:""}</small></div></div>`;
 function hl(k,i){map.classList.remove(k=="l"?"off-lanes":"off-pipes");const el=document.getElementById("ln"+k+i),on=el.classList.contains("hl");document.querySelectorAll(".ln.hl").forEach(x=>x.classList.remove("hl"));map.classList.toggle("hlmode",!on);if(on)return;el.classList.add("hl");const b=el.getBBox(),s=$("#scroll"),W=map.offsetWidth/360;s.scrollTo({left:(b.x+b.width/2)*W-s.clientWidth/2,top:(b.y+b.height/2)*W-s.clientHeight/2,behavior:"smooth"})}
 function openKey(){let s='<h2>Key</h2><div class="note" style="margin:0 0 4px">Tap a row to highlight that route on the map.</div><div class="kh">Shipping lanes</div>';
@@ -207,6 +210,36 @@ for(const u of urls){try{const r=await fetch(u);if(r.ok){G=await r.json();break}
 if(G){$("#wxt").max=G.times.length-1;$("#wxs").textContent="Model data via Open-Meteo, updated "+new Date(G.updated*1000).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}
 else $("#wxs").textContent="Weather layer not available yet";tlabel();wxResize()}
 segs();grid();
+function cat(s){const k=s.kt;if(k>=137)return"Cat 5";if(k>=113)return"Cat 4";if(k>=96)return"Cat 3";if(k>=83)return"Cat 2";if(k>=64)return"Cat 1";if(k>=34)return"Trop. storm";return"Depression"}
+function km(a,b,c,d){const r=Math.PI/180,x=Math.sin((c-a)*r/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin((d-b)*r/2)**2;return 12742*Math.asin(Math.sqrt(x))}
+function wrapPath(pts,close){let d="",pl=null;pts.forEach(([lo,la],i)=>{if(pl!==null&&Math.abs(lo-pl)>180)d+="M";else d+=i?"L":"M";d+=(lo+180).toFixed(2)+" "+(90-la).toFixed(2);pl=lo});return d+(close?"Z":"")}
+let STM=[];
+function atRisk(s){const P=[[s.lon,s.lat],...s.track],out=[];
+const near=(la,lo)=>Math.min(...P.map(p=>km(la,lo,p[1],p[0])));
+R.forEach((r,i)=>{const d=near(r.lat,r.lon);if(d<700)out.push({n:r.n,k:"Commodity",d,i})});
+MK.forEach(m=>{const d=near(m.lat,m.lon);if(d<500)out.push({n:m.n,k:m.k=="choke"?"Chokepoint":"Port",d})});return out.sort((a,b)=>a.d-b.d)}
+function showStorm(s){const rk=atRisk(s),age=s.time?Math.round((Date.now()-new Date(s.time.endsWith("Z")?s.time:s.time+"Z"))/36e5):null;
+info(`<h2>🌀 ${s.name} · ${cat(s)}</h2>
+<div class="row"><span>Max wind</span><b>${s.kt} kt (${Math.round(s.kt*1.852)} km/h)</b></div>
+${s.mb?`<div class="row"><span>Pressure</span><b>${s.mb} mb</b></div>`:""}
+${s.spd!=null?`<div class="row"><span>Moving</span><b>${s.spd} mph towards the ${["N","NE","E","SE","S","SW","W","NW"][Math.round(s.dir/45)%8]}</b></div>`:""}
+<div class="row"><span>Position</span><b>${Math.abs(s.lat).toFixed(1)}°${s.lat>=0?"N":"S"} ${Math.abs(s.lon).toFixed(1)}°${s.lon>=0?"E":"W"}</b></div>
+<div class="row"><span>Source</span><b>${s.src=="NHC"?"US National Hurricane Center":"GDACS (global alerts)"}${age!=null?" · "+age+"h ago":""}</b></div>
+<div class="kh">Within reach of its forecast path</div>${rk.length?'<ul class="dl">'+rk.map(x=>`<li><b>${x.n}</b> · ${x.k}, ~${Math.round(x.d/50)*50} km</li>`).join("")+"</ul>":'<div class="note" style="margin-top:4px">No tracked commodity regions, ports or chokepoints near its path.</div>'}
+${s.url?`<div class="note"><a href="${s.url}" target="_blank" rel="noopener" style="color:inherit">Official advisory ↗</a></div>`:""}
+<div class="note">${s.cone.length?(s.src=="NHC"?"Shaded area: forecast cone (likely path of the centre).":"Shaded area: forecast reach of 60 km/h winds."):""} Distances are rough, from the forecast track.</div>`)}
+async function storms(){let j=null;try{const r=await fetch("storms.json?t="+Date.now());if(r.ok)j=await r.json()}catch(e){}
+document.querySelectorAll(".mk.L-storms").forEach(x=>x.remove());document.querySelectorAll(".chip.storm").forEach(x=>x.classList.remove("storm"));
+let g=OV.querySelector("g.L-storms");if(!g){g=document.createElementNS("http://www.w3.org/2000/svg","g");g.setAttribute("class","L-storms");OV.appendChild(g)}g.innerHTML="";
+STM=j?j.storms:[];
+STM.forEach((s,si)=>{s.cone.forEach(c=>g.insertAdjacentHTML("beforeend",`<path class="stc" d="${wrapPath(c,1)}"/>`));
+if(s.track.length>1)g.insertAdjacentHTML("beforeend",`<path class="stt" d="${wrapPath(s.track,0)}"/>`);
+const e=document.createElement("div");e.className="mk L-storms";e.style.left=X(s.lon)/3.6+"%";e.style.top=Y(s.lat)/1.8+"%";
+e.innerHTML=`🌀<span>${s.name} · ${cat(s)}</span>`;e.onclick=()=>showStorm(s);map.appendChild(e);
+atRisk(s).forEach(x=>{if(x.i!=null){const c=$("#c"+x.i);c&&c.classList.add("storm");R[x.i].st={n:s.name,c:cat(s),d:x.d,si}}})});
+layout()}
+storms();
+
 $("#tg").insertAdjacentHTML("beforeend",'<div class="lg"><i style="color:#d9692a">━ oil</i><i style="color:#4aa35a">━ ag</i><i style="color:#6b86c9">━ metals</i><i style="color:#a86bd6">╌ gas</i><i>dashed = pipeline</i></div>');
 const LD=document.createElementNS("http://www.w3.org/2000/svg","svg");LD.id="ld";map.appendChild(LD);
 R.forEach((r,i)=>{const e=document.createElement("div");e.className="pin";e.style.left=X(r.lon)/3.6+"%";e.style.top=Y(r.lat)/1.8+"%";
@@ -300,7 +333,7 @@ ${r.nw?"":`<div class="row"><span>Rain, last 7 days</span><b>${w?f(w.past)+" mm"
 <div class="row"><span>Rain, next 7 days</span><b>${w?f(w.next)+" mm":"—"}${r.cx!=null?" (normal "+f(r.cx)+")":""}</b></div>
 `}${r.nw&&r.n!="Nat gas"?"":`<div class="row"><span>Temp, next 7 days avg</span><b>${w&&w.tn!=null?f(w.tn)+"°C":"—"}${r.ct!=null?" (normal "+f(r.ct)+")":""}</b></div>
 <div class="row"><span>Now</span><b>${w?f(w.t)+"°C · cloud "+f(w.cl,0)+"%":"—"}</b></div>
-`}<div class="row"><span>Signal</span><b class="wrap">${flag}</b></div>${cal(r)}
+`}${r.st?`<div class="row" style="cursor:pointer" onclick="showStorm(STM[${r.st.si}])"><span>🌀 Storm nearby</span><b class="wrap">${r.st.n} (${r.st.c}), ~${Math.round(r.st.d/50)*50} km from its path ›</b></div>`:""}<div class="row"><span>Signal</span><b class="wrap">${flag}</b></div>${cal(r)}
 ${drv(r)}<div class="note">These are leading indicators, not guarantees: markets already price in forecasts.</div>`)}
 R.forEach((r,i)=>paint(i));
 let wOK=false,pOK=0;
