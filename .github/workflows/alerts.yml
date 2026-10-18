@@ -328,6 +328,12 @@ jobs:
               return False
 
           def main():
+              if TG_TOKEN and not tg_chat() and not NTFY:
+                  print("Stopping without saving, so nothing is marked as sent until delivery works.")
+                  return
+              if not TG_TOKEN and not NTFY:
+                  print("No delivery set up (add TELEGRAM_TOKEN or NTFY_TOPIC secret). Stopping without saving.")
+                  return
               for f in (price_shocks, weather, storms, cot, enso):
                   try:
                       f()
