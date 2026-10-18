@@ -8,7 +8,7 @@ h1{font-size:17px;margin:0 0 2px}.sub{color:var(--mut);font-size:12px;margin-bot
 #bar{display:flex;gap:6px;align-items:center;margin-bottom:6px}
 button{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:15px}
 #st{color:var(--mut);font-size:11px;margin-left:auto;text-align:right}
-#scroll{overflow:auto;height:58vh;border:1px solid var(--line);border-radius:10px;background:var(--sea);-webkit-overflow-scrolling:touch}
+#mapw{position:relative}#scroll{overflow:auto;height:58vh;border:1px solid var(--line);border-radius:10px;background:var(--sea);-webkit-overflow-scrolling:touch}
 #map{position:relative;width:900px;aspect-ratio:2/1}
 #map svg{position:absolute;inset:0;width:100%;height:100%}
 .bd{fill:none;stroke:var(--line);stroke-width:.25;vector-effect:non-scaling-stroke}.land{fill:var(--land);stroke:var(--line);stroke-width:.3}.g{stroke:var(--line);stroke-width:.15;fill:none}
@@ -56,13 +56,25 @@ b.wrap{white-space:normal;text-align:right;flex:0 1 60%}
 .tt .th{color:var(--mut);margin-bottom:2px}.tt .tr{display:flex;align-items:center;gap:6px}.tt .tr i{width:10px;height:2px}.tt .tr b{font-variant-numeric:tabular-nums}.tt .tr span{color:var(--mut)}
 .rb{position:relative;height:6px;border-radius:3px;background:var(--line);margin:2px 0 6px}.rb i{position:absolute;top:-3px;width:4px;height:12px;margin-left:-2px;border-radius:2px;background:var(--ink)}
 .cb1{fill:var(--s1)}.cb2{fill:var(--s2)}rect.hv{opacity:.65}
+#tick{position:absolute;left:1px;right:1px;top:1px;height:28px;overflow:hidden;z-index:6;border-radius:9px 9px 0 0;background:color-mix(in srgb,var(--card) 72%,transparent);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);cursor:pointer;-webkit-mask-image:linear-gradient(90deg,transparent,#000 12px,#000 calc(100% - 12px),transparent);mask-image:linear-gradient(90deg,transparent,#000 12px,#000 calc(100% - 12px),transparent)}
+#tk{display:flex;width:max-content;height:100%;align-items:center;animation:tk 60s linear infinite}#tick:hover #tk,#tick:active #tk{animation-play-state:paused}
+@keyframes tk{from{transform:translateX(0)}to{transform:translateX(-50%)}}.tseq{display:flex}
+.ti{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;flex:none;font-size:12px;padding:0 14px 0 0;margin-right:14px;border-right:1px solid var(--line);color:var(--ink)}.ti>*{white-space:nowrap}.tseq{flex:none}.ti b{font-weight:600}.ti>span{color:var(--mut)}.ti::before{content:"";display:inline-block;flex:none;width:7px;height:7px;border-radius:50%;margin-right:1px;background:var(--s1)}
+.ti.evm::before,.evr.evm::before{background:var(--s2)}.ti.evh::before,.evr.evh::before{background:var(--mut)}
+@media (prefers-reduced-motion:reduce){#tk{animation:none}#tick{overflow-x:auto}.tseq+.tseq{display:none}}
+#calside{display:none}
+@media (min-width:1000px){#calside{display:block;position:absolute;right:10px;top:38px;bottom:10px;width:300px;overflow:auto;z-index:6;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:color-mix(in srgb,var(--card) 80%,transparent);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}#calside .sh{font-weight:700;margin-bottom:4px}}
+.evr{position:relative;padding:6px 0 6px 14px;border-top:1px solid var(--line)}.evr::before{content:"";position:absolute;left:0;top:11px;width:7px;height:7px;border-radius:50%;background:var(--s1)}
+.evr b{display:block;font-size:13px}.evr small{display:block;color:var(--mut);font-size:11px;line-height:1.35}.evr .tg{font-size:10.5px}
+.chip.evsoon b::after{content:" ⏱";font-weight:400}
+.evr small.hx{color:var(--ink);font-size:11.5px;margin-top:2px}.evr small.hx b{display:inline;font-size:inherit;color:var(--mut);font-weight:600}.evr small.hn{margin:0 0 2px 0;font-style:italic}
 </style></head><body>
 <h1>Commodity Weather Map</h1>
 <div class="sub">Growing regions, shipping lanes, pipelines, chokepoints. Tap anything; toggle layers below.</div>
 <div id="bar"><button id="zi">+</button><button id="zo">−</button><div id="st">loading…</div></div>
 <div id="tg"></div>
 <div id="wxc"><div class="seg" id="wxm"></div><div class="wrow"><input type="range" id="wxt" min="0" max="12" value="0" step="1"><span id="wxtl">—</span></div><div class="wrow"><span id="wxlg"></span><span id="wxs"></span></div></div>
-<div id="scroll"><div id="map"></div></div>
+<div id="mapw"><div id="scroll"><div id="map"></div></div><div id="tick" role="button" aria-label="Upcoming events, tap for calendar"><div id="tk"></div></div><div id="calside"></div></div>
 <div id="panel"></div>
 <script>
 const R=[
@@ -219,6 +231,69 @@ for(const u of urls){try{const r=await fetch(u);if(r.ok){G=await r.json();break}
 if(G){$("#wxt").max=G.times.length-1;$("#wxs").textContent="Model data via Open-Meteo, updated "+new Date(G.updated*1000).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}
 else $("#wxs").textContent="Weather layer not available yet";tlabel();wxResize()}
 segs();grid();
+const ALLC=R.map(r=>r.n),GR=["Corn","Wheat","Soybeans","Cotton","Rice"];
+function tzAt(y,mo,d,hh,mi,tz){const g=Date.UTC(y,mo-1,d,hh,mi);const p=new Intl.DateTimeFormat("en-US",{timeZone:tz,timeZoneName:"shortOffset"}).formatToParts(new Date(g)).find(x=>x.type=="timeZoneName").value;
+const m=p.match(/GMT([+-]\d+)(?::(\d+))?/),off=m?(+m[1])*60+Math.sign(+m[1])*(+(m[2]||0)):0;return new Date(g-off*6e4)}
+const ET=(s,hm)=>{const[y,mo,d]=s.split("-").map(Number),[hh,mi]=hm.split(":").map(Number);return tzAt(y,mo,d,hh,mi,"America/New_York")};
+const EVF=[];const add=(t,n,c,k,x={})=>EVF.push(Object.assign({t,n,c,k},x));
+["2026-11-10","2026-12-10"].forEach(d=>add(ET(d,"12:00"),"USDA WASDE",[...GR,"Sugar"],"r"));
+["2026-10-28","2026-12-09","2027-01-27","2027-03-17","2027-04-28","2027-06-09","2027-07-28","2027-09-15","2027-10-27","2027-12-08"].forEach(d=>add(ET(d,"14:00"),"Fed rate decision (FOMC)",["Gold","Silver","Crude oil","Copper"],"m"));
+["2026-11-10","2026-12-10","2027-01-13","2027-02-11","2027-03-10","2027-04-13","2027-05-12","2027-06-10","2027-07-14","2027-08-11","2027-09-14","2027-10-14","2027-11-10","2027-12-10"].forEach(d=>add(ET(d,"08:30"),"US CPI inflation",["Gold","Silver"],"r"));
+add(ET("2026-11-01","09:00"),"OPEC+ meeting (7 countries)",["Crude oil"],"m",{ap:"time not announced"});
+add(ET("2027-01-15","09:00"),"Q4 cocoa grind data",["Cocoa"],"r",{ap:"approximate date"});add(ET("2027-04-15","09:00"),"Q1 cocoa grind data",["Cocoa"],"r",{ap:"approximate date"});
+for(let k=0;k<14;k++){const d=new Date(Date.UTC(2026,10+k,10)),wd=d.getUTCDay(),dd=wd==6?12:wd==0?11:10;add(tzAt(d.getUTCFullYear(),d.getUTCMonth()+1,dd,12,30,"Asia/Kuala_Lumpur"),"Malaysian palm oil data (MPOB)",["Palm oil"],"r",{ap:"around the 10th"})}
+const US=[["2026-11-26","Thanksgiving"],["2026-12-25","Christmas"],["2027-01-01","New Year's Day"],["2027-01-18","Martin Luther King Day"],["2027-02-15","Presidents' Day"],["2027-03-26","Good Friday"],["2027-05-31","Memorial Day"],["2027-06-18","Juneteenth (observed)"],["2027-07-05","Independence Day (observed)"],["2027-09-06","Labor Day"],["2027-11-25","Thanksgiving"],["2027-12-24","Christmas (observed)"]];
+
+let HOL=null;
+function holEvents(){if(!HOL)return[];const by={};
+HOL.x.forEach(x=>[["closed","closed"],["short","shortened session"],["early","early close"]].forEach(([k,st])=>Object.entries(x[k]).forEach(([d,n])=>{(by[d]=by[d]||[]).push({x:x.label,code:x.code,f:x.flag,s:st,n,c:x.c,note:x.note})})));
+return Object.entries(by).map(([d,it])=>{const[y,mo,dd]=d.split("-").map(Number);const cl=it.filter(i=>i.s=="closed"),oth=it.filter(i=>i.s!="closed");
+const fl=[...new Set(it.map(i=>i.f))],flags=fl.slice(0,4).join("")+(fl.length>4?"+":"");const nms=[...new Set(it.map(i=>i.n.replace(/ \(observed\)/,"").replace(/^Early close \((.*)\)$/,"$1").replace(/ \(Spring Festival\)/,"")))],nm=nms.length==1?nms[0]:"Market holidays";
+const short=[cl.length?cl.map(i=>i.code).join(", ")+" closed":"",oth.length?oth.map(i=>i.code).join(", ")+" "+(oth[0].s=="early close"?"early close":"shortened"):""].filter(Boolean).join("; ");
+return{t:tzAt(y,mo,dd,0,0,"Europe/London"),n:flags+" "+nm+": "+short,c:[...new Set(it.flatMap(i=>i.c))],k:"h",allday:1,items:it,tz:"Europe/London"}})}
+(async()=>{try{const r=await fetch("holidays.json?t="+(Date.now()/36e5|0));if(r.ok){HOL=await r.json();ticker()}}catch(e){}})();
+function hol(d){const s=d.toLocaleDateString("en-CA",{timeZone:"America/New_York"});return US.some(x=>x[0]==s)}
+function weekly(){const out=[],now=new Date(),thx=US.filter(x=>x[1]=="Thanksgiving").map(x=>x[0]);
+for(let k=-1;k<60;k++){const d=new Date(now.getTime()+k*864e5),s=d.toLocaleDateString("en-CA",{timeZone:"America/New_York"}),wd=new Date(s+"T12:00:00Z").getUTCDay();
+const mon=new Date(new Date(s+"T12:00:00Z").getTime()-((wd+6)%7)*864e5),wk=[0,1,2,3,4].map(i=>new Date(mon.getTime()+i*864e5).toISOString().slice(0,10)),hw=US.some(x=>wk.includes(x[0])),th=thx.some(x=>wk.includes(x));
+const fl=hw?{ap:"holiday week: timing may shift"}:{};const P=(n,hm,c,dd=s)=>out.push(Object.assign({t:ET(dd,hm),n,c,k:"r"},fl));
+const sh=(n)=>{const x=new Date(new Date(s+"T12:00:00Z").getTime()+n*864e5);return x.toISOString().slice(0,10)};
+if(wd==3)P("EIA crude oil inventories",hw?"11:00":"10:30",["Crude oil"],hw&&!th?sh(1):s);
+if(wd==4)th?P("EIA natural gas storage","12:00",["Nat gas"],sh(-1)):P("EIA natural gas storage","10:30",["Nat gas"]);
+if(wd==4)P("USDA export sales","08:30",GR,th?sh(1):s);
+if(wd==5)P("Baker Hughes rig count","13:00",["Crude oil","Nat gas"],th?sh(-1):s);
+if(wd==5)P("CFTC positioning (COT)","15:30",ALLC,th?sh(3):s);
+if(wd==1&&(d<new Date("2026-12-01")||(d>=new Date("2027-04-05")&&d<new Date("2027-12-01")))&&!hol(d))P("USDA crop progress","16:00",["Corn","Soybeans","Cotton","Wheat"])}
+return out}
+let EVS=[];function evRefresh(){const now=Date.now();const seen=new Set();EVS=[...EVF,...weekly(),...holEvents()].filter(e=>{const k=e.n+e.t.getTime();if(seen.has(k))return false;seen.add(k);return true}).filter(e=>e.t.getTime()+(e.allday?864e5:36e5)>now).sort((a,b)=>a.t-b.t)}
+const UKT={timeZone:"Europe/London"};const fmtT=e=>e.allday?e.t.toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short",timeZone:e.tz||"America/New_York"}):e.t.toLocaleString("en-GB",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit",hour12:false,...UKT})+" UK";
+function cd(e){const ms=e.t-Date.now();if(ms<=0)return e.allday?"today":"now";const m=Math.round(ms/6e4),d=Math.floor(m/1440),hh=Math.floor(m%1440/60),mm=m%60;return d?`in ${d}d ${hh}h`:hh?`in ${hh}h ${mm}m`:`in ${mm}m`}
+function evRow(e){const el=document.createElement("div");el.className="evr ev"+e.k;const a=document.createElement("b");a.textContent=e.n;const t=document.createElement("small");t.textContent=fmtT(e)+" · ";const c=document.createElement("span");c.className="cd";c.dataset.t=e.t.getTime();c.textContent=cd(e);t.appendChild(c);
+if(e.items){a.textContent=e.n.split(":")[0]+": market holiday";el.append(a,t);e.items.forEach(i=>{const s=document.createElement("small");s.className="hx";const st=document.createElement("b");st.textContent=i.s;s.append(i.f+" "+i.x+" · ",st,i.n&&!i.n.startsWith("Early close")?" ("+i.n.replace(/\s*\(observed\)/," observed")+")":"");el.appendChild(s);if(i.note){const nt=document.createElement("small");nt.className="tg hn";nt.textContent=i.note;el.appendChild(nt)}});return el}
+const tg=document.createElement("small");tg.className="tg";tg.textContent=(e.c.length>=ALLC.length?"All markets":e.c.join(", "))+(e.ap?" · "+e.ap:"");el.append(a,t,tg);return el}
+let evf="all";
+function calBody(container,days){container.textContent="";const fl=document.createElement("div");fl.className="seg";[["all","All"],["r","Reports"],["m","Central banks & OPEC"],["h","Holidays"]].forEach(([k,t])=>{const b=document.createElement("button");b.textContent=t;b.classList.toggle("on",evf==k);b.onclick=()=>{evf=k;calBody(container,days)};fl.appendChild(b)});container.appendChild(fl);
+const lim=Date.now()+days*864e5;let last="";EVS.filter(e=>e.t<lim&&(evf=="all"||e.k==evf)).forEach(e=>{const dl=e.t.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",...UKT});if(dl!=last){const hd=document.createElement("div");hd.className="kh";hd.textContent=dl;container.appendChild(hd);last=dl}container.appendChild(evRow(e))});
+const nt=document.createElement("div");nt.className="note";nt.textContent="Times are UK time (GMT/BST), converted from each exchange's local time. Holidays come from published exchange calendars, refreshed weekly; check your broker for exact session hours. Weekly US reports move in holiday weeks, so confirm exact times on the day. 2027 WASDE dates are not published yet.";container.appendChild(nt)}
+function openCal(){info('<h2>Market calendar</h2><div id="calp"></div>');calBody($("#calp"),45)}
+function wkRange(){const uk=d=>d.toLocaleDateString("en-CA",{timeZone:"Europe/London"}),t=uk(new Date()),wd=new Date(t+"T12:00:00Z").getUTCDay(),
+mon=new Date(new Date(t+"T12:00:00Z").getTime()+(wd==0?1:1-wd)*864e5),fri=new Date(mon.getTime()+4*864e5);return[mon.toISOString().slice(0,10),fri.toISOString().slice(0,10),uk]}
+function ticker(){evRefresh();const tk=$("#tk");tk.textContent="";const[wm,wf,uk]=wkRange();
+const inWk=e=>{const d=uk(e.t);return d>=wm&&d<=wf};let items=EVS.filter(e=>e.t<Date.now()+10*864e5&&(!e.items||inWk(e)));
+if(HOL&&!EVS.some(e=>e.items&&inWk(e)))items.unshift({n:"✓ No market holidays this week",t:new Date(wm+"T00:00:00Z"),c:[],k:"h",allday:1,tz:"Europe/London",none:1});
+items=items.slice(0,14);
+const mk=()=>{const f=document.createDocumentFragment();items.forEach(e=>{const s=document.createElement("span");s.className="ti ev"+e.k;const n=document.createElement("b");n.textContent=e.n;const t=document.createElement("span");t.textContent="· "+fmtT(e)+" ·";if(e.none){s.append(n);f.appendChild(s);return}const c=document.createElement("span");c.className="cd";c.dataset.t=e.t.getTime();c.textContent=cd(e);s.append(n,t,c);f.appendChild(s)});return f};
+const a=document.createElement("div");a.className="tseq";a.appendChild(mk());const b=a.cloneNode(true);b.setAttribute("aria-hidden","true");tk.append(a,b);
+tk.style.animationDuration=Math.max(30,a.scrollWidth/40)+"s";
+const side=$("#calside");side.textContent="";const hd=document.createElement("div");hd.className="sh";hd.textContent="Next 14 days";side.appendChild(hd);const bx=document.createElement("div");side.appendChild(bx);calBody(bx,14);
+document.querySelectorAll(".chip.evsoon").forEach(x=>x.classList.remove("evsoon"));const soon=Date.now()+864e5;
+R.forEach((r,i)=>{if(EVS.some(e=>e.t<soon&&e.k!="h"&&e.c.length<ALLC.length&&e.c.includes(r.n))){const c=$("#c"+i);c&&c.classList.add("evsoon")}});}
+function evFor(r){const sn=new Set(),L=EVS.filter(e=>!e.items&&e.c.includes(r.n)&&e.c.length<ALLC.length&&!sn.has(e.n)&&sn.add(e.n)).slice(0,4).concat(EVS.filter(e=>e.items&&e.c.includes(r.n)).slice(0,2).map(e=>{const it=e.items.filter(i=>i.c.includes(r.n));return Object.assign({},e,{n:[...new Set(it.map(i=>i.f))].join("")+" "+it.map(i=>i.code+" "+(i.s=="closed"?"closed":i.s)).join(", ")+" ("+it[0].n.replace(/^Early close \((.*)\)$/,"$1")+")"})}));if(!L.length)return"";
+return'<div class="kh">Upcoming events</div><div class="evl">'+L.sort((a,b)=>a.t-b.t).map(e=>`<div class="evr ev${e.k}"><b>${e.n}</b><small>${fmtT(e)} · <span class="cd" data-t="${e.t.getTime()}">${cd(e)}</span>${e.ap?" · "+e.ap:""}</small></div>`).join("")+"</div>"}
+$("#tick").onclick=openCal;setTimeout(ticker,0);
+setInterval(()=>{document.querySelectorAll(".cd[data-t]").forEach(s=>{const t=+s.dataset.t;s.textContent=cd({t:new Date(t),allday:0})})},6e4);
+setInterval(ticker,30*6e4);
+
 let COT=null;(async()=>{try{const r=await fetch("cot.json?t="+(Date.now()/3e5|0));if(r.ok)COT=await r.json()}catch(e){}})();
 function cotHTML(r){if(r.n=="Rubber"||r.n=="Iron ore")return`<div class="kh">Fund positioning</div><div class="note">The CFTC doesn't report this market.</div>`;
 return`<div class="kh">Fund positioning · CFTC, weekly</div><div class="lgd"><span><i style="background:var(--s1)"></i>Net long</span><span><i style="background:var(--s2)"></i>Net short</span><span>managed money, last 52 weeks</span></div><div id="cc" class="pc"><div class="note">Loading positioning…</div></div><div id="cst"></div>`}
@@ -409,7 +484,7 @@ if(w.past<n*.5&&-d>15)return["dry","Dry: "+(pc!=null?pc+"% vs normal":"well belo
 return["","Close to normal for the season"]}
 function show(i){const r=R[i],w=r.w,flag=sig(r)[1];
 info(`<h2>${r.n} · ${r.loc}</h2>
-<div class="row"><span>Price ${r.live?"(delayed)":"(SAMPLE)"}</span><b>${f(r.p,r.p<20?2:0)} ${r.u}</b></div>${chartHTML(r)}${cotHTML(r)}
+<div class="row"><span>Price ${r.live?"(delayed)":"(SAMPLE)"}</span><b>${f(r.p,r.p<20?2:0)} ${r.u}</b></div>${evFor(r)}${chartHTML(r)}${cotHTML(r)}
 ${r.nw?"":`<div class="row"><span>Rain, last 7 days</span><b>${w?f(w.past)+" mm":"—"}${r.cn!=null?" (normal "+f(r.cn)+")":""}</b></div>
 <div class="row"><span>Rain, next 7 days</span><b>${w?f(w.next)+" mm":"—"}${r.cx!=null?" (normal "+f(r.cx)+")":""}</b></div>
 `}${r.nw&&r.n!="Nat gas"?"":`<div class="row"><span>Temp, next 7 days avg</span><b>${w&&w.tn!=null?f(w.tn)+"°C":"—"}${r.ct!=null?" (normal "+f(r.ct)+")":""}</b></div>
