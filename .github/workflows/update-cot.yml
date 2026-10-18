@@ -1,0 +1,65 @@
+name: Update COT positioning
+on:
+  schedule:
+    - cron: "0 21 * * 5"
+    - cron: "0 12 * * 6"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  cot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch CFTC disaggregated futures positions
+        run: |
+          python3 - <<'PY'
+          import json, time, datetime as dt, urllib.request, urllib.parse
+          CODES = {"Cocoa": "073732", "Coffee": "083731", "Wheat": "001602", "Palm oil": "037021", "Copper": "085692",
+                   "Sugar": "080732", "Corn": "002602", "Cotton": "033661", "Crude oil": "067651", "Nat gas": "023651",
+                   "Soybeans": "005602", "Gold": "088691", "Silver": "084691", "Platinum": "076651", "Lumber": "058644",
+                   "Orange juice": "040701", "Rice": "039601", "Lithium": "189691"}
+          since = (dt.date.today() - dt.timedelta(days=3 * 365 + 14)).isoformat()
+          q = urllib.parse.urlencode({
+              "$where": "cftc_contract_market_code in(" + ",".join("'" + c + "'" for c in CODES.values()) + f") AND report_date_as_yyyy_mm_dd > '{since}'",
+              "$order": "report_date_as_yyyy_mm_dd", "$limit": 50000})
+          rows = None
+          for attempt in range(3):
+              try:
+                  rows = json.load(urllib.request.urlopen("https://publicreporting.cftc.gov/resource/72hh-3qpy.json?" + q, timeout=120))
+                  break
+              except Exception as e:
+                  print("retry", attempt, e); time.sleep(20)
+          if rows is None:
+              raise SystemExit("CFTC fetch failed")
+          def num(r, *keys):
+              for k in keys:
+                  if r.get(k) not in (None, ""):
+                      return int(float(r[k]))
+              return 0
+          by = {c: {"d": [], "mm": [], "pm": [], "oi": []} for c in CODES.values()}
+          names = {}
+          for r in rows:
+              c = r.get("cftc_contract_market_code")
+              if c not in by:
+                  continue
+              names[c] = r.get("market_and_exchange_names")
+              d = r["report_date_as_yyyy_mm_dd"][:10]
+              b = by[c]
+              if b["d"] and b["d"][-1] == d:
+                  continue
+              b["d"].append(d)
+              b["mm"].append(num(r, "m_money_positions_long_all") - num(r, "m_money_positions_short_all"))
+              b["pm"].append(num(r, "prod_merc_positions_long", "prod_merc_positions_long_all") - num(r, "prod_merc_positions_short", "prod_merc_positions_short_all"))
+              b["oi"].append(num(r, "open_interest_all"))
+          out = {n: dict(by[c], name=names.get(c, "")) for n, c in CODES.items() if by[c]["d"]}
+          print("got", len(out), "of", len(CODES), "| latest", max((v["d"][-1] for v in out.values()), default=None))
+          if out:
+              json.dump({"updated": int(time.time()), "c": out}, open("cot.json", "w"), separators=(",", ":"))
+          PY
+      - name: Commit if changed
+        run: |
+          git config user.name "cot-bot"
+          git config user.email "cot-bot@users.noreply.github.com"
+          git add cot.json || true
+          git diff --cached --quiet || (git commit -m "Update COT" && git pull --rebase && git push)
