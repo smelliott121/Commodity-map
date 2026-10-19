@@ -1,7 +1,7 @@
 name: Commodity alerts
 on:
   workflow_run:
-    workflows: ["Update prices", "Update storms", "Update COT positioning", "Update ENSO", "Update climate normals"]
+    workflows: ["Update prices", "Update storms", "Update COT positioning", "Update ENSO", "Update climate normals", "Update chokepoints"]
     types: [completed]
   schedule:
     - cron: "5,35 * * * *"
@@ -205,6 +205,50 @@ jobs:
                       alert(f"👥 {n}: funds {lab}", f"Managed money net {L:+,} contracts ({abs(L) / oi * 100:.0f}% of open interest), {ordn(pct)} percentile of 3 years. As of {c['d'][-1]}. Crowded trades can reverse sharply.", "default", "busts_in_silhouette")
                   last[n] = lab
 
+          # ---------- chokepoint traffic ----------
+          def chokes():
+              C = load("chokes.json")
+              if not C:
+                  return
+              last = ST.setdefault("choke", {})
+              for pid, c in C.get("c", {}).items():
+                  t = c["tot"]; n = len(t)
+                  if n < 120:
+                      continue
+                  try:
+                      age = (NOW.date() - dt.date.fromisoformat(c["d"][-1])).days
+                  except Exception:
+                      continue
+                  if age > 21:
+                      continue
+                  a7 = sum(t[-7:]) / 7
+                  bl = t[max(0, n - 365):n - 30]
+                  base = sum(bl) / len(bl) if bl else 0
+                  if base < 3:
+                      continue
+                  pct = a7 / base - 1
+                  lv = "severe" if pct <= -0.4 else "low" if pct <= -0.2 else "high" if pct >= 0.3 else "ok"
+                  prev = last.get(pid, "ok")
+                  last[pid] = lv
+                  if lv == prev or lv == "ok":
+                      continue
+                  if lv == "low" and prev == "severe":
+                      continue
+                  if not once(f"choke:{pid}:{lv}", 14):
+                      continue
+                  parts = []
+                  for k, lab in (("tank", "tankers"), ("cont", "containers"), ("bulk", "dry bulk")):
+                      v = c.get(k) or []
+                      b2 = v[max(0, n - 365):n - 30]
+                      bb = sum(b2) / len(b2) if b2 else 0
+                      if bb >= 1:
+                          parts.append(f"{lab} {(sum(v[-7:]) / 7) / bb - 1:+.0%}")
+                  word = {"severe": "🚨 traffic collapse", "low": "⚠️ traffic down", "high": "🚢 traffic surge"}[lv]
+                  alert(f"{word.split(' ', 1)[0]} {c['name']}: {word.split(' ', 1)[1]} {pct:+.0%}",
+                        f"{a7:.0f} ships/day over the last 7 days vs a normal {base:.0f} (past year). " + (", ".join(parts) + ". " if parts else "") +
+                        f"Satellite data to {c['d'][-1]}, about a week behind." + (" Ships may be re-routing via the Cape." if pid in ("chokepoint1", "chokepoint4") and pct < 0 else ""),
+                        "high" if lv == "severe" else "default", "ship")
+
           # ---------- ENSO ----------
           def enso():
               E = load("enso.json")
@@ -334,7 +378,7 @@ jobs:
               if not TG_TOKEN and not NTFY:
                   print("No delivery set up (add TELEGRAM_TOKEN or NTFY_TOPIC secret). Stopping without saving.")
                   return
-              for f in (price_shocks, weather, storms, cot, enso):
+              for f in (price_shocks, weather, storms, cot, enso, chokes):
                   try:
                       f()
                   except Exception as e:
@@ -342,7 +386,7 @@ jobs:
               if FIRST or MODE == "test":
                   OUT.clear()
                   cx = context_lines()
-                  alert("✅ Commodity alerts connected", "You'll get alerts for big price moves, unusual weather at critical crop stages, storms near markets, crowded fund positioning and El Niño/La Niña changes, plus a 07:00 morning brief and a Sunday week-ahead." + ("\n\nRight now:\n" + "\n".join(cx) if cx else ""), "default", "white_check_mark")
+                  alert("✅ Commodity alerts connected", "You'll get alerts for big price moves, unusual weather at critical crop stages, storms near markets, crowded fund positioning, shipping chokepoint disruptions and El Niño/La Niña changes, plus a 07:00 morning brief and a Sunday week-ahead." + ("\n\nRight now:\n" + "\n".join(cx) if cx else ""), "default", "white_check_mark")
               try:
                   digests()
               except Exception as e:
@@ -353,8 +397,13 @@ jobs:
               px = [a for a in OUT if a["tag"].startswith("chart_with")]
               cots = [a for a in OUT if a["tag"] == "busts_in_silhouette"]
               wxs = [a for a in OUT if a["tag"] in ("umbrella", "sunny")]
-              rest = [a for a in OUT if a not in px and a not in cots and a not in wxs]
+              shp = [a for a in OUT if a["tag"] == "ship"]
+              rest = [a for a in OUT if a not in px and a not in cots and a not in wxs and a not in shp]
               final = list(rest)
+              if len(shp) > 2:
+                  final.append({"title": f"🚢 Shipping: {len(shp)} chokepoints out of the ordinary", "body": "\n".join("• " + a["title"].split(" ", 1)[1] + " (" + a["body"].split(" (past")[0] + ")" for a in shp) + "\nSatellite data, about a week behind.", "prio": "high" if any(a["prio"] == "high" for a in shp) else "default", "tag": "ship"})
+              else:
+                  final += shp
               if len(wxs) > 2:
                   final.insert(0, {"title": f"🌦️ Unusual weather at {len(wxs)} crops' critical stages", "body": "\n".join("• " + a["title"][3:].replace(" at a critical stage", "") + ": " + a["body"].split(". Next")[0].split(": ", 1)[1] for a in wxs), "prio": "high", "tag": "cloud_with_rain"})
               else:
