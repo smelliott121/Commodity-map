@@ -25,9 +25,15 @@ button{background:var(--card);color:var(--ink);border:1px solid var(--line);bord
 .hit{fill:none;stroke:transparent;stroke-width:16;vector-effect:non-scaling-stroke;pointer-events:stroke;cursor:pointer}
 .mk{position:absolute;transform:translate(-50%,-50%);width:14px;height:14px;border:2px solid var(--ink);background:var(--card);cursor:pointer}
 .mk::after{content:"";position:absolute;inset:-9px}
-.mk.L-choke{border-color:#d33;border-radius:50%}.mk.L-ports{border-radius:3px}
+.mk.L-choke{border-color:var(--cs,#d33);border-radius:50%}.mk.L-choke.cdat{background:color-mix(in srgb,var(--cs) 30%,var(--card))}
+.mk.L-choke b.cb{position:absolute;left:50%;top:-19px;transform:translateX(-50%);font:700 9.5px/1 ui-monospace,Menlo,Consolas,monospace;padding:2px 4px;border-radius:4px;background:var(--cs);color:#fff;white-space:nowrap;box-shadow:0 1px 3px #0005}
+.mk.L-choke.on{box-shadow:0 0 0 3px color-mix(in srgb,var(--cs,#d33) 45%,transparent);z-index:6}
+.cpill{display:inline-block;padding:3px 9px;border-radius:10px;font-size:11px;font-weight:700;color:#fff;background:var(--cs);vertical-align:middle}
+.ckey{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:11px;color:var(--mut);margin:6px 0}.ckey i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;vertical-align:-1px}
+.ctype{display:grid;grid-template-columns:1fr auto auto;gap:4px 12px;font-size:12px;margin:6px 0;font-variant-numeric:tabular-nums}.ctype span{color:var(--mut)}.ctype b{text-align:right}.mk.L-ports{border-radius:3px}
 .mk span{position:absolute;left:17px;top:-2px;white-space:nowrap;font-size:10px;display:none;color:var(--ink);text-shadow:0 0 3px var(--bg),0 0 3px var(--bg)}
 #map.big .mk span{display:block}
+#map .mk.L-storms span.stag{display:none}#map.zm .mk.L-storms span.stag,#map .mk.L-storms.sym:hover span.stag,#map .mk.L-storms.sym.on span.stag{display:block}.mk.L-storms.sym:hover,.mk.L-storms.sym.on{z-index:12}
 #map.off-lanes .L-lanes,#map.off-pipes .L-pipes,#map.off-choke .L-choke,#map.off-ports .L-ports,#map.off-pins .pin{display:none}
 #tg{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px}.lg{width:100%;font-size:11px;color:var(--mut)}.lg i{font-style:normal;margin-right:8px}
 .row{gap:12px}.row b{text-align:right}
@@ -48,7 +54,7 @@ b.wrap{white-space:normal;text-align:right;flex:0 1 60%}
 .mk.L-storms{border:none;background:none;width:34px;height:34px;z-index:4}.mk.L-storms.sfp{width:16px;height:16px;z-index:3}.mk.L-storms.sfp i{display:block;width:8px;height:8px;margin:4px;border-radius:50%;background:var(--trk)}
 .mk.L-storms .ssym{display:block;filter:drop-shadow(0 1px 2px #0008)}.spccw{animation:spn 6s linear infinite reverse;transform-origin:0 0}.spcw{animation:spn 6s linear infinite;transform-origin:0 0}@keyframes spn{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.spccw,.spcw{animation:none}}
-.mk.L-storms span.stag{display:block;position:absolute;left:36px;top:7px;white-space:nowrap;font:700 10.5px/1 ui-monospace,Menlo,Consolas,monospace;letter-spacing:.04em;color:var(--ink);background:color-mix(in srgb,var(--card) 82%,transparent);border:1px solid var(--line);border-left:3px solid var(--c);border-radius:4px;padding:3px 6px;text-shadow:none}
+.mk.L-storms span.stag{display:none;position:absolute;left:36px;top:7px;white-space:nowrap;font:700 10.5px/1 ui-monospace,Menlo,Consolas,monospace;letter-spacing:.04em;color:var(--ink);background:color-mix(in srgb,var(--card) 82%,transparent);border:1px solid var(--line);border-left:3px solid var(--c);border-radius:4px;padding:3px 6px;text-shadow:none}
 .ssk{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin:2px 0 2px}.ssk span{text-align:center;font:700 10px/1 ui-monospace,Menlo,monospace;padding:5px 0;border-radius:3px;background:color-mix(in srgb,var(--c) 30%,transparent);color:var(--ink)}.ssk span.on{background:var(--c);color:#0b0f12;outline:2px solid var(--ink)}
 .sskl{display:flex;justify-content:space-between;font-size:10px;color:var(--mut);margin-bottom:6px}
 .ftb{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:2px}.ftb th{text-align:left;color:var(--mut);font-weight:600;padding:3px 0;border-bottom:1px solid var(--line)}.ftb td{padding:4px 4px 4px 0;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}.fsw{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--c);margin-right:5px;vertical-align:-1px;box-shadow:0 0 0 1px #0006}
@@ -121,7 +127,7 @@ let g='<svg viewBox="0 0 360 180" preserveAspectRatio="none">';
 for(let i=-150;i<=150;i+=30)g+=`<path class="g" d="M${X(i)} 0V180"/>`;
 for(let i=-60;i<=60;i+=30)g+=`<path class="g" d="M0 ${Y(i)}H360"/>`;
 g+=`<path class="land" d="${LAND}"/><path class="bd" d="${BORD}"/>`;
-const info=h=>{map.classList.remove("hlmode");document.querySelectorAll(".ln.hl").forEach(x=>x.classList.remove("hl"));const p=$("#panel");p.innerHTML='<button class="x" id="px">×</button>'+h;p.classList.add("open");if(!h.includes("data-tap")){const tm=document.querySelector(".tapmk");tm&&tm.remove()}$("#px").onclick=()=>{p.classList.remove("open");document.querySelectorAll(".pin.sel").forEach(x=>x.classList.remove("sel"));const tm=document.querySelector(".tapmk");tm&&tm.remove()}};
+const info=h=>{map.classList.remove("hlmode");document.querySelectorAll(".mk.on").forEach(x=>x.classList.remove("on"));document.querySelectorAll(".ln.hl").forEach(x=>x.classList.remove("hl"));const p=$("#panel");p.innerHTML='<button class="x" id="px">×</button>'+h;p.classList.add("open");if(!h.includes("data-tap")){const tm=document.querySelector(".tapmk");tm&&tm.remove()}$("#px").onclick=()=>{p.classList.remove("open");document.querySelectorAll(".mk.on").forEach(x=>x.classList.remove("on"));document.querySelectorAll(".pin.sel").forEach(x=>x.classList.remove("sel"));const tm=document.querySelector(".tapmk");tm&&tm.remove()}};
 const D=p=>{const q=a=>{let d="";for(let i=0;i<a.length;i+=2)d+=(i?"L":"M")+X(a[i])+" "+Y(a[i+1]);return d};return Array.isArray(p[0])?p.map(q).join(""):q(p)};
 const CL={o:"#d9692a",a:"#4aa35a",m:"#6b86c9",g:"#a86bd6"};
 const LN=[
@@ -166,14 +172,18 @@ const PL=[
 {n:"Trans-Alaska",c:"o",w:"North Slope crude to Valdez",p:[-148.5,70,-146,64,-146,61]},
 {n:"Gasbol",c:"g",w:"Bolivian gas to Brazil",p:[-63,-17.8,-57,-20,-52,-22,-47,-23]}];
 const MK=[
-{k:"choke",n:"Strait of Hormuz",lat:26.5,lon:56.3,w:"Roughly a fifth of world oil and much of Qatar's LNG"},
-{k:"choke",n:"Bab el-Mandeb",lat:12.6,lon:43.3,w:"Red Sea gateway; trouble here pushes ships round the Cape"},
-{k:"choke",n:"Suez Canal",lat:30.5,lon:32.4,w:"Oil, LNG, grain, containers between Asia and Europe"},
-{k:"choke",n:"Strait of Malacca",lat:2.5,lon:101.4,w:"Gulf oil, palm oil and LNG heading to East Asia"},
-{k:"choke",n:"Panama Canal",lat:9.1,lon:-79.7,w:"US grain, LNG, products to Asia; sensitive to drought"},
-{k:"choke",n:"Bosphorus",lat:41.1,lon:29.1,w:"Black Sea grain, sunflower oil, oil exports"},
-{k:"choke",n:"Gibraltar",lat:36,lon:-5.6,w:"Atlantic to Mediterranean entry"},
-{k:"choke",n:"Cape of Good Hope",lat:-35.2,lon:19,w:"Diversion route when Suez or the Red Sea is avoided"},
+{k:"choke",id:"chokepoint6",n:"Strait of Hormuz",lat:26.5,lon:56.3,w:"Roughly a fifth of world oil and much of Qatar's LNG"},
+{k:"choke",id:"chokepoint4",n:"Bab el-Mandeb",lat:12.6,lon:43.3,w:"Red Sea gateway; trouble here pushes ships round the Cape"},
+{k:"choke",id:"chokepoint1",n:"Suez Canal",lat:30.5,lon:32.4,w:"Oil, LNG, grain, containers between Asia and Europe"},
+{k:"choke",id:"chokepoint5",n:"Strait of Malacca",lat:2.5,lon:101.4,w:"Gulf oil, palm oil and LNG heading to East Asia"},
+{k:"choke",id:"chokepoint2",n:"Panama Canal",lat:9.1,lon:-79.7,w:"US grain, LNG, products to Asia; sensitive to drought"},
+{k:"choke",id:"chokepoint3",n:"Bosphorus",lat:41.1,lon:29.1,w:"Black Sea grain, sunflower oil, oil exports"},
+{k:"choke",id:"chokepoint8",n:"Gibraltar",lat:36,lon:-5.6,w:"Atlantic to Mediterranean entry"},
+{k:"choke",id:"chokepoint7",n:"Cape of Good Hope",lat:-35.2,lon:19,w:"Diversion route when Suez or the Red Sea is avoided"},
+{k:"choke",id:"chokepoint9",n:"Dover Strait",lat:51,lon:1.45,w:"World's busiest shipping lane; North Sea and Baltic trade, UK and Rotterdam access"},
+{k:"choke",id:"chokepoint11",n:"Taiwan Strait",lat:24.5,lon:119.5,w:"Main lane between north and south Asia; containers, LNG and coal to China, Japan, Korea"},
+{k:"choke",id:"chokepoint15",n:"Lombok Strait",lat:-8.75,lon:115.75,w:"Deep-water alternative to Malacca for the largest bulk carriers; Australian iron ore and coal"},
+{k:"choke",id:"chokepoint28",n:"Kerch Strait",lat:45.3,lon:36.5,w:"Sea of Azov exit for Russian grain, oil products and fertiliser"},
 {k:"ports",n:"Rotterdam",lat:51.9,lon:4.4,w:"Europe's main oil and bulk hub"},
 {k:"ports",n:"Singapore",lat:1.3,lon:103.8,w:"Oil trading and bunkering hub"},
 {k:"ports",n:"Shanghai",lat:31.2,lon:121.8,w:"Huge importer of metals, oil and agricultural goods"},
@@ -189,7 +199,7 @@ const MK=[
 const lay=(a,k,c)=>`<g class="${c}">`+a.map((r,i)=>`<path id="ln${k}${i}" class="ln ${k=="p"?"pl":""}" stroke="${CL[r.c]}" d="${D(r.p)}"/><path class="hit" data-k="${k}" data-i="${i}" d="${D(r.p)}"/>`).join("")+"</g>";
 map.innerHTML=g+lay(LN,"l","L-lanes")+lay(PL,"p","L-pipes")+"</svg>";
 map.querySelectorAll(".hit").forEach(h=>h.onclick=()=>{const r=(h.dataset.k=="l"?LN:PL)[h.dataset.i];info(`<h2>${r.n}</h2><div class="row"><span>Carries</span><b>${r.w}</b></div>${r.v?`<div class="row"><span>Via</span><b>${r.v}</b></div>`:""}${r.s?`<div class="row"><span>Status</span><b>${r.s}</b></div>`:""}<div class="note">Indicative route, not an exact track. Flows and status change with politics and sanctions.</div>`)});
-MK.forEach(m=>{const e=document.createElement("div");e.className="mk L-"+m.k;e.style.left=X(m.lon)/3.6+"%";e.style.top=Y(m.lat)/1.8+"%";e.innerHTML=`<span>${m.n}</span>`;e.onclick=()=>info(`<h2>${m.n}</h2><div class="row"><span>Type</span><b>${m.k=="choke"?"Chokepoint":"Port"}</b></div><div class="row"><span>Why it matters</span><b>${m.w}</b></div>`);map.appendChild(e)});
+MK.forEach(m=>{const e=document.createElement("div");m.el=e;e.className="mk L-"+m.k;e.style.left=X(m.lon)/3.6+"%";e.style.top=Y(m.lat)/1.8+"%";e.innerHTML=`<span>${m.n}</span>`;e.onclick=()=>m.k=="choke"?showChoke(m):info(`<h2>${m.n}</h2><div class="row"><span>Type</span><b>${m.k=="choke"?"Chokepoint":"Port"}</b></div><div class="row"><span>Why it matters</span><b>${m.w}</b></div>`);map.appendChild(e)});
 [["lanes","Sea lanes"],["pipes","Pipelines"],["choke","Chokepoints"],["ports","Ports"],["pins","Prices"],["storms","Storms"],["enso","ENSO impacts"]].forEach(([k,t])=>{const b=document.createElement("button");b.textContent=t;b.dataset.k=k;b.style.cssText="font-size:12px;padding:4px 9px";b.onclick=()=>{b.style.opacity=map.classList.toggle("off-"+k)?.4:1;layout()};$("#tg").appendChild(b)});
 const kr=(k,i,r)=>`<div class="kr${k=="p"?" pl":""}" data-k="${k}" data-i="${i}"><i style="border-color:${CL[r.c]}"></i><div><b>${r.n}</b><small>${r.w}${r.v?" · via "+r.v:""}${r.s?" · "+r.s:""}</small></div></div>`;
 function hl(k,i){map.classList.remove(k=="l"?"off-lanes":"off-pipes");const el=document.getElementById("ln"+k+i),on=el.classList.contains("hl");document.querySelectorAll(".ln.hl").forEach(x=>x.classList.remove("hl"));map.classList.toggle("hlmode",!on);if(on)return;el.classList.add("hl");const b=el.getBBox(),s=$("#scroll"),W=map.offsetWidth/360;s.scrollTo({left:(b.x+b.width/2)*W-s.clientWidth/2,top:(b.y+b.height/2)*W-s.clientHeight/2,behavior:"smooth"})}
@@ -533,10 +543,52 @@ const south=s.lat<0,cc=ssc(s.kt);
 s.fc.forEach((f,fi)=>{if(fi==0&&Math.abs(f.p[0]-s.lon)<.3&&Math.abs(f.p[1]-s.lat)<.3)return;const e=document.createElement("div");e.className="mk L-storms sfp";e.style.left=X(f.p[0])/3.6+"%";e.style.top=Y(f.p[1])/1.8+"%";
 e.innerHTML=f.kt!=null?stormSym(f.kt,f.p[1]<0,16,false):`<i></i>`;e.title=ukT(f.t)+" UK"+(f.kt?" · "+f.kt+" kt":"");e.onclick=()=>showStorm(s);map.appendChild(e)});
 const e=document.createElement("div");e.className="mk L-storms sym";e.style.left=X(s.lon)/3.6+"%";e.style.top=Y(s.lat)/1.8+"%";
-e.innerHTML=stormSym(s.kt,south)+`<span class="stag" style="--c:${cc[1]}">${s.name.toUpperCase()} · ${cc[2]} · ${s.kt} kt</span>`;e.onclick=()=>showStorm(s);map.appendChild(e);
+e.innerHTML=stormSym(s.kt,south)+`<span class="stag" style="--c:${cc[1]}">${s.name.toUpperCase()} · ${cc[2]}</span>`;e.onclick=()=>{showStorm(s);e.classList.add("on")};map.appendChild(e);
 atRisk(s).forEach(x=>{if(x.i!=null){const c=$("#c"+x.i);c&&c.classList.add("storm");R[x.i].st={n:s.name,c:cat(s),d:x.d,si}}})});
 layout()}
 storms();
+
+/* ---- chokepoint traffic (IMF PortWatch) ---- */
+let CK=null;const CST={severe:["#d33b3b","Severe drop"],low:["#e0a020","Below normal"],ok:["#3a9a5b","Normal"],high:["#2a78d6","Busier than normal"]};
+const ra7=(v,i)=>{let s=0,n=0;for(let k=Math.max(0,i-6);k<=i;k++){s+=v[k];n++}return s/n};
+function ckStat(c){const N=c.d.length,bl=a=>{const s=a.slice(Math.max(0,N-365),N-30);return s.length?s.reduce((x,y)=>x+y,0)/s.length:0},cur=a=>ra7(a,N-1);
+const o={};["tot","tank","cont","bulk","cap"].forEach(k=>{const a=c[k]||[],b=bl(a),v=cur(a);o[k]={v,b,p:b>0?v/b-1:null,y:N>371?ra7(a,N-365):null}});
+const p=o.tot.p;o.lv=p==null||o.tot.b<3?"ok":p<=-.4?"severe":p<=-.2?"low":p>=.3?"high":"ok";o.last=c.d[N-1];return o}
+async function chokes(){try{const r=await fetch("chokes.json?t="+Date.now());if(r.ok)CK=await r.json()}catch(e){}
+if(!CK)return;MK.forEach(m=>{if(m.k!="choke"||!m.el)return;const c=CK.c[m.id];m.el.querySelector("b.cb")?.remove();if(!c||c.d.length<60)return;
+const s=m.cs=ckStat(c);m.el.style.setProperty("--cs",CST[s.lv][0]);m.el.classList.add("cdat");
+if(s.lv!="ok"&&s.tot.p!=null)m.el.insertAdjacentHTML("beforeend",`<b class="cb">${s.tot.p>0?"+":"−"}${Math.abs(Math.round(s.tot.p*100))}%</b>`);
+m.el.title=`${m.n}: ${Math.round(s.tot.v)} ships/day, ${s.tot.p>=0?"+":"−"}${Math.abs(Math.round(s.tot.p*100))}% vs normal`});layout()}
+function ckChart(box,c,s){const N=c.d.length,D=Math.min(120,N),a=N-D,W=box.clientWidth||340,Ht=170,pl=4,pr=36,pt=8,pb=20,iw=W-pl-pr,ih=Ht-pt-pb;
+const cur=[],ly=[];for(let i=a;i<N;i++){cur.push(ra7(c.tot,i));ly.push(i-364>=6?ra7(c.tot,i-364):null)}
+const mx=Math.max(s.tot.b,...cur,...ly.filter(v=>v!=null))*1.12,x=i=>pl+i/(D-1)*iw,y=v=>pt+(1-v/mx)*ih;
+const st=[1,2,5,10,20,25,50,100,200,250,500].find(q=>mx/q<=5)||1000;let g="";
+for(let t=0;t<=mx;t+=st)g+=`<line x1="${pl}" x2="${pl+iw}" y1="${y(t)}" y2="${y(t)}" class="gl"/><text x="${W-2}" y="${y(t)+3.5}" class="ax" text-anchor="end">${t}</text>`;
+const md=k=>new Date(c.d[a+k]+"T12:00Z");for(let k=0;k<D;k++){const d=md(k);if(d.getUTCDate()==1)g+=`<line x1="${x(k)}" x2="${x(k)}" y1="${pt}" y2="${pt+ih}" class="gl" style="opacity:.5"/><text x="${x(k)}" y="${Ht-5}" class="ax" text-anchor="middle">${d.toLocaleString("en-GB",{month:"short"})}</text>`}
+g+=`<line x1="${pl}" x2="${pl+iw}" y1="${y(s.tot.b)}" y2="${y(s.tot.b)}" style="stroke:var(--mut);stroke-dasharray:4 3;stroke-width:1.2"/><text x="${pl+3}" y="${y(s.tot.b)-4}" class="ax bl">normal ${Math.round(s.tot.b)}/day</text>`;
+const pth=v=>{let d="",on=0;v.forEach((q,i)=>{if(q==null){on=0;return}d+=(on?"L":"M")+x(i).toFixed(1)+" "+y(q).toFixed(1);on=1});return d};
+const col=CST[s.lv][0];g+=`<path d="${pth(ly)}" fill="none" stroke="var(--mut)" stroke-width="1.3" opacity=".7"/><path d="${pth(cur)}" fill="none" stroke="${col}" stroke-width="2.2" stroke-linejoin="round"/><circle cx="${x(D-1)}" cy="${y(cur[D-1])}" r="4" fill="${col}" stroke="var(--card)" stroke-width="2"/>`;
+box.innerHTML=`<svg width="${W}" height="${Ht}" class="chs">${g}<line class="cx" y1="${pt}" y2="${pt+ih}" style="display:none"/><rect x="${pl}" y="0" width="${iw}" height="${Ht}" fill="transparent" class="hz"/></svg><div class="tt" style="display:none"></div>`;
+const hz=box.querySelector(".hz"),cx=box.querySelector(".cx"),tt=box.querySelector(".tt");
+const mv=e=>{const px=e.clientX-hz.getBoundingClientRect().left,i=Math.max(0,Math.min(D-1,Math.round(px/iw*(D-1))));cx.setAttribute("x1",x(i));cx.setAttribute("x2",x(i));cx.style.display="";tt.textContent="";
+const hd=document.createElement("div");hd.className="th";hd.textContent=md(i).toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short",year:"numeric"})+" · 7-day avg";tt.appendChild(hd);
+[[col,"This year",cur[i]],["var(--mut)","Last year",ly[i]],["var(--mut)","Normal",s.tot.b],[null,"That day",c.tot[a+i]]].forEach(([cc,l,v])=>{if(v==null)return;const rw=document.createElement("div");rw.className="tr";const k=document.createElement("i");k.style.background=cc||"transparent";const sp=document.createElement("span");sp.textContent=l;const b=document.createElement("b");b.textContent=Math.round(v)+" ships";rw.append(k,sp,b);tt.appendChild(rw)});
+tt.style.display="";const tw=tt.offsetWidth;tt.style.left=Math.min(W-tw-2,Math.max(0,x(i)+10>W-tw?x(i)-tw-10:x(i)+10))+"px"};
+hz.addEventListener("pointermove",mv);hz.addEventListener("pointerdown",mv);hz.addEventListener("pointerleave",()=>{cx.style.display="none";tt.style.display="none"})}
+function showChoke(m){const c=CK&&CK.c[m.id],why=`<div class="kh">Why it matters</div><div style="font-size:13px;line-height:1.4">${m.w}</div>`;
+if(!c||!m.cs){info(`<h2>⚓ ${m.n}</h2>${why}<div class="note">${CK?"No traffic data for this chokepoint.":"Traffic data loads once the Update chokepoints job has run in GitHub Actions."}</div>`);m.el&&m.el.classList.add("on");return}
+const s=m.cs,P=v=>v==null?"—":(v>=0?"+":"−")+Math.abs(Math.round(v*100))+"%",pc=v=>v==null?"":v<=-.2?"dn":v>=.2?"up":"",lag=Math.round((Date.now()-new Date(s.last+"T12:00Z"))/864e5);
+const yoy=s.tot.y?s.tot.v/s.tot.y-1:null,cap=s.cap.v*1000,capT=cap>=1e6?(cap/1e6).toFixed(1)+"m t":Math.round(cap/1e3)+"k t";
+const rows=[["tank","Tankers","oil, products, LNG, chemicals"],["cont","Containers","manufactured goods"],["bulk","Dry bulk","grain, ore, coal"]].map(([k,l])=>{const o=s[k];return o.b<.5&&o.v<.5?"":`<span>${l}</span><b>${o.v.toFixed(o.v<10?1:0)}/day</b><b class="${pc(o.p)}">${P(o.p)}</b>`}).join("");
+info(`<h2>⚓ ${m.n} <span class="cpill" style="--cs:${CST[s.lv][0]}">${CST[s.lv][1]}</span></h2>
+<div class="tgrid"><div><span class="note" style="margin:0">Ships/day (7d)</span><b>${Math.round(s.tot.v)}</b></div><div><span class="note" style="margin:0">vs normal</span><b class="${pc(s.tot.p)}">${P(s.tot.p)}</b></div><div><span class="note" style="margin:0">vs last year</span><b class="${pc(yoy)}">${P(yoy)}</b></div></div>
+<div id="ckc" style="position:relative;margin:6px 0"></div>
+<div class="ckey"><span><i style="background:${CST[s.lv][0]}"></i>7-day average</span><span><i style="background:var(--mut);opacity:.7"></i>same time last year</span><span>╌ normal (past year)</span></div>
+<div class="kh">By ship type · last 7 days vs normal</div><div class="ctype">${rows}</div>
+<div class="row"><span>Cargo capacity</span><b>${capT}/day <span class="${pc(s.cap.p)}">${P(s.cap.p)}</span></b></div>${why}
+<div class="note">IMF PortWatch, counted from satellite ship tracking (AIS). Runs about ${lag} days behind: latest day ${new Date(s.last+"T12:00Z").toLocaleDateString("en-GB",{day:"numeric",month:"short"})}. Normal = average of the past year excluding the last 30 days. Colours: <b style="color:${CST.severe[0]}">red</b> 40%+ below normal, <b style="color:${CST.low[0]}">amber</b> 20%+ below, <b style="color:${CST.high[0]}">blue</b> 30%+ above. <a href="https://portwatch.imf.org/" target="_blank" rel="noopener">PortWatch ↗</a></div>`);
+m.el&&m.el.classList.add("on");requestAnimationFrame(()=>ckChart($("#ckc"),c,s))}
+chokes();
 
 $("#tg").insertAdjacentHTML("beforeend",'<div class="lg"><i style="color:#d9692a">━ oil</i><i style="color:#4aa35a">━ ag</i><i style="color:#6b86c9">━ metals</i><i style="color:#a86bd6">╌ gas</i><i>dashed = pipeline</i></div>');
 const LD=document.createElementNS("http://www.w3.org/2000/svg","svg");LD.id="ld";map.appendChild(LD);
@@ -546,7 +598,7 @@ e.onclick=()=>{show(i);document.querySelectorAll(".pin").forEach(x=>x.classList.
 function layout(){const W=map.offsetWidth,H=map.offsetHeight;LD.setAttribute("width",W);LD.setAttribute("height",H);
 document.querySelectorAll(".chip.hid").forEach(c=>c.classList.remove("hid"));const P=[...document.querySelectorAll(".pin")].filter(p=>p.offsetWidth).sort((a,b)=>b.classList.contains("sel")-a.classList.contains("sel"));
 const ob=P.map(p=>[p.offsetLeft-7,p.offsetTop-2,p.offsetLeft+7,p.offsetTop+12]);
-document.querySelectorAll(".mk").forEach(m=>{if(m.offsetWidth)ob.push([m.offsetLeft-9,m.offsetTop-9,m.offsetLeft+9,m.offsetTop+9])});
+document.querySelectorAll(".mk").forEach(m=>{if(!m.offsetWidth)return;ob.push([m.offsetLeft-9,m.offsetTop-9,m.offsetLeft+9,m.offsetTop+9]);const b=m.querySelector("b.cb");if(b&&b.offsetWidth)ob.push([m.offsetLeft-b.offsetWidth/2-2,m.offsetTop-28,m.offsetLeft+b.offsetWidth/2+2,m.offsetTop-9]);const t=m.querySelector(".stag");if(t&&t.offsetWidth)ob.push([m.offsetLeft+17,m.offsetTop-12,m.offsetLeft+21+t.offsetWidth,m.offsetTop+12])});
 const hit=(a,b)=>a[0]<b[2]&&a[2]>b[0]&&a[1]<b[3]&&a[3]>b[1];
 const placed=[];let ln="";
 P.forEach(p=>{const c=p.firstElementChild,w=c.offsetWidth,h=c.offsetHeight,ax=p.offsetLeft,ay=p.offsetTop,g=6;
@@ -651,7 +703,7 @@ fit();let z=WIDE()?1:1.5;map.style.width=BW*z+"px";
 const MSC=$("#scroll");let heavyT;
 function setZoom(nz,cx,cy,quick){const zmin=BW>900?1:.7;nz=Math.min(5,Math.max(zmin,nz));if(cx==null){cx=MSC.clientWidth/2;cy=MSC.clientHeight/2}
 const W0=map.offsetWidth,H0=map.offsetHeight,wx=(MSC.scrollLeft+cx)/W0,wy=(MSC.scrollTop+cy)/H0;z=nz;map.style.width=BW*z+"px";
-const W1=map.offsetWidth,H1=map.offsetHeight;MSC.scrollLeft=wx*W1-cx;MSC.scrollTop=wy*H1-cy;map.classList.toggle("big",W1>=1500);
+const W1=map.offsetWidth,H1=map.offsetHeight;MSC.scrollLeft=wx*W1-cx;MSC.scrollTop=wy*H1-cy;map.classList.toggle("big",W1>=1500);map.classList.toggle("zm",W1>=2200);
 clearTimeout(heavyT);if(quick)heavyT=setTimeout(()=>{layout();wxResize();coastLOD()},160);else{layout();wxResize();coastLOD()}}
 let C50=null,C50p=null,cLvl=0;
 function coastLOD(){const want=map.offsetWidth>=2200?1:0;if(want==cLvl)return;
