@@ -1,0 +1,61 @@
+name: Update chokepoints
+on:
+  schedule:
+    - cron: "10 9 * * *"
+    - cron: "10 21 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  chokepoints:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch IMF PortWatch daily transits
+        run: |
+          python3 - <<'PY'
+          import json, time, datetime as dt, urllib.request, urllib.parse
+          IDS = ["chokepoint1", "chokepoint2", "chokepoint3", "chokepoint4", "chokepoint5", "chokepoint6", "chokepoint7",
+                 "chokepoint8", "chokepoint9", "chokepoint11", "chokepoint15", "chokepoint28"]
+          URL = "https://services9.arcgis.com/weJ1QsnbMYJlCHdG/arcgis/rest/services/Daily_Chokepoints_Data/FeatureServer/0/query"
+          since = (dt.date.today() - dt.timedelta(days=430)).isoformat()
+          rows, off = [], 0
+          while True:
+              q = urllib.parse.urlencode({"where": "portid IN (" + ",".join("'" + i + "'" for i in IDS) + f") AND date >= '{since}'",
+                  "outFields": "date,portid,portname,n_total,n_tanker,n_container,n_dry_bulk,capacity",
+                  "orderByFields": "date,portid", "resultOffset": off, "resultRecordCount": 1000, "f": "json"})
+              j = None
+              for a in range(3):
+                  try:
+                      j = json.load(urllib.request.urlopen(URL + "?" + q, timeout=90)); break
+                  except Exception as e:
+                      print("retry", off, e); time.sleep(10)
+              if not j or "features" not in j:
+                  print("stopped at", off, (j or {}).get("error")); break
+              f = [x["attributes"] for x in j["features"]]
+              rows += f
+              if not j.get("exceededTransferLimit") and len(f) < 1000:
+                  break
+              off += len(f)
+          def day(v):
+              if isinstance(v, (int, float)):
+                  return dt.datetime.fromtimestamp(v / 1000, dt.timezone.utc).date().isoformat()
+              return str(v)[:10]
+          out = {}
+          for r in rows:
+              c = out.setdefault(r["portid"], {"name": r["portname"], "d": [], "tot": [], "tank": [], "cont": [], "bulk": [], "cap": []})
+              d = day(r["date"])
+              if c["d"] and c["d"][-1] == d:
+                  continue
+              c["d"].append(d); c["tot"].append(r.get("n_total") or 0); c["tank"].append(r.get("n_tanker") or 0)
+              c["cont"].append(r.get("n_container") or 0); c["bulk"].append(r.get("n_dry_bulk") or 0); c["cap"].append(round((r.get("capacity") or 0) / 1000))
+          print("rows", len(rows), "| chokepoints", len(out), "| latest", max((v["d"][-1] for v in out.values()), default=None))
+          if len(out) >= 6:
+              json.dump({"updated": int(time.time()), "c": out}, open("chokes.json", "w"), separators=(",", ":"))
+          PY
+      - name: Commit if changed
+        run: |
+          git config user.name "chokepoint-bot"
+          git config user.email "chokepoint-bot@users.noreply.github.com"
+          git add chokes.json || true
+          git diff --cached --quiet || (git commit -m "Update chokepoints" && git pull --rebase && git push)
