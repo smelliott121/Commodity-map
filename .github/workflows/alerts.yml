@@ -1,7 +1,7 @@
 name: Commodity alerts
 on:
   workflow_run:
-    workflows: ["Update prices", "Update storms", "Update COT positioning", "Update ENSO", "Update climate normals", "Update chokepoints"]
+    workflows: ["Update prices", "Update storms", "Update COT positioning", "Update ENSO", "Update climate normals", "Update chokepoints", "Update news"]
     types: [completed]
   schedule:
     - cron: "5,35 * * * *"
@@ -21,6 +21,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Get latest headlines
+        run: curl -sf "https://raw.githubusercontent.com/${{ github.repository }}/news/news.json?t=$(date +%s)" -o news.json || echo "no news yet"
       - name: Check data and send alerts
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
@@ -59,6 +61,7 @@ jobs:
 
           ST = load("alerts_state.json", {}) or {}
           FIRST = not ST
+          ORIG = json.dumps({k: v for k, v in ST.items() if k != "last_run"}, sort_keys=True)
           ST.setdefault("seen", {})
           OUT = []
 
@@ -249,6 +252,36 @@ jobs:
                         f"Satellite data to {c['d'][-1]}, about a week behind." + (" Ships may be re-routing via the Cape." if pid in ("chokepoint1", "chokepoint4") and pct < 0 else ""),
                         "high" if lv == "severe" else "default", "ship")
 
+          # ---------- breaking news ----------
+          NSTOP = set("the a an of to in on for and or as at by with from is are be its it this that after over amid into than up down new says said may could will".split())
+          def nwords(t):
+              import re
+              return set(w for w in re.findall(r"[a-z0-9]+", t.lower()) if w not in NSTOP and len(w) > 2)
+          def news():
+              N = load("news.json")
+              if not N:
+                  return
+              sent = [x for x in ST.get("news_sent", []) if NOW.timestamp() - x[0] < 36 * 3600]
+              today = [x for x in sent if NOW.timestamp() - x[0] < 86400]
+              cand = [i for i in N.get("items", []) if i.get("sc", 0) >= 6 and NOW.timestamp() - i["d"] < 3 * 3600]
+              cand.sort(key=lambda i: (-i["sc"], -i["d"]))
+              new = 0
+              for i in cand:
+                  if new >= 3 or len(today) >= 10:
+                      break
+                  w = nwords(i["t"])
+                  if any(len(w & set(x[1])) / max(1, len(w | set(x[1]))) >= 0.4 for x in sent):
+                      continue
+                  keys = [k for k in i.get("k", []) if not k.startswith("chokepoint") and k != "macro"]
+                  CN = {"chokepoint1": "Suez Canal", "chokepoint2": "Panama Canal", "chokepoint3": "Bosphorus", "chokepoint4": "Red Sea", "chokepoint5": "Malacca", "chokepoint6": "Hormuz", "chokepoint11": "Taiwan Strait"}
+                  chk = [CN[k] for k in i.get("k", []) if k in CN]
+                  about = ", ".join(keys[:4] + chk[:2])
+                  when = dt.datetime.fromtimestamp(i["d"], dt.timezone.utc).astimezone(UK)
+                  alert(f"⚡ {i['t']}", f"{i['s']} · {when:%H:%M} UK" + (f" · {i['n']} outlets" if i.get("n", 1) > 1 else "") + (f"\nAffects: {about}" if about else "") + (f"\n{i['u']}" if i.get("u") else ""),
+                        "urgent" if i["sc"] >= 9 else "high", "zap")
+                  sent.append([NOW.timestamp(), sorted(w)]); today.append(1); new += 1
+              ST["news_sent"] = sent
+
           # ---------- ENSO ----------
           def enso():
               E = load("enso.json")
@@ -378,7 +411,7 @@ jobs:
               if not TG_TOKEN and not NTFY:
                   print("No delivery set up (add TELEGRAM_TOKEN or NTFY_TOPIC secret). Stopping without saving.")
                   return
-              for f in (price_shocks, weather, storms, cot, enso, chokes):
+              for f in (price_shocks, weather, storms, cot, enso, chokes, news):
                   try:
                       f()
                   except Exception as e:
@@ -386,7 +419,7 @@ jobs:
               if FIRST or MODE == "test":
                   OUT.clear()
                   cx = context_lines()
-                  alert("✅ Commodity alerts connected", "You'll get alerts for big price moves, unusual weather at critical crop stages, storms near markets, crowded fund positioning, shipping chokepoint disruptions and El Niño/La Niña changes, plus a 07:00 morning brief and a Sunday week-ahead." + ("\n\nRight now:\n" + "\n".join(cx) if cx else ""), "default", "white_check_mark")
+                  alert("✅ Commodity alerts connected", "You'll get alerts for big price moves, unusual weather at critical crop stages, storms near markets, crowded fund positioning, shipping chokepoint disruptions, breaking market news and El Niño/La Niña changes, plus a 07:00 morning brief and a Sunday week-ahead." + ("\n\nRight now:\n" + "\n".join(cx) if cx else ""), "default", "white_check_mark")
               try:
                   digests()
               except Exception as e:
@@ -422,6 +455,9 @@ jobs:
                       send(a)
                   except Exception as e:
                       print("send failed:", e)
+              if json.dumps({k: v for k, v in ST.items() if k != "last_run"}, sort_keys=True) == ORIG:
+                  print("Nothing new; state unchanged, not saving.")
+                  return
               ST["last_run"] = NOW.isoformat()
               json.dump(ST, open("alerts_state.json", "w"), indent=0, sort_keys=True)
 
