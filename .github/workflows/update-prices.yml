@@ -25,6 +25,9 @@ jobs:
                       m = res["meta"]
                       closes = [c for c in res["indicators"]["quote"][0].get("close", []) if c is not None]
                       price = m["regularMarketPrice"]
+                      if closes and price and abs(price / closes[-1] - 1) > 0.15:
+                          print("bad live quote, using last close:", s, price, "->", closes[-1])
+                          price = closes[-1]
                       if len(closes) >= 2:
                           prev = closes[-2] if abs(closes[-1] - price) < 1e-9 * max(1, abs(price)) or len(closes) >= 2 and abs(closes[-1] / price - 1) < 0.0005 else closes[-1]
                       else:
