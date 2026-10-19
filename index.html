@@ -140,11 +140,21 @@ body.unpinned:not(.awake) #calside{transform:translateX(calc(100% + 20px));opaci
 #panel{z-index:30}
 }
 @media (prefers-reduced-motion:reduce){#top,#dock,#lyr,#calside{transition:none}#panel.open{animation:none}}
+
+/* ---- news ---- */
+.nwl{margin:2px 0}.nwi{display:block;padding:8px 0;border-top:1px solid var(--line);color:var(--ink);text-decoration:none}.nwi:first-child{border-top:none}
+.nwi b{display:block;font-weight:500;font-size:13px;line-height:1.35}.nwi:hover b{color:var(--amb)}
+.nwi small{display:flex;flex-wrap:wrap;gap:2px 8px;color:var(--mut);font-size:11px;margin-top:3px}.nwi small i{font-style:normal}
+.bk{display:inline-flex;align-items:center;gap:4px;font:600 10.5px/1 var(--ui);color:var(--amb);background:var(--amb2);border-radius:5px;padding:2px 6px;margin-right:6px;vertical-align:1px}
+.nwt{display:inline-block;font-size:10.5px;color:var(--mut);border:1px solid var(--line);border-radius:5px;padding:0 5px}
+.ti.evn::before{background:var(--amb);box-shadow:0 0 8px var(--amb)}.ti.evn b{color:var(--ink)}.ti.evn .ago{color:var(--amb);font:500 11.5px var(--num)}
+.chip.brk b::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--amb);box-shadow:0 0 6px var(--amb);margin-right:5px;vertical-align:1px}
+#nwb .nd{display:none;width:6px;height:6px;border-radius:50%;background:var(--amb);box-shadow:0 0 6px var(--amb)}#nwb.hot .nd{display:inline-block}
 </style></head><body class="wxon">
 <div id="scroll"><div id="map"></div></div>
 <header id="top" class="gl2"><div class="brand"><i></i>Commodity Map <small id="clk"></small></div>
 <div id="tick" role="button" aria-label="Upcoming events, tap for calendar"><div id="tk"></div></div>
-<div class="tr"><button id="enb" style="display:none"></button><button class="ib" id="calb" aria-pressed="false" title="Market calendar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span class="dsk">Calendar</span></button></div></header>
+<div class="tr"><button id="enb" style="display:none"></button><button class="ib" id="nwb" title="Market news"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M4 5h13v14H6a2 2 0 0 1-2-2V5Z"/><path d="M17 9h3v8a2 2 0 0 1-2 2"/><path d="M7 9h7M7 12h7M7 15h4"/></svg><span class="dsk">News</span><i class="nd"></i></button><button class="ib" id="calb" aria-pressed="false" title="Market calendar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span class="dsk">Calendar</span></button></div></header>
 <aside id="calside" class="gl2"></aside>
 <div id="lyr" class="gl2" role="dialog" aria-label="Map layers"><div class="lh"><b>Layers</b><span>Tap a commodity, line or spot on the map for detail</span></div><div id="tg"></div>
 <div class="lfoot"><div id="st">loading…</div><button class="ib" id="thb" title="Switch light or dark">Light</button></div></div>
@@ -467,8 +477,8 @@ mon=new Date(new Date(t+"T12:00:00Z").getTime()+(wd==0?1:1-wd)*864e5),fri=new Da
 function ticker(){evRefresh();const tk=$("#tk");tk.textContent="";const[wm,wf,uk]=wkRange();
 const inWk=e=>{const d=uk(e.t);return d>=wm&&d<=wf};let items=EVS.filter(e=>e.t<Date.now()+10*864e5&&(!e.items||inWk(e)));
 if(HOL&&!EVS.some(e=>e.items&&inWk(e)))items.unshift({n:"✓ No market holidays this week",t:new Date(wm+"T00:00:00Z"),c:[],k:"h",allday:1,tz:"Europe/London",none:1});
-items=items.slice(0,14);
-const mk=()=>{const f=document.createDocumentFragment();items.forEach(e=>{const s=document.createElement("span");s.className="ti ev"+e.k;const n=document.createElement("b");n.textContent=e.n;const t=document.createElement("span");t.textContent="· "+fmtT(e)+" ·";if(e.none){s.append(n);f.appendChild(s);return}const c=document.createElement("span");c.className="cd";c.dataset.t=e.t.getTime();c.textContent=cd(e);s.append(n,t,c);f.appendChild(s)});return f};
+items=items.slice(0,14);const brk=nwBreaking().slice(0,4);
+const mk=()=>{const f=document.createDocumentFragment();brk.forEach(x=>{const s=document.createElement("span");s.className="ti evn";const n=document.createElement("b");n.textContent=x.t;const t=document.createElement("span");t.textContent="· "+x.s+" ·";const a=document.createElement("span");a.className="ago";a.textContent=ago(x.d);s.append(n,t,a);f.appendChild(s)});items.forEach(e=>{const s=document.createElement("span");s.className="ti ev"+e.k;const n=document.createElement("b");n.textContent=e.n;const t=document.createElement("span");t.textContent="· "+fmtT(e)+" ·";if(e.none){s.append(n);f.appendChild(s);return}const c=document.createElement("span");c.className="cd";c.dataset.t=e.t.getTime();c.textContent=cd(e);s.append(n,t,c);f.appendChild(s)});return f};
 const a=document.createElement("div");a.className="tseq";a.appendChild(mk());const b=a.cloneNode(true);b.setAttribute("aria-hidden","true");tk.append(a,b);
 tk.style.animationDuration=Math.max(30,a.scrollWidth/40)+"s";
 if(matchMedia("(prefers-reduced-motion: reduce)").matches){clearInterval(window._tkI);let ti=0;const its=[...a.children];const show=()=>{if(!its.length)return;tk.classList.add("fade");setTimeout(()=>{tk.style.transform=`translateX(${-its[ti].offsetLeft+14}px)`;tk.classList.remove("fade");ti=(ti+1)%its.length},350)};show();window._tkI=setInterval(show,5000)}
@@ -477,7 +487,33 @@ document.querySelectorAll(".chip.evsoon").forEach(x=>x.classList.remove("evsoon"
 R.forEach((r,i)=>{if(EVS.some(e=>e.t<soon&&e.k!="h"&&e.c.length<ALLC.length&&e.c.includes(r.n))){const c=$("#c"+i);c&&c.classList.add("evsoon")}});}
 function evFor(r){const sn=new Set(),L=EVS.filter(e=>!e.items&&e.c.includes(r.n)&&e.c.length<ALLC.length&&!sn.has(e.n)&&sn.add(e.n)).slice(0,4).concat(EVS.filter(e=>e.items&&e.c.includes(r.n)).slice(0,2).map(e=>{const it=e.items.filter(i=>i.c.includes(r.n));return Object.assign({},e,{n:[...new Set(it.map(i=>i.f))].join("")+" "+it.map(i=>i.code+" "+(i.s=="closed"?"closed":i.s)).join(", ")+" ("+it[0].n.replace(/^Early close \((.*)\)$/,"$1")+")"})}));if(!L.length)return"";
 return'<div class="kh">Upcoming events</div><div class="evl">'+L.sort((a,b)=>a.t-b.t).map(e=>`<div class="evr ev${e.k}"><b>${e.n}</b><small>${fmtT(e)} · <span class="cd" data-t="${e.t.getTime()}">${cd(e)}</span>${e.ap?" · "+e.ap:""}</small></div>`).join("")+"</div>"}
-$("#tick").onclick=openCal;setTimeout(ticker,0);
+
+/* ---- news (Google News headlines, built every 20 min by the Update news job) ---- */
+let NW=null,nwf="all";
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const safeU=u=>/^https?:\/\//i.test(u||"")?u:"#";
+function ago(d){const m=Math.max(0,Math.round((Date.now()/1000-d)/60));return m<60?m+"m ago":m<1440?Math.round(m/60)+"h ago":new Date(d*1000).toLocaleDateString("en-GB",{day:"numeric",month:"short",timeZone:"Europe/London"})}
+const isBrk=x=>x.sc>=6&&Date.now()/1000-x.d<6*3600;
+function nwBreaking(){if(!NW)return[];const out=[],seen=[];NW.items.filter(isBrk).sort((a,b)=>b.d-a.d).forEach(x=>{const w=new Set(x.t.toLowerCase().match(/[a-z0-9]{3,}/g)||[]);if(seen.some(s=>{let n=0;w.forEach(v=>s.has(v)&&n++);return n/Math.max(1,new Set([...w,...s]).size)>=.4}))return;seen.push(w);out.push(x)});return out}
+const NCAT={energy:["Crude oil","Nat gas"],ags:["Cocoa","Coffee","Wheat","Palm oil","Sugar","Corn","Cotton","Soybeans","Lumber","Orange juice","Rubber","Rice"],metals:["Copper","Gold","Silver","Platinum","Lithium","Iron ore"]};
+const CKN={chokepoint1:"Suez",chokepoint2:"Panama",chokepoint3:"Bosphorus",chokepoint4:"Red Sea",chokepoint5:"Malacca",chokepoint6:"Hormuz",chokepoint11:"Taiwan Strait",macro:"Macro"};
+function nwRow(x,tags){const tg=tags?x.k.slice(0,3).map(k=>`<i class="nwt">${esc(CKN[k]||k)}</i>`).join(""):"";
+return`<a class="nwi" href="${esc(safeU(x.u))}" target="_blank" rel="noopener noreferrer"><b>${isBrk(x)?'<span class="bk">⚡ Breaking</span>':""}${esc(x.t)}</b><small><i>${esc(x.s)}</i><i>${ago(x.d)}</i>${x.n>1?`<i>${x.n} outlets</i>`:""}${tg}</small></a>`}
+function nwHTML(key,n){if(!NW)return"";const L=NW.items.filter(x=>x.k.includes(key)).sort((a,b)=>(isBrk(b)-isBrk(a))||(b.d-a.d)).slice(0,n);
+if(!L.length)return"";return`<div class="kh">Latest news</div><div class="nwl">${L.map(x=>nwRow(x)).join("")}</div>`}
+function openNews(f){if(f)nwf=f;if(!NW){info(`<h2>Market news</h2><div class="note">Headlines load once the Update news job has run in GitHub Actions.</div>`);return}
+const fl=[["all","All"],["brk","Breaking"],["energy","Energy"],["ags","Ags"],["metals","Metals"],["ship","Shipping"],["macro","Macro"]];
+const pick=x=>nwf=="all"?true:nwf=="brk"?isBrk(x):nwf=="ship"?x.k.some(k=>k.startsWith("chokepoint")):nwf=="macro"?x.k.includes("macro"):x.k.some(k=>NCAT[nwf].includes(k));
+const seen=new Set(),L=NW.items.filter(pick).sort((a,b)=>b.d-a.d).filter(x=>{const k=x.t.toLowerCase().slice(0,40);if(seen.has(k))return false;seen.add(k);return true}).slice(0,50);
+info(`<h2>Market news</h2><div class="seg" id="nwf">${fl.map(([k,t])=>`<button data-k="${k}" class="${k==nwf?"on":""}">${t}</button>`).join("")}</div>
+<div class="nwl">${L.length?L.map(x=>nwRow(x,1)).join(""):'<div class="note">Nothing in this group right now.</div>'}</div>
+<div class="note">Headlines via Google News, refreshed every 20 minutes. Updated ${ago(NW.updated)}. ⚡ Breaking = strong market-moving words, carried by several outlets, in the last 6 hours.</div>`);
+document.querySelectorAll("#nwf button").forEach(b=>b.onclick=()=>openNews(b.dataset.k))}
+async function news(){for(const u of rawUrls("news","news.json")){try{const r=await fetch(u.replace(/\?t=\d+/,"?t="+(Date.now()/12e4|0)));if(r.ok){NW=await r.json();break}}catch(e){}}
+if(!NW)return;const B=nwBreaking();$("#nwb").classList.toggle("hot",B.length>0);
+R.forEach((r,i)=>{const c=$("#c"+i);c&&c.classList.toggle("brk",B.some(x=>x.k.includes(r.n)))});ticker()}
+$("#nwb").onclick=()=>openNews("all");news();setInterval(news,10*6e4);
+$("#tick").onclick=e=>{e.target.closest(".ti.evn")?openNews("brk"):openCal()};setTimeout(ticker,0);
 setInterval(()=>{document.querySelectorAll(".cd[data-t]").forEach(s=>{const t=+s.dataset.t;s.textContent=cd({t:new Date(t),allday:0})})},6e4);
 setInterval(ticker,30*6e4);
 
@@ -633,7 +669,7 @@ const hd=document.createElement("div");hd.className="th";hd.textContent=md(i).to
 tt.style.display="";const tw=tt.offsetWidth;tt.style.left=Math.min(W-tw-2,Math.max(0,x(i)+10>W-tw?x(i)-tw-10:x(i)+10))+"px"};
 hz.addEventListener("pointermove",mv);hz.addEventListener("pointerdown",mv);hz.addEventListener("pointerleave",()=>{cx.style.display="none";tt.style.display="none"})}
 function showChoke(m){const c=CK&&CK.c[m.id],why=`<div class="kh">Why it matters</div><div style="font-size:13px;line-height:1.4">${m.w}</div>`;
-if(!c||!m.cs){info(`<h2>⚓ ${m.n}</h2>${why}<div class="note">${CK?"No traffic data for this chokepoint.":"Traffic data loads once the Update chokepoints job has run in GitHub Actions."}</div>`);m.el&&m.el.classList.add("on");return}
+if(!c||!m.cs){info(`<h2>⚓ ${m.n}</h2>${why}${nwHTML(m.id,4)}<div class="note">${CK?"No traffic data for this chokepoint.":"Traffic data loads once the Update chokepoints job has run in GitHub Actions."}</div>`);m.el&&m.el.classList.add("on");return}
 const s=m.cs,P=v=>v==null?"—":(v>=0?"+":"−")+Math.abs(Math.round(v*100))+"%",pc=v=>v==null?"":v<=-.2?"dn":v>=.2?"up":"",lag=Math.round((Date.now()-new Date(s.last+"T12:00Z"))/864e5);
 const yoy=s.tot.y?s.tot.v/s.tot.y-1:null,cap=s.cap.v*1000,capT=cap>=1e6?(cap/1e6).toFixed(1)+"m t":Math.round(cap/1e3)+"k t";
 const rows=[["tank","Tankers","oil, products, LNG, chemicals"],["cont","Containers","manufactured goods"],["bulk","Dry bulk","grain, ore, coal"]].map(([k,l])=>{const o=s[k];return o.b<.5&&o.v<.5?"":`<span>${l}</span><b>${o.v.toFixed(o.v<10?1:0)}/day</b><b class="${pc(o.p)}">${P(o.p)}</b>`}).join("");
@@ -642,7 +678,7 @@ info(`<h2>⚓ ${m.n} <span class="cpill" style="--cs:${CST[s.lv][0]}">${CST[s.lv
 <div id="ckc" style="position:relative;margin:6px 0"></div>
 <div class="ckey"><span><i style="background:${CST[s.lv][0]}"></i>7-day average</span><span><i style="background:var(--mut);opacity:.7"></i>same time last year</span><span>╌ normal (past year)</span></div>
 <div class="kh">By ship type · last 7 days vs normal</div><div class="ctype">${rows}</div>
-<div class="row"><span>Cargo capacity</span><b>${capT}/day <span class="${pc(s.cap.p)}">${P(s.cap.p)}</span></b></div>${why}
+<div class="row"><span>Cargo capacity</span><b>${capT}/day <span class="${pc(s.cap.p)}">${P(s.cap.p)}</span></b></div>${why}${nwHTML(m.id,4)}
 <div class="note">IMF PortWatch, counted from satellite ship tracking (AIS). Runs about ${lag} days behind: latest day ${new Date(s.last+"T12:00Z").toLocaleDateString("en-GB",{day:"numeric",month:"short"})}. Normal = average of the past year excluding the last 30 days. Colours: <b style="color:${CST.severe[0]}">red</b> 40%+ below normal, <b style="color:${CST.low[0]}">amber</b> 20%+ below, <b style="color:${CST.high[0]}">blue</b> 30%+ above. <a href="https://portwatch.imf.org/" target="_blank" rel="noopener">PortWatch ↗</a></div>`);
 m.el&&m.el.classList.add("on");requestAnimationFrame(()=>ckChart($("#ckc"),c,s))}
 chokes();
@@ -735,7 +771,7 @@ if(w.past<n*.5&&-d>15)return["dry","Dry: "+(pc!=null?pc+"% vs normal":"well belo
 return["","Close to normal for the season"]}
 function show(i){const r=R[i],w=r.w,flag=sig(r)[1];
 info(`<h2>${r.n} · ${r.loc}</h2>
-<div class="row"><span>Price ${r.live?"(delayed)":"(SAMPLE)"}</span><b>${f(r.p,r.p<20?2:0)} ${r.u}</b></div>${r.gl?'<div class="note">⚠ The feed jumped more than 25% from the previous close, which usually means a contract roll or a data error. Treat this price with caution.</div>':""}${evFor(r)}${chartHTML(r)}${cotHTML(r)}
+<div class="row"><span>Price ${r.live?"(delayed)":"(SAMPLE)"}</span><b>${f(r.p,r.p<20?2:0)} ${r.u}</b></div>${r.gl?'<div class="note">⚠ The feed jumped more than 25% from the previous close, which usually means a contract roll or a data error. Treat this price with caution.</div>':""}${evFor(r)}${nwHTML(r.n,5)}${chartHTML(r)}${cotHTML(r)}
 ${r.nw?"":`<div class="row"><span>Rain, last 7 days</span><b>${w?f(w.past)+" mm":"—"}${r.cn!=null?" (normal "+f(r.cn)+")":""}</b></div>
 <div class="row"><span>Rain, next 7 days</span><b>${w?f(w.next)+" mm":"—"}${r.cx!=null?" (normal "+f(r.cx)+")":""}</b></div>
 `}${r.nw&&r.n!="Nat gas"?"":`<div class="row"><span>Temp, next 7 days avg</span><b>${w&&w.tn!=null?f(w.tn)+"°C":"—"}${r.ct!=null?" (normal "+f(r.ct)+")":""}</b></div>
