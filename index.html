@@ -81,6 +81,9 @@ b.wrap{white-space:normal;text-align:right;flex:0 1 60%}
 #map.off-enso .L-enso{display:none}.ax.bl{font-size:9px;opacity:.85}
 .syn{font-size:13.5px;line-height:1.45;padding:8px 10px;margin:4px 0 8px;border-left:3px solid #eb6834;background:color-mix(in srgb,var(--card) 85%,#eb6834)}.syn small{display:block;color:var(--mut);font-size:11px;margin-top:4px}
 .glw{color:#e0a03a;font-style:normal}
+.tapmk{position:absolute;width:22px;height:22px;margin:-11px 0 0 -11px;border:2px solid var(--ink);border-radius:50%;z-index:5;pointer-events:none;box-shadow:0 0 0 2px var(--card)}.tapmk::before,.tapmk::after{content:"";position:absolute;background:var(--ink)}.tapmk::before{left:9px;top:-7px;width:2px;height:32px}.tapmk::after{top:9px;left:-7px;height:2px;width:32px}
+.tgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:4px 0}.tgrid div{background:color-mix(in srgb,var(--ink) 6%,transparent);border-radius:8px;padding:8px}.tgrid b{display:block;font-size:17px;font-variant-numeric:tabular-nums}.tgrid small{color:var(--mut);font-size:11px}
+@media (min-width:1000px){#panel{left:auto;right:14px;bottom:14px;width:390px;max-height:calc(100vh - 28px);border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 30px #0007}}
 </style></head><body>
 <h1>Commodity Weather Map</h1>
 <div class="sub">Growing regions, shipping lanes, pipelines, chokepoints. Tap anything; toggle layers below.</div>
@@ -118,7 +121,7 @@ let g='<svg viewBox="0 0 360 180" preserveAspectRatio="none">';
 for(let i=-150;i<=150;i+=30)g+=`<path class="g" d="M${X(i)} 0V180"/>`;
 for(let i=-60;i<=60;i+=30)g+=`<path class="g" d="M0 ${Y(i)}H360"/>`;
 g+=`<path class="land" d="${LAND}"/><path class="bd" d="${BORD}"/>`;
-const info=h=>{map.classList.remove("hlmode");document.querySelectorAll(".ln.hl").forEach(x=>x.classList.remove("hl"));const p=$("#panel");p.innerHTML='<button class="x" id="px">×</button>'+h;p.classList.add("open");$("#px").onclick=()=>{p.classList.remove("open");document.querySelectorAll(".pin.sel").forEach(x=>x.classList.remove("sel"))}};
+const info=h=>{map.classList.remove("hlmode");document.querySelectorAll(".ln.hl").forEach(x=>x.classList.remove("hl"));const p=$("#panel");p.innerHTML='<button class="x" id="px">×</button>'+h;p.classList.add("open");if(!h.includes("data-tap")){const tm=document.querySelector(".tapmk");tm&&tm.remove()}$("#px").onclick=()=>{p.classList.remove("open");document.querySelectorAll(".pin.sel").forEach(x=>x.classList.remove("sel"));const tm=document.querySelector(".tapmk");tm&&tm.remove()}};
 const D=p=>{const q=a=>{let d="";for(let i=0;i<a.length;i+=2)d+=(i?"L":"M")+X(a[i])+" "+Y(a[i+1]);return d};return Array.isArray(p[0])?p.map(q).join(""):q(p)};
 const CL={o:"#d9692a",a:"#4aa35a",m:"#6b86c9",g:"#a86bd6"};
 const LN=[
@@ -244,6 +247,29 @@ for(const u of urls){try{const r=await fetch(u);if(r.ok){G=await r.json();break}
 if(G){$("#wxt").max=G.times.length-1;$("#wxs").textContent="Model data via Open-Meteo, updated "+new Date(G.updated*1000).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}
 else $("#wxs").textContent="Weather layer not available yet";tlabel();wxResize()}
 segs();grid();
+function gridAt(lon,lat){if(!G)return null;const C=G.lons.length,Rn=G.lats.length,fx=(lon+180)/G.step,fy=(G.lats[0]-lat)/G.step,x0=Math.floor(fx),y0=Math.floor(fy),tx=fx-x0,ty=fy-y0;
+const g=(a,ri,ci)=>{ri=Math.max(0,Math.min(Rn-1,ri));ci=((ci%C)+C)%C;return a[wf][ri*C+ci]};const bl=a=>g(a,y0,x0)*(1-tx)*(1-ty)+g(a,y0,x0+1)*tx*(1-ty)+g(a,y0+1,x0)*(1-tx)*ty+g(a,y0+1,x0+1)*tx*ty;
+const u=bl(G.u)/10,v=bl(G.v)/10;return{t:bl(G.t),p:Math.max(0,bl(G.p)/10),ws:Math.hypot(u,v),wd:(Math.atan2(-u,-v)*180/Math.PI+360)%360}}
+const CMP=d=>["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"][Math.round(d/22.5)%16];
+const ll=(la,lo)=>`${Math.abs(la).toFixed(1)}°${la>=0?"N":"S"} ${Math.abs(lo).toFixed(1)}°${lo>=0?"E":"W"}`;
+async function tapAt(lon,lat){document.querySelectorAll(".tapmk").forEach(x=>x.remove());const mk=document.createElement("div");mk.className="tapmk";mk.style.left=(lon+180)/3.6+"%";mk.style.top=(90-lat)/1.8+"%";map.appendChild(mk);
+const gv=gridAt(lon,lat),near=R.map(r=>({n:r.n,d:km(lat,lon,r.lat,r.lon),i:R.indexOf(r)})).filter(x=>x.d<900).sort((a,b)=>a.d-b.d).slice(0,3),
+nm=MK.map(m=>({n:m.n,k:m.k,d:km(lat,lon,m.lat,m.lon)})).sort((a,b)=>a.d-b.d)[0];
+const when=G?$("#wxtl").textContent:"";
+info(`<h2 data-tap>📍 ${ll(lat,lon)}</h2>${gv?`<div class="kh">Model grid · ${when}</div>
+<div class="tgrid"><div><b>${f(gv.t,0)}°C</b><small>temperature</small></div><div><b>${f(gv.p,1)} mm</b><small>rain, 6 h</small></div><div><b>${f(gv.ws*3.6,0)} km/h</b><small>wind from ${CMP(gv.wd)}</small></div></div>
+<div class="note">From the coarse global grid (about 650 km between points), so treat it as the regional picture. Move the forecast slider and tap again to see later times.</div>`:'<div class="note">Weather grid not loaded yet.</div>'}
+<div class="kh">7-day outlook for this point</div><div id="tap7"><div class="note">Loading…</div></div>
+${near.length?`<div class="kh">Nearby commodity regions</div>${near.map(x=>`<div class="row" style="cursor:pointer" onclick="show(${x.i})"><span>${x.n}</span><b>~${Math.round(x.d/50)*50} km ›</b></div>`).join("")}`:""}
+${nm&&nm.d<1500?`<div class="row"><span>Nearest ${nm.k=="choke"?"chokepoint":"port"}</span><b>${nm.n} · ~${Math.round(nm.d/50)*50} km</b></div>`:""}`);
+const box=$("#tap7");try{const q=new URLSearchParams({latitude:lat.toFixed(3),longitude:lon.toFixed(3),daily:"precipitation_sum,temperature_2m_max,temperature_2m_min,wind_speed_10m_max",forecast_days:7,timezone:"auto"});
+const j=await(await fetch("https://api.open-meteo.com/v1/forecast?"+q)).json(),d=j.daily;if(!d)throw 0;if(!box.isConnected)return;
+box.innerHTML=`<table class="ftb"><tr><th>Day</th><th>Rain</th><th>High / low</th><th>Wind max</th></tr>${d.time.map((t,i)=>`<tr><td>${new Date(t+"T12:00:00").toLocaleDateString("en-GB",{weekday:"short",day:"numeric"})}</td><td>${f(d.precipitation_sum[i],1)} mm</td><td>${f(d.temperature_2m_max[i],0)}° / ${f(d.temperature_2m_min[i],0)}°</td><td>${f(d.wind_speed_10m_max[i],0)} km/h</td></tr>`).join("")}</table><div class="note">Point forecast from Open-Meteo, local days.</div>`}
+catch(e){if(box.isConnected)box.innerHTML='<div class="note">The detailed point forecast isn\'t reachable from this network. The grid values above still apply.</div>'}}
+let tapT=null;map.addEventListener("click",e=>{if(e.target.closest(".pin,.mk,.hit,.enr,.ssym,.tapmk"))return;const r=map.getBoundingClientRect(),lon=(e.clientX-r.left)/r.width*360-180,lat=90-(e.clientY-r.top)/r.height*180;
+if(lat>85||lat<-85)return;clearTimeout(tapT);tapT=setTimeout(()=>tapAt(lon,lat),260)});
+map.addEventListener("dblclick",()=>clearTimeout(tapT));
+
 map.classList.add("off-enso");{const eb=document.querySelector('#tg button[data-k="enso"]');if(eb)eb.style.opacity=.4}
 const SM=["DJF","JFM","FMA","MAM","AMJ","MJJ","JJA","JAS","ASO","SON","OND","NDJ"],SMN=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const ENI=[
@@ -626,7 +652,13 @@ const MSC=$("#scroll");let heavyT;
 function setZoom(nz,cx,cy,quick){const zmin=BW>900?1:.7;nz=Math.min(5,Math.max(zmin,nz));if(cx==null){cx=MSC.clientWidth/2;cy=MSC.clientHeight/2}
 const W0=map.offsetWidth,H0=map.offsetHeight,wx=(MSC.scrollLeft+cx)/W0,wy=(MSC.scrollTop+cy)/H0;z=nz;map.style.width=BW*z+"px";
 const W1=map.offsetWidth,H1=map.offsetHeight;MSC.scrollLeft=wx*W1-cx;MSC.scrollTop=wy*H1-cy;map.classList.toggle("big",W1>=1500);
-clearTimeout(heavyT);if(quick)heavyT=setTimeout(()=>{layout();wxResize()},160);else{layout();wxResize()}}
+clearTimeout(heavyT);if(quick)heavyT=setTimeout(()=>{layout();wxResize();coastLOD()},160);else{layout();wxResize();coastLOD()}}
+let C50=null,C50p=null,cLvl=0;
+function coastLOD(){const want=map.offsetWidth>=2200?1:0;if(want==cLvl)return;
+const apply=(L,B)=>{map.querySelectorAll("path.land,path.cst").forEach(p=>p.setAttribute("d",L));map.querySelectorAll("path.bd").forEach(p=>p.setAttribute("d",B))};
+if(!want){cLvl=0;apply(LAND,BORD);return}
+if(C50){cLvl=1;apply(C50.land,C50.borders);return}
+if(!C50p)C50p=fetch("coast50.json").then(r=>r.ok?r.json():null).then(j=>{C50=j;C50p=null;coastLOD()}).catch(()=>{C50p=null})}
 const zz=d=>setZoom(d==0?z:z*(d>0?1.5:1/1.5));
 $("#zi").onclick=()=>zz(1);$("#zo").onclick=()=>zz(-1);
 MSC.addEventListener("wheel",e=>{e.preventDefault();const r=MSC.getBoundingClientRect();setZoom(z*Math.exp(-e.deltaY*(e.ctrlKey?.01:.0018)),e.clientX-r.left,e.clientY-r.top,1)},{passive:false});
