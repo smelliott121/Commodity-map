@@ -56,6 +56,16 @@ jobs:
                   got += 1
               time.sleep(12)
           print("got", got, "of", n, "points")
+          try:
+              PINS = [["Cocoa", 6.8, -5.3], ["Coffee", -19, -46], ["Wheat", 49, 32], ["Palm oil", 2, 101], ["Copper", -24, -69], ["Sugar", 18.5, 76], ["Corn", 42, -93.5], ["Cotton", 32, -101], ["Crude oil", 25, 49], ["Nat gas", 41, -78], ["Soybeans", -12.5, -55.5], ["Gold", 40.5, -117], ["Silver", 23, -102.5], ["Platinum", -25.5, 27.5], ["Lumber", 53, -123], ["Orange juice", 28, -81.5], ["Rubber", 7.5, 100], ["Rice", 30.5, 75.5], ["Lithium", -33.9, 116.1], ["Iron ore", -22.5, 118.5]]
+              pq = urllib.parse.urlencode({"latitude": ",".join(str(p[1]) for p in PINS), "longitude": ",".join(str(p[2]) for p in PINS),
+                  "current": "temperature_2m,cloud_cover", "daily": "precipitation_sum,temperature_2m_mean",
+                  "past_days": 7, "forecast_days": 7, "timezone": "auto"})
+              pd = json.load(urllib.request.urlopen("https://api.open-meteo.com/v1/forecast?" + pq, timeout=90))
+              json.dump({"updated": int(time.time()), "names": [p[0] for p in PINS], "data": pd}, open("out/pins.json", "w"), separators=(",", ":"))
+              print("pins saved")
+          except Exception as e:
+              print("pins fail", e)
           if got > n * 0.8 and times:
               json.dump({"updated": int(time.time()), "step": STEP, "lats": lats, "lons": lons, "times": times,
                          "t": T, "p": P, "u": U, "v": V}, open("out/grid.json", "w"), separators=(",", ":"))
@@ -68,6 +78,6 @@ jobs:
           git checkout -q -b data
           git config user.name "weather-bot"
           git config user.email "weather-bot@users.noreply.github.com"
-          git add grid.json
+          git add -A
           git commit -q -m "Weather grid"
           git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" data
