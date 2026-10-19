@@ -1,0 +1,142 @@
+name: Update news
+on:
+  schedule:
+    - cron: "*/20 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: news
+  cancel-in-progress: false
+jobs:
+  news:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch headlines
+        run: |
+          mkdir -p out
+          curl -sf "https://raw.githubusercontent.com/${{ github.repository }}/news/news.json" -o out/prev.json || echo "no previous news"
+          python3 - <<'PY'
+          import json, re, time, html, urllib.request, urllib.parse, email.utils
+          import xml.etree.ElementTree as ET
+          # key -> (google news query, kind)   kind: c = commodity, k = chokepoint, m = macro
+          Q = {
+              "Cocoa": '(cocoa prices OR cocoa futures OR cocoa crop OR cocoa grindings OR "Ivory Coast cocoa" OR "Ghana cocoa")',
+              "Coffee": '(coffee prices OR arabica OR robusta OR "Brazil coffee" OR "coffee futures")',
+              "Wheat": '(wheat prices OR wheat futures OR "wheat crop" OR "wheat exports" OR "Black Sea grain")',
+              "Palm oil": '("palm oil" prices OR "palm oil" Malaysia OR "palm oil" Indonesia OR MPOB)',
+              "Copper": '(copper prices OR "copper futures" OR "copper mine" OR LME copper)',
+              "Sugar": '("sugar prices" OR "raw sugar" OR "sugar futures" OR "sugar output" OR "sugar exports")',
+              "Corn": '("corn prices" OR "corn futures" OR "corn crop" OR "corn harvest" OR "maize exports")',
+              "Cotton": '("cotton prices" OR "cotton futures" OR "cotton crop")',
+              "Crude oil": '(oil prices OR Brent crude OR "crude oil" OR OPEC OR "oil output")',
+              "Nat gas": '("natural gas prices" OR "Henry Hub" OR LNG OR "gas storage" OR TTF)',
+              "Soybeans": '(soybean prices OR "soybean futures" OR "soy crop" OR "soybean exports")',
+              "Gold": '("gold prices" OR "gold futures" OR bullion OR "central bank gold")',
+              "Silver": '("silver prices" OR "silver futures")',
+              "Platinum": '("platinum prices" OR "platinum supply" OR palladium OR "PGM mine")',
+              "Lumber": '("lumber prices" OR "lumber futures" OR "softwood lumber" OR "sawmill")',
+              "Orange juice": '("orange juice" futures OR "orange juice prices" OR "Florida orange" OR "citrus crop")',
+              "Rubber": '("rubber prices" OR "natural rubber")',
+              "Rice": '("rice prices" OR "rice exports" OR "rice crop")',
+              "Lithium": '("lithium prices" OR "lithium mine" OR "lithium supply")',
+              "Iron ore": '("iron ore" prices OR "iron ore" futures OR "iron ore shipments" OR "steel output China")',
+              "chokepoint6": '("Strait of Hormuz" OR Hormuz tanker)',
+              "chokepoint4": '("Red Sea" shipping OR "Bab el-Mandeb" OR Houthi ship)',
+              "chokepoint1": '("Suez Canal")',
+              "chokepoint2": '("Panama Canal")',
+              "chokepoint5": '("Strait of Malacca" OR "Malacca Strait")',
+              "chokepoint3": '(Bosphorus OR "Black Sea shipping" OR "Black Sea port")',
+              "chokepoint11": '("Taiwan Strait" shipping OR "Taiwan Strait" blockade)',
+              "macro": '(commodities markets OR "commodity prices" OR "Fed rate" OR "dollar index" OR tariffs commodities)',
+          }
+          WATCH = {  # strong, market-moving words, weight
+              "force majeure": 4, "blockade": 4, "explosion": 3, "explodes": 3, "export ban": 4, "bans exports": 4, "halts exports": 4,
+              "attack": 2, "attacked": 3, "drone": 2, "missile": 3, "seized": 3, "seizes": 3, "sanction": 2, "embargo": 3,
+              "shut": 2, "shuts": 2, "shutdown": 2, "halt": 2, "halts": 2, "suspend": 2, "suspends": 2, "outage": 2, "closure": 2, "closes": 2,
+              "fire at": 2, "strike": 1, "walkout": 2, "frost": 2, "freeze": 1, "drought": 1, "flood": 1, "hurricane": 1, "cyclone": 1,
+              "record high": 2, "all-time high": 2, "record low": 2, "surge": 1, "soar": 1, "spike": 1, "plunge": 1, "slump": 1, "crash": 1, "tumble": 1,
+              "emergency": 2, "opec+ agrees": 2, "output cut": 2, "production cut": 2, "tariff": 1, "war": 1, "invasion": 3, "coup": 3,
+              "rate cut": 1, "rate hike": 1, "default": 2, "collapse": 2, "evacuat": 2, "landfall": 2, "mine accident": 3, "derail": 2,
+          }
+          GOOD = ["reuters", "bloomberg", "financial times", "ft.com", "wall street journal", "wsj", "s&p global", "argus", "platts", "cnbc",
+                  "associated press", "ap news", "the economist", "nikkei", "agriculture.com", "successful farming", "farm progress",
+                  "mining.com", "lloyd's list", "tradewinds", "splash247", "oilprice", "rigzone", "kitco", "barchart", "nasdaq", "marketwatch",
+                  "business recorder", "the edge", "bernama", "hellenic shipping", "ship & bunker", "fastmarkets", "argus media", "bbc", "al jazeera", "guardian"]
+          UA = {"User-Agent": "Mozilla/5.0 (commodity-map news)"}
+          STOP = set("the a an of to in on for and or as at by with from is are be its it this that after over amid into than up down new says said may could will".split())
+          def words(t):
+              return set(w for w in re.findall(r"[a-z0-9]+", t.lower()) if w not in STOP and len(w) > 2)
+          try:
+              prev = json.load(open("out/prev.json"))
+          except Exception:
+              prev = {}
+          items = {i["id"]: i for i in prev.get("items", [])}
+          now = time.time(); ok = 0
+          for key, q in Q.items():
+              url = "https://news.google.com/rss/search?" + urllib.parse.urlencode({"q": q + " when:2d", "hl": "en-GB", "gl": "GB", "ceid": "GB:en"})
+              try:
+                  root = ET.fromstring(urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=40).read())
+                  ok += 1
+              except Exception as e:
+                  print("fail", key, e); continue
+              for it in list(root.iter("item"))[:25]:
+                  title = html.unescape((it.findtext("title") or "").strip())
+                  src_el = it.find("source"); src = (src_el.text if src_el is not None else "") or ""
+                  if src and title.endswith(" - " + src):
+                      title = title[: -len(src) - 3].strip()
+                  link = it.findtext("link") or ""
+                  try:
+                      ts = email.utils.parsedate_to_datetime(it.findtext("pubDate")).timestamp()
+                  except Exception:
+                      ts = now
+                  if now - ts > 3 * 86400 or not title:
+                      continue
+                  iid = re.sub(r"[^a-z0-9]", "", title.lower())[:80]
+                  x = items.get(iid)
+                  if not x:
+                      x = items[iid] = {"id": iid, "t": title, "s": src, "u": link, "d": int(ts), "k": []}
+                  if key not in x["k"]:
+                      x["k"].append(key)
+              time.sleep(1.5)
+          print("feeds ok", ok, "of", len(Q))
+          if ok < len(Q) // 2:
+              raise SystemExit("too many feeds failed, keeping previous news")
+          L = [i for i in items.values() if now - i["d"] < 3 * 86400]
+          L.sort(key=lambda i: -i["d"])
+          # score: strong words + source quality + how many outlets carry the same story in 12h
+          W = {i["id"]: words(i["t"]) for i in L}
+          for i in L:
+              tl = " " + re.sub(r"[^a-z0-9+\- ]", " ", i["t"].lower()) + " "; sc = 0
+              for k in sorted(WATCH, key=len, reverse=True):
+                  pat = r"(?<![a-z0-9])" + re.escape(k) + (r"[a-z]*" if k.endswith("evacuat") else r"(?![a-z0-9])")
+                  if re.search(pat, tl):
+                      sc += WATCH[k]; tl = re.sub(pat, " ", tl)
+              i["q"] = 1 if any(g in i["s"].lower() for g in GOOD) else 0
+              a = W[i["id"]]; srcs = {i["s"]}
+              for j in L:
+                  if j is i or abs(j["d"] - i["d"]) > 12 * 3600 or j["s"] in srcs:
+                      continue
+                  b = W[j["id"]]
+                  if a and b and len(a & b) / len(a | b) >= 0.4:
+                      srcs.add(j["s"])
+              i["n"] = len(srcs)
+              i["sc"] = sc + i["q"] + min(3, len(srcs) - 1)
+          # keep the newest 15 per key, plus anything that scores highly
+          keep = set()
+          for key in Q:
+              for i in [i for i in L if key in i["k"]][:15]:
+                  keep.add(i["id"])
+          L = [i for i in L if i["id"] in keep or i["sc"] >= 5][:400]
+          json.dump({"updated": int(now), "items": L}, open("out/news.json", "w"), separators=(",", ":"), ensure_ascii=False)
+          print("items", len(L), "| top:", [(i["sc"], i["t"][:70]) for i in sorted(L, key=lambda i: -i["sc"])[:5]])
+          PY
+      - name: Publish to news branch
+        run: |
+          [ -f out/news.json ] || { echo "no news built"; exit 1; }
+          cd out && rm -f prev.json
+          git init -q && git checkout -q -b news
+          git config user.name "news-bot"
+          git config user.email "news-bot@users.noreply.github.com"
+          git add -A && git commit -q -m "News"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" news
