@@ -1,0 +1,154 @@
+name: Update UK energy
+on:
+  schedule:
+    - cron: "10,40 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: uk-energy
+  cancel-in-progress: false
+jobs:
+  uk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch UK power and gas data
+        env:
+          GIE_API_KEY: ${{ secrets.GIE_API_KEY }}
+        run: |
+          mkdir -p out
+          python3 - <<'PY'
+          import json, os, time, datetime as dt, urllib.request
+          UA = {"User-Agent": "commodity-map (github actions)", "Accept": "application/json"}
+          def get(url, headers=None):
+              h = dict(UA); h.update(headers or {})
+              for a in range(3):
+                  try:
+                      return json.load(urllib.request.urlopen(urllib.request.Request(url, headers=h), timeout=40))
+                  except Exception as e:
+                      print("retry", url.split("?")[0], e); time.sleep(4)
+              return None
+          now = dt.datetime.now(dt.timezone.utc).replace(second=0, microsecond=0)
+          iso = lambda d: d.strftime("%Y-%m-%dT%H:%MZ")
+          out = {"updated": int(time.time())}
+
+          # 1) Generation mix, % share, half-hourly, last 48h (NESO Carbon Intensity API; includes solar and embedded wind)
+          j = get(f"https://api.carbonintensity.org.uk/generation/{iso(now - dt.timedelta(hours=48))}/{iso(now)}")
+          if j and j.get("data"):
+              F = ["nuclear", "biomass", "gas", "wind", "solar", "hydro", "coal", "other", "imports"]
+              mix = {"t": [], "f": {k: [] for k in F}}
+              for d in j["data"]:
+                  m = {g["fuel"]: g["perc"] for g in d.get("generationmix", [])}
+                  if not m:
+                      continue
+                  mix["t"].append(d["from"])
+                  for k in F:
+                      mix["f"][k].append(round(float(m.get(k, 0) or 0), 1))
+              out["mix"] = mix
+              print("mix points", len(mix["t"]))
+
+          # 2) Carbon intensity: last 24h actual + next 24h forecast
+          ci = {"t": [], "a": [], "fc": []}
+          for path in (f"{iso(now)}/pt24h", f"{iso(now)}/fw24h"):
+              j = get(f"https://api.carbonintensity.org.uk/intensity/{path}")
+              for d in (j or {}).get("data", []):
+                  if d["from"] in ci["t"]:
+                      continue
+                  ci["t"].append(d["from"]); ci["a"].append(d["intensity"].get("actual")); ci["fc"].append(d["intensity"].get("forecast"))
+          if ci["t"]:
+              z = sorted(zip(ci["t"], ci["a"], ci["fc"]))
+              ci = {"t": [a for a, _, _ in z], "a": [b for _, b, _ in z], "fc": [c for _, _, c in z]}
+              j = get("https://api.carbonintensity.org.uk/intensity")
+              if j and j.get("data"):
+                  i = j["data"][0]["intensity"]; ci["now"] = {"v": i.get("actual") or i.get("forecast"), "idx": i.get("index")}
+              out["ci"] = ci
+
+          # 3) Elexon: generation by fuel type (MW, transmission-connected) for the latest half-hour
+          B = "https://data.elexon.co.uk/bmrs/api/v1"
+          d0 = (now - dt.timedelta(days=1)).date().isoformat(); d1 = now.date().isoformat()
+          j = get(f"{B}/datasets/FUELHH?settlementDateFrom={d0}&settlementDateTo={d1}&format=json")
+          rows = (j or {}).get("data") if isinstance(j, dict) else j
+          if rows:
+              last = max(r["startTime"] for r in rows)
+              by = {}
+              for r in rows:
+                  if r["startTime"] == last:
+                      by[r["fuelType"]] = by.get(r["fuelType"], 0) + (r.get("generation") or 0)
+              ic = sum(v for k, v in by.items() if k.startswith("INT"))
+              out["fuel"] = {"t": last, "by": by, "total": sum(by.values()), "ic": ic,
+                             "gas": by.get("CCGT", 0) + by.get("OCGT", 0), "wind": by.get("WIND", 0), "nuc": by.get("NUCLEAR", 0)}
+              print("fuelhh", last, out["fuel"]["total"])
+
+          # 4) Elexon: system (imbalance) price, last 2 days
+          sp = {"t": [], "p": []}
+          for day in (d0, d1):
+              j = get(f"{B}/balancing/settlement/system-prices/{day}?format=json")
+              rows = (j or {}).get("data") if isinstance(j, dict) else j
+              for r in rows or []:
+                  p = r.get("systemSellPrice", r.get("systemBuyPrice"))
+                  if p is not None and r.get("startTime"):
+                      sp["t"].append(r["startTime"]); sp["p"].append(round(float(p), 2))
+          if sp["t"]:
+              z = sorted(set(zip(sp["t"], sp["p"])))
+              out["sp"] = {"t": [a for a, _ in z], "p": [b for _, b in z]}
+              print("system prices", len(z))
+
+          # 5) Elexon: market index (wholesale day-ahead/within-day) price, last 2 days
+          j = get(f"{B}/balancing/pricing/market-index?from={iso(now - dt.timedelta(hours=48))}&to={iso(now)}&dataProviders=APXMIDP&format=json")
+          rows = (j or {}).get("data") if isinstance(j, dict) else j
+          mid = sorted({(r["startTime"], round(float(r["price"]), 2)) for r in rows or [] if r.get("price") and r.get("volume", 1)})
+          if mid:
+              out["mid"] = {"t": [a for a, _ in mid], "p": [b for _, b in mid]}
+              print("market index", len(mid))
+
+          # 6) Gas: UK LNG send-out (GIE ALSI) and EU gas storage (GIE AGSI). Needs a free GIE_API_KEY secret.
+          K = os.environ.get("GIE_API_KEY", "").strip()
+          if K:
+              H = {"x-key": K}
+              f = (now - dt.timedelta(days=500)).date().isoformat(); t = now.date().isoformat()
+              def num(v):
+                  try:
+                      return float(str(v).replace(",", ""))
+                  except Exception:
+                      return None
+              def pages(base):
+                  rows, pg = [], 1
+                  while pg <= 5:
+                      j = get(f"{base}&from={f}&to={t}&size=300&page={pg}", H)
+                      if not j or not j.get("data"):
+                          if pg == 1: print("GIE returned nothing:", str(j)[:300])
+                          break
+                      rows += j["data"]
+                      if pg >= int(j.get("last_page") or 1):
+                          break
+                      pg += 1
+                  return rows
+              rows = pages("https://alsi.gie.eu/api?country=GB")
+              if rows:
+                  rows = sorted(rows, key=lambda r: r["gasDayStart"])
+                  out["lng"] = {"d": [r["gasDayStart"] for r in rows], "s": [num(r.get("sendOut")) for r in rows],
+                                "inv": [num((r.get("inventory") or {}).get("gwh")) if isinstance(r.get("inventory"), dict) else num(r.get("inventory")) for r in rows]}
+                  print("LNG days", len(rows), "latest", rows[-1].get("gasDayStart"), rows[-1].get("sendOut"))
+              rows = pages("https://agsi.gie.eu/api?type=eu")
+              if rows:
+                  rows = sorted(rows, key=lambda r: r["gasDayStart"])
+                  out["eu"] = {"d": [r["gasDayStart"] for r in rows], "full": [num(r.get("full")) for r in rows],
+                               "trend": num(rows[-1].get("trend")), "twh": num(rows[-1].get("gasInStorage"))}
+                  print("EU storage", rows[-1].get("gasDayStart"), rows[-1].get("full"))
+          else:
+              print("No GIE_API_KEY secret: skipping LNG and EU storage (optional).")
+
+          keys = [k for k in ("mix", "ci", "fuel", "sp", "mid", "lng", "eu") if k in out]
+          print("got:", keys)
+          if len(keys) >= 2:
+              json.dump(out, open("out/uk.json", "w"), separators=(",", ":"))
+          PY
+      - name: Publish to uk branch
+        run: |
+          [ -f out/uk.json ] || { echo "no UK data built"; exit 1; }
+          cd out
+          git init -q && git checkout -q -b uk
+          git config user.name "uk-energy-bot"
+          git config user.email "uk-energy-bot@users.noreply.github.com"
+          git add -A && git commit -q -m "UK energy"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" uk
