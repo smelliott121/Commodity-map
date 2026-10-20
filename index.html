@@ -556,15 +556,16 @@ function snHTML(sym){return`<div class="kh">Seasonal pattern</div><div id="sns" 
 async function snDraw(sym){await snLoad();const box=$("#snc"),st=$("#sns");if(!box||!st)return;const S=SN&&SN.s[sym];
 if(!S){st.innerHTML=`<span class="note">${SN?"No long history for this market.":"Seasonal data loads once the Update seasonal patterns job has run."}</span>`;return}
 const cur=S.y[S.cur]||[],past=Object.keys(S.y).filter(k=>k!=S.cur).sort(),p5=past.slice(-5),p10=past.slice(-10),ly=S.y[past.at(-1)];
-const avg=[],lo=[],hi=[];for(let w=0;w<53;w++){const v=p5.map(k=>S.y[k][w]).filter(v=>v!=null);avg.push(v.length?v.reduce((a,b)=>a+b,0)/v.length:null);lo.push(v.length>=3?Math.min(...v):null);hi.push(v.length>=3?Math.max(...v):null)}
+const med=a=>{const s=a.slice().sort((x,y)=>x-y),m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2};
+const avg=[],lo=[],hi=[];for(let w=0;w<53;w++){const v=p5.map(k=>S.y[k][w]).filter(v=>v!=null).sort((a,b)=>a-b);avg.push(v.length?med(v):null);lo.push(v.length>=4?v[1]:v.length>=3?v[0]:null);hi.push(v.length>=4?v[v.length-2]:v.length>=3?v[v.length-1]:null)}
 let wc=-1;cur.forEach((v,i)=>{if(v!=null)wc=i});
 const L=(Y,w)=>{const a=S.y[Y];if(!a)return null;let k=w;while(k>=0&&a[k]==null)k--;return k<0?1:1+a[k]/100};
-let up=0,n=0,sum=0;if(wc>=0)p10.forEach(Y=>{const a=L(Y,wc);if(a==null)return;let b;const w2=wc+13;if(w2<=52)b=L(Y,w2);else{const nx=String(+Y+1);if(!S.y[nx]||nx==S.cur&&cur.filter(v=>v!=null).length<w2-52)return;b=L(Y,52)*L(nx,w2-53)}if(b==null)return;const r=(b/a-1)*100;n++;sum+=r;if(r>0)up++});
+let up=0,n=0,sum=0;const rs=[];if(wc>=0)p10.forEach(Y=>{const a=L(Y,wc);if(a==null)return;let b;const w2=wc+13;if(w2<=52)b=L(Y,w2);else{const nx=String(+Y+1);if(!S.y[nx]||nx==S.cur&&cur.filter(v=>v!=null).length<w2-52)return;b=L(Y,52)*L(nx,w2-53)}if(b==null)return;const r=(b/a-1)*100;n++;sum+=r;rs.push(r);if(r>0)up++});
 const vs=wc>=0&&avg[wc]!=null&&cur[wc]!=null?cur[wc]-avg[wc]:null,sg=v=>(v>=0?"+":"−")+Math.abs(v).toFixed(1);
-st.innerHTML=(wc>=0&&cur[wc]!=null?`This year <b>${sg(cur[wc])}%</b> so far${vs!=null?`, <b>${Math.abs(vs).toFixed(1)} pts</b> ${vs>=0?"above":"below"} the 5-year average path`:""}. `:"")+(n>=4?`Next 3 months: up in <b>${up} of ${n}</b> years, average <b>${sg(sum/n)}%</b>.`:"");
-$("#snl").innerHTML=`<span><i style="background:var(--amb)"></i>${S.cur}</span><span><i style="background:var(--mut)"></i>${past.at(-1)}</span><span><i style="background:var(--ink)"></i>5-year average</span><span><i style="background:color-mix(in srgb,var(--ink) 25%,transparent);height:8px"></i>5-year range</span>`;
+st.innerHTML=(wc>=0&&cur[wc]!=null?`This year <b>${sg(cur[wc])}%</b> so far${vs!=null?`, <b>${Math.abs(vs).toFixed(1)} pts</b> ${vs>=0?"above":"below"} the usual (5-year median) path`:""}. `:"")+(n>=4?`Next 3 months: up in <b>${up} of ${n}</b> years, typical move <b>${sg(med(rs))}%</b>.`:"");
+$("#snl").innerHTML=`<span><i style="background:var(--amb)"></i>${S.cur}</span><span><i style="background:var(--mut)"></i>${past.at(-1)}</span><span><i style="background:var(--ink)"></i>5-year median</span><span><i style="background:color-mix(in srgb,var(--ink) 25%,transparent);height:8px"></i>usual range (middle 3 of 5 years)</span>`;
 const T=[...Array(53)].map((_,w)=>Date.UTC(2001,0,1+w*7));
-tsChart(box,{t:T,h:160,band:{lo,hi},zl:1,series:[{n:S.cur,c:"var(--amb)",v:cur},{n:past.at(-1),c:"var(--mut)",v:ly||[],w:1.3},{n:"5-yr avg",c:"var(--ink)",v:avg,w:1.3,dash:1}],
+tsChart(box,{t:T,h:160,band:{lo,hi},zl:1,series:[{n:S.cur,c:"var(--amb)",v:cur},{n:past.at(-1),c:"var(--mut)",v:ly||[],w:1.3},{n:"5-yr median",c:"var(--ink)",v:avg,w:1.3,dash:1}],
 fmt:v=>(v>=0?"+":"−")+Math.abs(v).toFixed(1)+"%",tk:v=>(v>0?"+":"")+v+"%",lab:t=>"Week of "+new Date(t).toLocaleDateString("en-GB",{day:"numeric",month:"short",timeZone:"UTC"})})}
 /* ---- UK energy (NESO carbon intensity + Elexon + optional GIE gas), built every 30 min by Update UK energy ---- */
 let UK=null;
