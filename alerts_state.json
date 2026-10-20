@@ -5,8 +5,8 @@
 "chokepoint15": "ok",
 "chokepoint2": "ok",
 "chokepoint28": "severe",
-"chokepoint3": "low",
-"chokepoint4": "ok",
+"chokepoint3": "severe",
+"chokepoint4": "low",
 "chokepoint5": "ok",
 "chokepoint6": "severe",
 "chokepoint7": "ok",
@@ -38,11 +38,13 @@
 "status": "El Ni\u00f1o Advisory",
 "str": "strong"
 },
-"last_run": "2026-10-20T21:19:42.159853+00:00",
+"last_run": "2026-10-20T21:36:46.428390+00:00",
 "news_sent": [],
 "seen": {
 "choke:chokepoint28:severe": 1792446434.945131,
 "choke:chokepoint3:low": 1792446434.945131,
+"choke:chokepoint3:severe": 1792532206.42839,
+"choke:chokepoint4:low": 1792532206.42839,
 "choke:chokepoint6:severe": 1792446434.945131,
 "cot:Cocoa:2026-10-13": 1792364030.019133,
 "cot:Lumber:2026-10-13": 1792364030.019133,
@@ -61,7 +63,7 @@
 "Shanghai port (~500 km)"
 ],
 "lvl": 3,
-"t": 1792531182.159853
+"t": 1792532206.42839
 },
 "ep212026": {
 "hits": [
