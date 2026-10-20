@@ -1,0 +1,79 @@
+name: Update futures curves
+on:
+  schedule:
+    - cron: "45 21 * * 1-5"
+    - cron: "15 13 * * 1-5"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  curves:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch contract months
+        run: |
+          mkdir -p out
+          python3 - <<'PY'
+          import json, time, datetime as dt, urllib.request
+          MC = "FGHJKMNQUVXZ"
+          ALL = MC
+          # root: (Yahoo exchange suffix, listed months used for the curve, how many contracts)
+          SPEC = {
+              "CL": ("NYM", ALL, 18), "BZ": ("NYM", ALL, 12), "NG": ("NYM", ALL, 18), "HO": ("NYM", ALL, 12), "RB": ("NYM", ALL, 12),
+              "GC": ("CMX", "GJMQVZ", 8), "SI": ("CMX", "HKNUZ", 7), "HG": ("CMX", ALL, 12), "PL": ("NYM", "FJNV", 5), "PA": ("NYM", "HMUZ", 4),
+              "ZC": ("CBT", "HKNUZ", 8), "ZW": ("CBT", "HKNUZ", 8), "KE": ("CBT", "HKNUZ", 7), "ZS": ("CBT", "FHKNQUX", 10),
+              "ZM": ("CBT", "FHKNQUVZ", 9), "ZL": ("CBT", "FHKNQUVZ", 9), "ZO": ("CBT", "HKNUZ", 5), "ZR": ("CBT", "FHKNUX", 6),
+              "KC": ("NYB", "HKNUZ", 8), "CC": ("NYB", "HKNUZ", 8), "SB": ("NYB", "HKNV", 8), "CT": ("NYB", "HKNVZ", 7), "OJ": ("NYB", "FHKNUX", 6),
+              "LE": ("CME", "GJMQVZ", 7), "HE": ("CME", "GJKMNQVZ", 8), "GF": ("CME", "FHJKQUVX", 7),
+          }
+          UA = {"User-Agent": "Mozilla/5.0"}
+          today = dt.date.today()
+          def chart(sym):
+              for host in ("query1", "query2"):
+                  try:
+                      url = f"https://{host}.finance.yahoo.com/v8/finance/chart/{sym}?interval=1d&range=1mo"
+                      return json.load(urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=20))["chart"]["result"][0]
+                  except Exception:
+                      pass
+              return None
+          out = {}
+          for root, (ex, months, n) in SPEC.items():
+              pts, y, m, misses = [], today.year, today.month, 0
+              while len(pts) < n and misses < 10:
+                  code = MC[m - 1]
+                  if code in months:
+                      sym = f"{root}{code}{str(y)[2:]}.{ex}"
+                      r = chart(sym)
+                      ok = False
+                      if r:
+                          ts = r.get("timestamp") or []
+                          cl = r["indicators"]["quote"][0].get("close") or []
+                          z = [(a, b) for a, b in zip(ts, cl) if b is not None]
+                          if z and time.time() - z[-1][0] < 6 * 86400:
+                              c = [b for _, b in z]
+                              pts.append({"c": f"{code}{str(y)[2:]}", "l": dt.date(y, m, 1).strftime("%b %y"),
+                                          "p": float(f"{c[-1]:.6g}"), "w": float(f"{c[-6]:.6g}") if len(c) >= 6 else None,
+                                          "m": float(f"{c[0]:.6g}") if len(c) >= 18 else None, "d": dt.datetime.utcfromtimestamp(z[-1][0]).date().isoformat()})
+                              ok = True
+                      if not ok:
+                          misses += 1
+                      time.sleep(0.25)
+                  m += 1
+                  if m > 12:
+                      m, y = 1, y + 1
+              print(root, len(pts), [p["c"] for p in pts])
+              if len(pts) >= 3:
+                  out[root] = pts
+          print("curves", len(out), "of", len(SPEC))
+          if len(out) >= 5:
+              json.dump({"updated": int(time.time()), "c": out}, open("out/curves.json", "w"), separators=(",", ":"))
+          PY
+      - name: Publish to curves branch
+        run: |
+          [ -f out/curves.json ] || { echo "no curves built"; exit 1; }
+          cd out
+          git init -q && git checkout -q -b curves
+          git config user.name "curve-bot"
+          git config user.email "curve-bot@users.noreply.github.com"
+          git add -A && git commit -q -m "Futures curves"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" curves
