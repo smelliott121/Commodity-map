@@ -150,12 +150,33 @@ body.unpinned:not(.awake) #calside{transform:translateX(calc(100% + 20px));opaci
 .ti.evn::before{background:var(--amb);box-shadow:0 0 8px var(--amb)}.ti.evn b{color:var(--ink)}.ti.evn .ago{color:var(--amb);font:500 11.5px var(--num)}
 .chip.brk b::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--amb);box-shadow:0 0 6px var(--amb);margin-right:5px;vertical-align:1px}
 #nwb .nd{display:none;width:6px;height:6px;border-radius:50%;background:var(--amb);box-shadow:0 0 6px var(--amb)}#nwb.hot .nd{display:inline-block}
+
+/* ---- markets board ---- */
+#mkp{display:none;position:fixed;z-index:19;left:12px;top:calc(62px + env(safe-area-inset-top,0px));bottom:calc(76px + env(safe-area-inset-bottom,0px));width:540px;border-radius:16px;flex-direction:column;overflow:hidden}
+body.wxon #mkp{bottom:calc(118px + env(safe-area-inset-bottom,0px))}body.mkopen #mkp{display:flex}
+.mkh{display:flex;align-items:center;justify-content:space-between;padding:12px 12px 8px 16px}.mkh b{font-size:16px;font-weight:600;letter-spacing:-.01em}.mkh small{color:var(--mut);font-size:11.5px;margin-left:8px;font-weight:400}
+.mvs{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:0 12px 10px}.mvs div{border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:12px}.mvs div>span{display:block;color:var(--mut);font-size:11px;margin-bottom:2px}
+.mvs a{display:flex;justify-content:space-between;gap:8px;color:var(--ink);text-decoration:none;cursor:pointer;padding:1px 0}.mvs a:hover{color:var(--amb)}.mvs a i{font:500 11.5px var(--num);font-style:normal}
+.mkt{overflow:auto;flex:1;scrollbar-width:thin;padding:0 6px 8px}
+.mkr{display:grid;grid-template-columns:minmax(0,1fr) 64px 82px 58px 58px 58px;align-items:center;gap:6px;padding:0 10px;height:34px;border-radius:7px;cursor:pointer;font-size:12.5px}
+.mkr:hover{background:color-mix(in srgb,var(--ink) 6%,transparent)}.mkr.sel{background:var(--amb2)}
+.mkr>span:first-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mkr>span:first-child small{color:var(--mut);font-size:10.5px;margin-left:6px}
+.mkr .px{font:500 12.5px var(--num);text-align:right}.mkr .cg{font:500 11.5px var(--num);text-align:right;border-radius:5px;padding:3px 5px}
+.mkr svg{display:block;width:64px;height:20px;overflow:visible}
+.mkhd{position:sticky;top:0;z-index:1;background:var(--glass2);height:30px;color:var(--mut);font-size:11px;cursor:default;border-bottom:1px solid var(--line);border-radius:0}.mkhd:hover{background:var(--glass2)}
+.mkhd button{border:none;padding:0;font:inherit;color:inherit;text-align:right;height:100%}.mkhd button:first-child{text-align:left}.mkhd button:hover,.mkhd button.on{color:var(--ink)}.mkhd button.on::after{content:attr(data-d);margin-left:3px;color:var(--amb)}
+.mkg{padding:12px 10px 4px;font-size:12px;font-weight:600;color:var(--mut)}
+.mkf{padding:8px 16px 12px;color:var(--mut);font-size:11px;border-top:1px solid var(--line)}
+@media (max-width:440px){.brand .bt{display:none}#enb{font-size:11.5px;padding:3px 8px}}
+@media (max-width:999px){#mkp{left:0;right:0;width:auto;top:calc(110px + env(safe-area-inset-top,0px));bottom:0;border-radius:18px 18px 0 0;z-index:28}body.wxon #mkp{bottom:0}
+.mkr{grid-template-columns:minmax(0,1fr) 52px 74px 54px 54px;gap:4px;padding:0 6px}.mkr>:nth-child(6){display:none}.mkr svg{width:52px}.mkr>span:first-child small{display:none}body.mkopen #dock{display:none}}
 </style></head><body class="wxon">
 <div id="scroll"><div id="map"></div></div>
-<header id="top" class="gl2"><div class="brand"><i></i>Commodity Map <small id="clk"></small></div>
+<header id="top" class="gl2"><div class="brand"><i></i><span class="bt">Commodity Map</span> <small id="clk"></small></div>
 <div id="tick" role="button" aria-label="Upcoming events, tap for calendar"><div id="tk"></div></div>
-<div class="tr"><button id="enb" style="display:none"></button><button class="ib" id="nwb" title="Market news"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M4 5h13v14H6a2 2 0 0 1-2-2V5Z"/><path d="M17 9h3v8a2 2 0 0 1-2 2"/><path d="M7 9h7M7 12h7M7 15h4"/></svg><span class="dsk">News</span><i class="nd"></i></button><button class="ib" id="calb" aria-pressed="false" title="Market calendar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span class="dsk">Calendar</span></button></div></header>
+<div class="tr"><button id="enb" style="display:none"></button><button class="ib" id="mkb" aria-pressed="false" title="Markets board"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"/><path d="m4 15 5-5 4 3 7-7"/><path d="M15 6h5v5"/></svg><span class="dsk">Markets</span></button><button class="ib" id="nwb" title="Market news"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M4 5h13v14H6a2 2 0 0 1-2-2V5Z"/><path d="M17 9h3v8a2 2 0 0 1-2 2"/><path d="M7 9h7M7 12h7M7 15h4"/></svg><span class="dsk">News</span><i class="nd"></i></button><button class="ib" id="calb" aria-pressed="false" title="Market calendar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span class="dsk">Calendar</span></button></div></header>
 <aside id="calside" class="gl2"></aside>
+<section id="mkp" class="gl2" aria-label="Markets board"></section>
 <div id="lyr" class="gl2" role="dialog" aria-label="Map layers"><div class="lh"><b>Layers</b><span>Tap a commodity, line or spot on the map for detail</span></div><div id="tg"></div>
 <div class="lfoot"><div id="st">loading…</div><button class="ib" id="thb" title="Switch light or dark">Light</button></div></div>
 <nav id="dock" class="gl2" aria-label="Map controls">
@@ -488,6 +509,47 @@ R.forEach((r,i)=>{if(EVS.some(e=>e.t<soon&&e.k!="h"&&e.c.length<ALLC.length&&e.c
 function evFor(r){const sn=new Set(),L=EVS.filter(e=>!e.items&&e.c.includes(r.n)&&e.c.length<ALLC.length&&!sn.has(e.n)&&sn.add(e.n)).slice(0,4).concat(EVS.filter(e=>e.items&&e.c.includes(r.n)).slice(0,2).map(e=>{const it=e.items.filter(i=>i.c.includes(r.n));return Object.assign({},e,{n:[...new Set(it.map(i=>i.f))].join("")+" "+it.map(i=>i.code+" "+(i.s=="closed"?"closed":i.s)).join(", ")+" ("+it[0].n.replace(/^Early close \((.*)\)$/,"$1")+")"})}));if(!L.length)return"";
 return'<div class="kh">Upcoming events</div><div class="evl">'+L.sort((a,b)=>a.t-b.t).map(e=>`<div class="evr ev${e.k}"><b>${e.n}</b><small>${fmtT(e)} · <span class="cd" data-t="${e.t.getTime()}">${cd(e)}</span>${e.ap?" · "+e.ap:""}</small></div>`).join("")+"</div>"}
 
+
+/* ---- markets board (delayed Yahoo quotes from prices.json) ---- */
+const MKG=[["Energy",[["BZ=F","Brent crude","$/bbl"],["CL=F","WTI crude","$/bbl"],["NG=F","Henry Hub gas","$/MMBtu"],["HO=F","Heating oil (diesel)","$/gal"],["RB=F","Gasoline (RBOB)","$/gal"]]],
+["Metals",[["GC=F","Gold","$/oz"],["SI=F","Silver","$/oz"],["PL=F","Platinum","$/oz"],["PA=F","Palladium","$/oz"],["HG=F","Copper","$/lb"],["ALI=F","Aluminium","$/t"],["TIO=F","Iron ore","$/t"]]],
+["Grains and oilseeds",[["ZC=F","Corn","¢/bu"],["ZW=F","Wheat, Chicago","¢/bu"],["KE=F","Wheat, Kansas","¢/bu"],["ZS=F","Soybeans","¢/bu"],["ZM=F","Soymeal","$/short t"],["ZL=F","Soy oil","¢/lb"],["ZO=F","Oats","¢/bu"],["ZR=F","Rough rice","$/cwt"]]],
+["Softs",[["CC=F","Cocoa","$/t"],["KC=F","Coffee","¢/lb"],["SB=F","Sugar","¢/lb"],["CT=F","Cotton","¢/lb"],["OJ=F","Orange juice","¢/lb"],["LBR=F","Lumber","$/1000 bd ft"]]],
+["Livestock",[["LE=F","Live cattle","¢/lb"],["GF=F","Feeder cattle","¢/lb"],["HE=F","Lean hogs","¢/lb"]]],
+["US rates",[["ZT=F","2-year note future","pts"],["ZF=F","5-year note future","pts"],["ZN=F","10-year note future","pts"],["ZB=F","30-year bond future","pts"],["^IRX","3-month bill yield","%","y"],["^FVX","5-year yield","%","y"],["^TNX","10-year yield","%","y"],["^TYX","30-year yield","%","y"]]],
+["Equity indices",[["ES=F","S&P 500 future","pts"],["NQ=F","Nasdaq 100 future","pts"],["YM=F","Dow future","pts"],["RTY=F","Russell 2000 future","pts"],["^FTSE","FTSE 100","index"],["^GDAXI","DAX","index"],["^STOXX50E","Euro Stoxx 50","index"],["^N225","Nikkei 225","index"],["^HSI","Hang Seng","index"],["000001.SS","Shanghai Composite","index"]]],
+["FX and volatility",[["DX-Y.NYB","US dollar index","index"],["EURUSD=X","EUR/USD","rate"],["GBPUSD=X","GBP/USD","rate"],["JPY=X","USD/JPY","rate"],["CNY=X","USD/CNY","rate"],["BRL=X","USD/BRL","rate"],["^VIX","VIX","index"]]]];
+let MKS=null,MKSEL=null;
+function mkRow(s){const q=PX[s[0]];if(!q||q.price==null)return null;const c=(q.c||[]).slice(),y=s[3]=="y",n=c.length,p=q.price;
+const ch=(ref)=>ref==null||!ref?null:y?(p-ref)*100:(p/ref-1)*100;
+const o={sym:s[0],n:s[1],u:s[2],y,p,d1:ch(q.prev),w1:n>=6?ch(c[n-6]):null,m1:n>=20?ch(c[0]):null,c};
+if(!y&&o.d1!=null&&Math.abs(o.d1)>25)o.d1=null;return o}
+function spark(o){const v=o.c.slice();if(!v.length)return"";v[v.length-1]=o.p;const lo=Math.min(...v),hi=Math.max(...v),W=64,H=20,x=i=>i/(v.length-1||1)*W,yy=t=>H-2-(hi>lo?(t-lo)/(hi-lo):.5)*(H-4);
+const up=v[v.length-1]>=v[0];return`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="${v.map((t,i)=>(i?"L":"M")+x(i).toFixed(1)+" "+yy(t).toFixed(1)).join("")}" fill="none" stroke="var(--${up?"up":"dn"})" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg>`}
+function cgc(v,sc,y){if(v==null)return`<span class="cg" style="color:var(--mut)">—</span>`;const a=Math.min(1,Math.abs(v)/sc)*38,k=v>=0?"up":"dn";
+return`<span class="cg" style="color:var(--${k});background:color-mix(in srgb,var(--${k}) ${a.toFixed(0)}%,transparent)">${v>=0?"+":"−"}${Math.abs(v).toFixed(y?0:Math.abs(v)<10?2:1)}${y?"bp":"%"}</span>`}
+const pxf=o=>o.p>=1000?o.p.toLocaleString("en",{maximumFractionDigits:0}):o.p>=100?o.p.toFixed(1):o.p>=10?o.p.toFixed(2):o.p.toFixed(o.u=="rate"?4:3);
+function rowH(o){return`<div class="mkr${MKSEL==o.sym?" sel":""}" data-s="${esc(o.sym)}" title="${esc(o.n)} · ${esc(o.u)}"><span>${esc(o.n)}<small>${esc(o.u)}</small></span>${spark(o)}<span class="px">${pxf(o)}</span>${cgc(o.d1,o.y?10:2,o.y)}${cgc(o.w1,o.y?25:5,o.y)}${cgc(o.m1,o.y?50:10,o.y)}</div>`}
+function mkBoard(){const el=$("#mkp");if(!document.body.classList.contains("mkopen"))return;const rows=MKG.map(([g,L])=>[g,L.map(mkRow).filter(Boolean)]);
+const all=rows.flatMap(r=>r[1]),mv=all.filter(o=>!o.y&&o.d1!=null).sort((a,b)=>b.d1-a.d1);
+const hd=[["n","Market"],[null,""],[null,"Last"],["d1","1D"],["w1","1W"],["m1","1M"]].map(([k,t])=>k?`<button data-k="${k}"${MKS&&MKS[0]==k?` class="on" data-d="${MKS[1]>0?"↓":"↑"}"`:""}>${t}</button>`:`<span style="text-align:right">${t}</span>`).join("");
+let body="";if(!all.length)body=`<div class="note" style="padding:16px">Prices load once the Update prices job has run with the new markets list.</div>`;
+else if(MKS){const[k,d]=MKS,val=o=>o.y||o[k]==null?null:o[k];const pct=all.filter(o=>k=="n"||val(o)!=null),rest=all.filter(o=>!pct.includes(o));body=pct.sort((a,b)=>k=="n"?-d*a.n.localeCompare(b.n):(val(b)-val(a))*d).map(rowH).join("")+(rest.length?`<div class="mkg">Yields and no data</div>`+rest.map(rowH).join(""):"")}
+else body=rows.filter(r=>r[1].length).map(([g,L])=>`<div class="mkg">${g}</div>${L.map(rowH).join("")}`).join("");
+const top=a=>a.map(o=>`<a data-s="${esc(o.sym)}"><span>${esc(o.n)}</span>${cgc(o.d1,2)}</a>`).join("");
+el.innerHTML=`<div class="mkh"><div><b>Markets</b><small>Delayed about 15 min · updated ${pT?new Date(pT*1000).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",hour12:false,timeZone:"Europe/London"})+" UK":"—"}</small></div><button class="x" id="mkx" aria-label="Close markets">×</button></div>
+${mv.length>5?`<div class="mvs"><div><span>Top gainers today</span>${top(mv.slice(0,3))}</div><div><span>Top fallers today</span>${top(mv.slice(-3).reverse())}</div></div>`:""}
+<div class="mkt"><div class="mkr mkhd">${hd}</div>${body}</div><div class="mkf">Yields move in basis points (bp), everything else in %. Bund and Gilt futures aren't in the free feed, so they're missing for now. Tap a row for its chart.</div>`;
+$("#mkx").onclick=()=>mkOpen(false);el.querySelectorAll(".mkhd button").forEach(b=>b.onclick=()=>{const k=b.dataset.k;MKS=MKS&&MKS[0]==k?(MKS[1]>0?[k,-1]:null):[k,k=="n"?-1:1];mkBoard()});
+el.querySelectorAll("[data-s]").forEach(r=>r.onclick=()=>mkShow(r.dataset.s))}
+function mkShow(sym){MKSEL=sym;const i=R.findIndex(r=>r.sym==sym);if(i>=0){show(i)}else{const s=MKG.flatMap(g=>g[1]).find(x=>x[0]==sym),o=mkRow(s);if(!o)return;
+const o2={n:s[1],sym,u:s[2],p:o.p};info(`<h2>${esc(s[1])}</h2><div class="row"><span>Last (delayed)</span><b>${pxf(o)} ${esc(s[2])}</b></div>
+<div class="row"><span>Day · week · month</span><b>${cgc(o.d1,o.y?10:2,o.y)} ${cgc(o.w1,o.y?25:5,o.y)} ${cgc(o.m1,o.y?50:10,o.y)}</b></div>${chartHTML(o2)}<div class="note">Symbol ${esc(sym)} on Yahoo Finance, delayed. Futures are the front month and can jump when the contract rolls.</div>`);setTimeout(()=>drawChart(o2),0)}
+document.querySelectorAll("#mkp .mkr").forEach(r=>r.classList.toggle("sel",r.dataset.s==sym))}
+function mkOpen(o){document.body.classList.toggle("mkopen",o);$("#mkb").setAttribute("aria-pressed",o);if(o)mkBoard()}
+$("#mkb").onclick=()=>mkOpen(!document.body.classList.contains("mkopen"));
+addEventListener("keydown",e=>{if(e.target.closest("input,textarea"))return;if(e.key=="m"||e.key=="M")mkOpen(!document.body.classList.contains("mkopen"));if(e.key=="Escape"&&document.body.classList.contains("mkopen")&&!$("#panel").classList.contains("open"))mkOpen(false)});
+setInterval(async()=>{await prices();mkBoard()},5*6e4);
 /* ---- news (Google News headlines, built every 20 min by the Update news job) ---- */
 let NW=null,nwf="all";
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -771,7 +833,7 @@ if(w.past<n*.5&&-d>15)return["dry","Dry: "+(pc!=null?pc+"% vs normal":"well belo
 return["","Close to normal for the season"]}
 function show(i){const r=R[i],w=r.w,flag=sig(r)[1];
 info(`<h2>${r.n} · ${r.loc}</h2>
-<div class="row"><span>Price ${r.live?"(delayed)":"(SAMPLE)"}</span><b>${f(r.p,r.p<20?2:0)} ${r.u}</b></div>${r.gl?'<div class="note">⚠ The feed jumped more than 25% from the previous close, which usually means a contract roll or a data error. Treat this price with caution.</div>':""}${evFor(r)}${nwHTML(r.n,5)}${chartHTML(r)}${cotHTML(r)}
+<div class="row"><span>Price ${r.live?"(delayed)":"(SAMPLE)"}</span><b>${f(r.p,r.p<20?2:0)} ${r.u}</b></div>${r.gl?'<div class="note">⚠ The feed jumped more than 25% from the previous close, which usually means a contract roll or a data error. Treat this price with caution.</div>':""}${nwHTML(r.n,3)}${evFor(r)}${chartHTML(r)}${cotHTML(r)}
 ${r.nw?"":`<div class="row"><span>Rain, last 7 days</span><b>${w?f(w.past)+" mm":"—"}${r.cn!=null?" (normal "+f(r.cn)+")":""}</b></div>
 <div class="row"><span>Rain, next 7 days</span><b>${w?f(w.next)+" mm":"—"}${r.cx!=null?" (normal "+f(r.cx)+")":""}</b></div>
 `}${r.nw&&r.n!="Nat gas"?"":`<div class="row"><span>Temp, next 7 days avg</span><b>${w&&w.tn!=null?f(w.tn)+"°C":"—"}${r.ct!=null?" (normal "+f(r.ct)+")":""}</b></div>
