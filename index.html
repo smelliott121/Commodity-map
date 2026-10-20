@@ -180,6 +180,11 @@ body.wxon #mkp{bottom:calc(118px + env(safe-area-inset-bottom,0px))}body.mkopen 
 .ukc2{position:relative;margin:4px 0 2px;touch-action:pan-y}
 .ukl{display:flex;flex-wrap:wrap;gap:3px 12px;font-size:11px;color:var(--mut);margin:2px 0 4px}.ukl i{display:inline-block;width:10px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle}
 #map.off-uk .ukp{display:none}
+
+/* ---- curves & seasonal ---- */
+.cvs{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 6px}.cvs span{font-size:11.5px;border:1px solid var(--line);border-radius:7px;padding:3px 8px;color:var(--mut)}.cvs b{color:var(--ink);font-weight:600}
+.cvs .bw{border-color:color-mix(in srgb,var(--up) 50%,transparent)}.cvs .bw b{color:var(--up)}.cvs .ct{border-color:color-mix(in srgb,var(--dn) 50%,transparent)}.cvs .ct b{color:var(--dn)}
+.sst{font-size:12.5px;line-height:1.45;margin:2px 0 4px}.sst b{font:600 12.5px var(--num)}
 </style></head><body class="wxon">
 <div id="scroll"><div id="map"></div></div>
 <header id="top" class="gl2"><div class="brand"><i></i><span class="bt">Commodity Map</span> <small id="clk"></small></div>
@@ -521,6 +526,46 @@ return'<div class="kh">Upcoming events</div><div class="evl">'+L.sort((a,b)=>a.t
 
 
 
+
+/* ---- futures curves & seasonal patterns ---- */
+let CV=null,SN=null,snP=null;
+(async()=>{for(const u of rawUrls("curves","curves.json")){try{const r=await fetch(u);if(r.ok){CV=await r.json();break}}catch(e){}}})();
+function snLoad(){if(!snP)snP=(async()=>{for(const u of rawUrls("seasonal","seasonal.json")){try{const r=await fetch(u);if(r.ok){SN=await r.json();break}}catch(e){}}return SN})();return snP}
+const cvRoot=sym=>sym&&sym.endsWith("=F")?sym.slice(0,-2):null;
+function cvHTML(sym){const k=cvRoot(sym);if(!k||!CV||!CV.c[k])return"";return`<div class="kh">Futures curve</div><div class="cvs" id="cvs"></div><div class="ukl"><span><i style="background:var(--amb)"></i>Today</span><span><i style="background:var(--mut)"></i>1 week ago</span><span><i style="background:var(--mut);opacity:.5"></i>1 month ago</span></div><div class="ukc2" id="cvc"></div>`}
+function cvDraw(sym){const box=$("#cvc"),P=CV&&CV.c[cvRoot(sym)];if(!box||!P)return;
+const N=P.length,mo=s=>{const[m,y]=[ "FGHJKMNQUVXZ".indexOf(s.c[0]),+s.c.slice(1)];return y*12+m},m0=mo(P[0]);let j=N-1;for(let i=1;i<N;i++){if(mo(P[i])-m0>=11){j=i;break}}
+const pct=(P[j].p/P[0].p-1)*100,mpct=P[0].m&&P[j].m?(P[j].m/P[0].m-1)*100:null,spr=P[0].p-P[1].p,dp=v=>Math.abs(v)<1?3:Math.abs(v)<20?2:Math.abs(v)<1000?1:0;
+const st=pct<-1?["bw","Backwardation"]:pct>1?["ct","Contango"]:["","Flat"];
+$("#cvs").innerHTML=`<span class="${st[0]}"><b>${st[1]}</b></span><span>${P[j].l} vs front <b>${pct>=0?"+":"−"}${Math.abs(pct).toFixed(1)}%</b></span><span>1st–2nd spread <b>${spr>=0?"+":"−"}${Math.abs(spr).toFixed(dp(spr))}</b></span>${mpct!=null?`<span>Same spread 1 month ago <b>${mpct>=0?"+":"−"}${Math.abs(mpct).toFixed(1)}%</b></span>`:""}`;
+const W=box.clientWidth||340,Ht=160,pl=4,pr=44,pt=8,pb=20,iw=W-pl-pr,ih=Ht-pt-pb,all=P.flatMap(q=>[q.p,q.w,q.m]).filter(v=>v!=null);let lo=Math.min(...all),hi=Math.max(...all);const pd=(hi-lo)*.1||hi*.02;lo-=pd;hi+=pd;
+const x=i=>pl+i/(N-1)*iw,y=v=>pt+(hi-v)/(hi-lo)*ih;let g="";const step=[.001,.002,.005,.01,.02,.05,.1,.2,.25,.5,1,2,5,10,20,25,50,100,200,250,500,1000].find(q=>(hi-lo)/q<=4)||2000;
+for(let v=Math.ceil(lo/step)*step;v<=hi;v+=step){const vv=+v.toFixed(4);g+=`<line x1="${pl}" x2="${pl+iw}" y1="${y(vv)}" y2="${y(vv)}" class="gl"/><text x="${W-2}" y="${y(vv)+3.5}" class="ax" text-anchor="end">${vv.toLocaleString("en")}</text>`}
+const nl=Math.min(N-1,W<380?4:5),LS=new Set([...Array(nl+1)].map((_,k)=>Math.round(k*(N-1)/nl))),showL=i=>LS.has(i);P.forEach((q,i)=>{if(showL(i))g+=`<text x="${x(i)}" y="${Ht-5}" class="ax" text-anchor="${i==0?"start":i==N-1?"end":"middle"}">${q.l}</text>`});
+const ln=(k,c,w,op,da)=>{let d="",on=0;P.forEach((q,i)=>{if(q[k]==null){on=0;return}d+=(on?"L":"M")+x(i).toFixed(1)+" "+y(q[k]).toFixed(1);on=1});return`<path d="${d}" fill="none" stroke="${c}" stroke-width="${w}" opacity="${op}"${da?' stroke-dasharray="4 3"':""} stroke-linejoin="round"/>`};
+g+=ln("m","var(--mut)",1.3,.5)+ln("w","var(--mut)",1.3,1,1)+ln("p","var(--amb)",2,1);P.forEach((q,i)=>g+=`<circle cx="${x(i)}" cy="${y(q.p)}" r="3" fill="var(--amb)" stroke="var(--card)" stroke-width="1.5"/>`);
+box.innerHTML=`<svg width="${W}" height="${Ht}" class="chs">${g}<line class="cx" y1="${pt}" y2="${pt+ih}" style="display:none"/><rect x="0" y="0" width="${pl+iw+6}" height="${Ht}" fill="transparent" class="hz"/></svg><div class="tt" style="display:none"></div>`;
+const hz=box.querySelector(".hz"),cx=box.querySelector(".cx"),tt=box.querySelector(".tt");
+const mv=e=>{const px=e.clientX-hz.getBoundingClientRect().left,i=Math.max(0,Math.min(N-1,Math.round((px-pl)/iw*(N-1)))),q=P[i];cx.setAttribute("x1",x(i));cx.setAttribute("x2",x(i));cx.style.display="";tt.textContent="";
+const hd=document.createElement("div");hd.className="th";hd.textContent=q.l+" contract ("+q.c+")";tt.appendChild(hd);
+[["var(--amb)","Today",q.p],["var(--mut)","1 week ago",q.w],["var(--mut)","1 month ago",q.m]].forEach(([c,l,v])=>{if(v==null)return;const rw=document.createElement("div");rw.className="tr";const k=document.createElement("i");k.style.background=c;const sp=document.createElement("span");sp.textContent=l;const b=document.createElement("b");b.textContent=v.toLocaleString("en",{maximumFractionDigits:dp(v)+1});rw.append(k,sp,b);tt.appendChild(rw)});
+if(i){const rw=document.createElement("div");rw.className="tr";const sp=document.createElement("span");sp.textContent="vs front";const b=document.createElement("b");const d=(q.p/P[0].p-1)*100;b.textContent=(d>=0?"+":"−")+Math.abs(d).toFixed(1)+"%";rw.append(document.createElement("i"),sp,b);tt.appendChild(rw)}
+tt.style.display="";const tw=tt.offsetWidth;tt.style.left=Math.min(W-tw-2,Math.max(0,x(i)+10+tw>W?x(i)-tw-10:x(i)+10))+"px"};
+hz.addEventListener("pointermove",mv);hz.addEventListener("pointerdown",mv);hz.addEventListener("pointerleave",()=>{cx.style.display="none";tt.style.display="none"})}
+function snHTML(sym){return`<div class="kh">Seasonal pattern</div><div id="sns" class="sst"><span class="note">Loading seasonal history…</span></div><div class="ukl" id="snl"></div><div class="ukc2" id="snc"></div>`}
+async function snDraw(sym){await snLoad();const box=$("#snc"),st=$("#sns");if(!box||!st)return;const S=SN&&SN.s[sym];
+if(!S){st.innerHTML=`<span class="note">${SN?"No long history for this market.":"Seasonal data loads once the Update seasonal patterns job has run."}</span>`;return}
+const cur=S.y[S.cur]||[],past=Object.keys(S.y).filter(k=>k!=S.cur).sort(),p5=past.slice(-5),p10=past.slice(-10),ly=S.y[past.at(-1)];
+const avg=[],lo=[],hi=[];for(let w=0;w<53;w++){const v=p5.map(k=>S.y[k][w]).filter(v=>v!=null);avg.push(v.length?v.reduce((a,b)=>a+b,0)/v.length:null);lo.push(v.length>=3?Math.min(...v):null);hi.push(v.length>=3?Math.max(...v):null)}
+let wc=-1;cur.forEach((v,i)=>{if(v!=null)wc=i});
+const L=(Y,w)=>{const a=S.y[Y];if(!a)return null;let k=w;while(k>=0&&a[k]==null)k--;return k<0?1:1+a[k]/100};
+let up=0,n=0,sum=0;if(wc>=0)p10.forEach(Y=>{const a=L(Y,wc);if(a==null)return;let b;const w2=wc+13;if(w2<=52)b=L(Y,w2);else{const nx=String(+Y+1);if(!S.y[nx]||nx==S.cur&&cur.filter(v=>v!=null).length<w2-52)return;b=L(Y,52)*L(nx,w2-53)}if(b==null)return;const r=(b/a-1)*100;n++;sum+=r;if(r>0)up++});
+const vs=wc>=0&&avg[wc]!=null&&cur[wc]!=null?cur[wc]-avg[wc]:null,sg=v=>(v>=0?"+":"−")+Math.abs(v).toFixed(1);
+st.innerHTML=(wc>=0&&cur[wc]!=null?`This year <b>${sg(cur[wc])}%</b> so far${vs!=null?`, <b>${Math.abs(vs).toFixed(1)} pts</b> ${vs>=0?"above":"below"} the 5-year average path`:""}. `:"")+(n>=4?`Next 3 months: up in <b>${up} of ${n}</b> years, average <b>${sg(sum/n)}%</b>.`:"");
+$("#snl").innerHTML=`<span><i style="background:var(--amb)"></i>${S.cur}</span><span><i style="background:var(--mut)"></i>${past.at(-1)}</span><span><i style="background:var(--ink)"></i>5-year average</span><span><i style="background:color-mix(in srgb,var(--ink) 25%,transparent);height:8px"></i>5-year range</span>`;
+const T=[...Array(53)].map((_,w)=>Date.UTC(2001,0,1+w*7));
+tsChart(box,{t:T,h:160,band:{lo,hi},zl:1,series:[{n:S.cur,c:"var(--amb)",v:cur},{n:past.at(-1),c:"var(--mut)",v:ly||[],w:1.3},{n:"5-yr avg",c:"var(--ink)",v:avg,w:1.3,dash:1}],
+fmt:v=>(v>=0?"+":"−")+Math.abs(v).toFixed(1)+"%",tk:v=>(v>0?"+":"")+v+"%",lab:t=>"Week of "+new Date(t).toLocaleDateString("en-GB",{day:"numeric",month:"short",timeZone:"UTC"})})}
 /* ---- UK energy (NESO carbon intensity + Elexon + optional GIE gas), built every 30 min by Update UK energy ---- */
 let UK=null;
 const UKF=[["nuclear","Nuclear","--f-nuc"],["biomass","Biomass & hydro","--f-bio"],["gas","Gas","--f-gas"],["wind","Wind","--f-wind"],["solar","Solar","--f-sol"],["other","Other & coal","--f-oth"],["imports","Imports","--f-imp"]];
@@ -529,13 +574,14 @@ const ukTm=ms=>new Date(ms).toLocaleString("en-GB",{weekday:"short",hour:"2-digi
 const cssv=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 function tsChart(box,o){const W=box.clientWidth||340,Ht=o.h||150,pl=4,pr=40,pt=8,pb=20,iw=W-pl-pr,ih=Ht-pt-pb,T=o.t,N=T.length;if(N<2){box.innerHTML='<div class="note">Not enough data yet.</div>';return}
 const t0=T[0],t1=T[N-1],x=t=>pl+(t-t0)/(t1-t0||1)*iw;let lo,hi;
-if(o.stack){lo=0;hi=100}else{const all=o.series.flatMap(s=>s.v.filter(v=>v!=null));lo=Math.min(...all);hi=Math.max(...all);if(o.zero)lo=Math.min(0,lo);const pd=(hi-lo)*.08||1;lo-=lo==0?0:pd;hi+=pd}
+if(o.stack){lo=0;hi=100}else{const all=o.series.flatMap(s=>s.v.filter(v=>v!=null)).concat(o.band?o.band.lo.concat(o.band.hi).filter(v=>v!=null):[]);lo=Math.min(...all);hi=Math.max(...all);if(o.zero)lo=Math.min(0,lo);const pd=(hi-lo)*.08||1;lo-=lo==0?0:pd;hi+=pd}
 const y=v=>pt+(hi-v)/(hi-lo)*ih;let g="";
-const step=[1,2,5,10,20,25,50,100,200,250,500,1000].find(q=>(hi-lo)/q<=4)||2000;for(let v=Math.ceil(lo/step)*step;v<=hi;v+=step)g+=`<line x1="${pl}" x2="${pl+iw}" y1="${y(v)}" y2="${y(v)}" class="gl"/><text x="${W-2}" y="${y(v)+3.5}" class="ax" text-anchor="end">${v}${o.stack?"%":""}</text>`;
+const step=[.01,.02,.05,.1,.2,.25,.5,1,2,5,10,20,25,50,100,200,250,500,1000,2000,5000].find(q=>(hi-lo)/q<=4)||1e4;for(let v=Math.ceil(lo/step)*step;v<=hi+1e-9;v+=step){const vv=+v.toFixed(4);g+=`<line x1="${pl}" x2="${pl+iw}" y1="${y(vv)}" y2="${y(vv)}" class="gl"${o.zl&&vv==0?' style="stroke:var(--mut)"':""}/><text x="${W-2}" y="${y(vv)+3.5}" class="ax" text-anchor="end">${(o.tk?o.tk(vv):vv)}${o.stack?"%":""}</text>`}
 const day=864e5;if(t1-t0<=3*day){for(let t=Math.ceil(t0/36e5)*36e5;t<=t1;t+=36e5){const d=new Date(t),hh=+d.toLocaleString("en-GB",{hour:"2-digit",hour12:false,timeZone:"Europe/London"});if(hh%12)continue;g+=`<text x="${x(t)}" y="${Ht-5}" class="ax" text-anchor="middle">${hh==0?d.toLocaleDateString("en-GB",{weekday:"short",timeZone:"Europe/London"}):"12:00"}</text>`}}
 else{for(let t=t0;t<=t1;t+=day){const d=new Date(t);if(d.getUTCDate()==1)g+=`<text x="${x(t)}" y="${Ht-5}" class="ax" text-anchor="middle">${d.toLocaleDateString("en-GB",{month:"short"})}</text>`}}
 if(o.stack){const acc=new Array(N).fill(0);o.series.forEach(s=>{const top=s.v.map((v,i)=>acc[i]+(v||0));let d="M"+T.map((t,i)=>x(t).toFixed(1)+" "+y(Math.min(100,top[i])).toFixed(1)).join("L");for(let i=N-1;i>=0;i--)d+="L"+x(T[i]).toFixed(1)+" "+y(Math.min(100,acc[i])).toFixed(1);g+=`<path d="${d}Z" fill="var(${s.c})" stroke="var(--card)" stroke-width="1" stroke-linejoin="round"/>`;top.forEach((v,i)=>acc[i]=v)})}
-else{if(o.ref!=null)g+=`<line x1="${pl}" x2="${pl+iw}" y1="${y(o.ref)}" y2="${y(o.ref)}" style="stroke:var(--mut);stroke-dasharray:4 3"/>`;
+else{if(o.band){let d="",bk="";T.forEach((t,i)=>{const a=o.band.lo[i],b=o.band.hi[i];if(a==null||b==null)return;d+=(d?"L":"M")+x(t).toFixed(1)+" "+y(b).toFixed(1);bk="L"+x(t).toFixed(1)+" "+y(a).toFixed(1)+bk});if(d)g+=`<path d="${d}${bk}Z" fill="color-mix(in srgb,var(--ink) 9%,transparent)" stroke="none"/>`}
+if(o.ref!=null)g+=`<line x1="${pl}" x2="${pl+iw}" y1="${y(o.ref)}" y2="${y(o.ref)}" style="stroke:var(--mut);stroke-dasharray:4 3"/>`;
 o.series.forEach(s=>{let d="",on=0;s.v.forEach((v,i)=>{if(v==null){on=0;return}d+=(on?"L":"M")+x(T[i]).toFixed(1)+" "+y(v).toFixed(1);on=1});g+=`<path d="${d}" fill="none" stroke="${s.c}" stroke-width="${s.w||2}" stroke-linejoin="round" stroke-linecap="round"${s.dash?' stroke-dasharray="4 3"':""}/>`});
 const s0=o.series[0];for(let i=N-1;i>=0;i--)if(s0.v[i]!=null){g+=`<circle cx="${x(T[i])}" cy="${y(s0.v[i])}" r="4" fill="${s0.c}" stroke="var(--card)" stroke-width="2"/>`;break}}
 box.innerHTML=`<svg width="${W}" height="${Ht}" class="chs">${g}<line class="cx" y1="${pt}" y2="${pt+ih}" style="display:none"/><rect x="${pl}" y="0" width="${iw}" height="${Ht}" fill="transparent" class="hz"/></svg><div class="tt" style="display:none"></div>`;
@@ -610,7 +656,7 @@ $("#mkx").onclick=()=>mkOpen(false);el.querySelectorAll(".mkhd button").forEach(
 el.querySelectorAll("[data-s]").forEach(r=>r.onclick=()=>mkShow(r.dataset.s))}
 function mkShow(sym){MKSEL=sym;const i=R.findIndex(r=>r.sym==sym);if(i>=0){show(i)}else{const s=MKG.flatMap(g=>g[1]).find(x=>x[0]==sym),o=mkRow(s);if(!o)return;
 const o2={n:s[1],sym,u:s[2],p:o.p};info(`<h2>${esc(s[1])}</h2><div class="row"><span>Last (delayed)</span><b>${pxf(o)} ${esc(s[2])}</b></div>
-<div class="row"><span>Day · week · month</span><b>${cgc(o.d1,o.y?10:2,o.y)} ${cgc(o.w1,o.y?25:5,o.y)} ${cgc(o.m1,o.y?50:10,o.y)}</b></div>${chartHTML(o2)}<div class="note">Symbol ${esc(sym)} on Yahoo Finance, delayed. Futures are the front month and can jump when the contract rolls.</div>`);setTimeout(()=>drawChart(o2),0)}
+<div class="row"><span>Day · week · month</span><b>${cgc(o.d1,o.y?10:2,o.y)} ${cgc(o.w1,o.y?25:5,o.y)} ${cgc(o.m1,o.y?50:10,o.y)}</b></div>${chartHTML(o2)}${cvHTML(sym)}${snHTML(sym)}<div class="note">Symbol ${esc(sym)} on Yahoo Finance, delayed. Futures are the front month and can jump when the contract rolls.</div>`);setTimeout(()=>{drawChart(o2);cvDraw(sym);snDraw(sym)},0)}
 document.querySelectorAll("#mkp .mkr").forEach(r=>r.classList.toggle("sel",r.dataset.s==sym))}
 function mkOpen(o){document.body.classList.toggle("mkopen",o);$("#mkb").setAttribute("aria-pressed",o);if(o)mkBoard()}
 $("#mkb").onclick=()=>mkOpen(!document.body.classList.contains("mkopen"));
@@ -899,13 +945,13 @@ if(w.past<n*.5&&-d>15)return["dry","Dry: "+(pc!=null?pc+"% vs normal":"well belo
 return["","Close to normal for the season"]}
 function show(i){const r=R[i],w=r.w,flag=sig(r)[1];
 info(`<h2>${r.n} · ${r.loc}</h2>
-<div class="row"><span>Price ${r.live?"(delayed)":"(SAMPLE)"}</span><b>${f(r.p,r.p<20?2:0)} ${r.u}</b></div>${r.gl?'<div class="note">⚠ The feed jumped more than 25% from the previous close, which usually means a contract roll or a data error. Treat this price with caution.</div>':""}${nwHTML(r.n,3)}${evFor(r)}${chartHTML(r)}${cotHTML(r)}
+<div class="row"><span>Price ${r.live?"(delayed)":"(SAMPLE)"}</span><b>${f(r.p,r.p<20?2:0)} ${r.u}</b></div>${r.gl?'<div class="note">⚠ The feed jumped more than 25% from the previous close, which usually means a contract roll or a data error. Treat this price with caution.</div>':""}${nwHTML(r.n,3)}${evFor(r)}${chartHTML(r)}${cvHTML(r.sym)}${r.sym?snHTML(r.sym):""}${cotHTML(r)}
 ${r.nw?"":`<div class="row"><span>Rain, last 7 days</span><b>${w?f(w.past)+" mm":"—"}${r.cn!=null?" (normal "+f(r.cn)+")":""}</b></div>
 <div class="row"><span>Rain, next 7 days</span><b>${w?f(w.next)+" mm":"—"}${r.cx!=null?" (normal "+f(r.cx)+")":""}</b></div>
 `}${r.nw&&r.n!="Nat gas"?"":`<div class="row"><span>Temp, next 7 days avg</span><b>${w&&w.tn!=null?f(w.tn)+"°C":"—"}${r.ct!=null?" (normal "+f(r.ct)+")":""}</b></div>
 <div class="row"><span>Now</span><b>${w?f(w.t)+"°C · cloud "+f(w.cl,0)+"%":"—"}</b></div>
 `}${r.st?`<div class="row" style="cursor:pointer" onclick="showStorm(STM[${r.st.si}])"><span>🌀 Storm nearby</span><b class="wrap">${r.st.n} (${r.st.c}), ~${Math.round(r.st.d/50)*50} km from its path ›</b></div>`:""}<div class="row"><span>Signal</span><b class="wrap">${flag}</b></div>${typeof enNote=="function"?enNote(r):""}${cal(r)}
-${drv(r)}<div class="note">These are leading indicators, not guarantees: markets already price in forecasts.</div>`);setTimeout(()=>{drawChart(r);drawCot(r)},0)}
+${drv(r)}<div class="note">These are leading indicators, not guarantees: markets already price in forecasts.</div>`);setTimeout(()=>{drawChart(r);drawCot(r);cvDraw(r.sym);if(r.sym)snDraw(r.sym)},0)}
 R.forEach((r,i)=>paint(i));
 let wOK=false,pOK=0;
 async function weather(){try{const q=k=>R.map(r=>r[k]).join(",");
