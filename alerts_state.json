@@ -38,7 +38,7 @@
 "status": "El Ni\u00f1o Advisory",
 "str": "strong"
 },
-"last_run": "2026-10-20T14:08:39.001307+00:00",
+"last_run": "2026-10-20T14:13:59.611855+00:00",
 "news_sent": [],
 "seen": {
 "choke:chokepoint28:severe": 1792446434.945131,
@@ -61,7 +61,7 @@
 "Shanghai port (~500 km)"
 ],
 "lvl": 3,
-"t": 1792505319.001307
+"t": 1792505639.611855
 },
 "ep212026": {
 "hits": [
