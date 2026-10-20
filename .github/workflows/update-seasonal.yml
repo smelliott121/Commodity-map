@@ -1,0 +1,78 @@
+name: Update seasonal patterns
+on:
+  schedule:
+    - cron: "20 23 * * 0,3"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  seasonal:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build seasonal paths from 11 years of daily closes
+        run: |
+          mkdir -p out
+          python3 - <<'PY'
+          import json, time, datetime as dt, urllib.request
+          SYMS = ["CC=F","KC=F","ZW=F","HG=F","SB=F","ZC=F","CT=F","BZ=F","NG=F","ZS=F","GC=F","SI=F","PL=F","LBR=F","OJ=F","ZR=F","TIO=F",
+                  "CL=F","HO=F","RB=F","PA=F","ALI=F","KE=F","ZM=F","ZL=F","ZO=F","LE=F","GF=F","HE=F",
+                  "ZN=F","ZB=F","ES=F","NQ=F","^FTSE","^GDAXI","DX-Y.NYB","EURUSD=X","GBPUSD=X","JPY=X"]
+          UA = {"User-Agent": "Mozilla/5.0"}
+          out = {}
+          for s in SYMS:
+              res = None
+              for host in ("query1", "query2"):
+                  try:
+                      url = f"https://{host}.finance.yahoo.com/v8/finance/chart/{s}?interval=1d&period1={int(time.time()) - 12 * 366 * 86400}&period2={int(time.time())}"
+                      res = json.load(urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=40))["chart"]["result"][0]
+                      break
+                  except Exception as e:
+                      print("fail", s, host, e)
+              time.sleep(0.6)
+              if not res:
+                  continue
+              ts = res.get("timestamp") or []
+              cl = res["indicators"]["quote"][0].get("close") or []
+              byday = {}
+              for a, b in zip(ts, cl):
+                  if b is not None and b > 0:
+                      byday[dt.datetime.utcfromtimestamp(a).date()] = b
+              if len(byday) < 500:
+                  continue
+              days = sorted(byday)
+              years = {}
+              for y in range(days[0].year + 1, days[-1].year + 1):
+                  base = [byday[d] for d in days if d.year == y - 1]
+                  if not base:
+                      continue
+                  b0 = base[-1]
+                  wk = [None] * 53
+                  for d in days:
+                      if d.year != y:
+                          continue
+                      i = min(52, (d.timetuple().tm_yday - 1) // 7)
+                      wk[i] = round((byday[d] / b0 - 1) * 100, 1)
+                  # skip years with big gaps (bad data) except the current one
+                  if y != days[-1].year and sum(v is None for v in wk) > 8:
+                      continue
+                  # glitch guard: drop years with absurd jumps (e.g. bad prints, negative-price episodes)
+                  vals = [v for v in wk if v is not None]
+                  if vals and max(abs(v) for v in vals) > 400:
+                      continue
+                  years[str(y)] = wk
+              if len(years) >= 4:
+                  out[s] = {"y": years, "cur": str(days[-1].year), "last": days[-1].isoformat()}
+              print(s, len(years), "years")
+          print("got", len(out), "of", len(SYMS))
+          if len(out) >= 10:
+              json.dump({"updated": int(time.time()), "s": out}, open("out/seasonal.json", "w"), separators=(",", ":"))
+          PY
+      - name: Publish to seasonal branch
+        run: |
+          [ -f out/seasonal.json ] || { echo "no seasonal data built"; exit 1; }
+          cd out
+          git init -q && git checkout -q -b seasonal
+          git config user.name "seasonal-bot"
+          git config user.email "seasonal-bot@users.noreply.github.com"
+          git add -A && git commit -q -m "Seasonal patterns"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" seasonal
