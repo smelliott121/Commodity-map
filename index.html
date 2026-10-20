@@ -170,6 +170,16 @@ body.wxon #mkp{bottom:calc(118px + env(safe-area-inset-bottom,0px))}body.mkopen 
 @media (max-width:440px){.brand .bt{display:none}#enb{font-size:11.5px;padding:3px 8px}}
 @media (max-width:999px){#mkp{left:0;right:0;width:auto;top:calc(110px + env(safe-area-inset-top,0px));bottom:0;border-radius:18px 18px 0 0;z-index:28}body.wxon #mkp{bottom:0}
 .mkr{grid-template-columns:minmax(0,1fr) 52px 74px 54px 54px;gap:4px;padding:0 6px}.mkr>:nth-child(6){display:none}.mkr svg{width:52px}.mkr>span:first-child small{display:none}body.mkopen #dock{display:none}}
+
+/* ---- UK energy ---- */
+:root{--f-nuc:#9085e9;--f-bio:#199e70;--f-gas:#d95926;--f-wind:#3987e5;--f-sol:#c98500;--f-oth:#6f7d86;--f-imp:#008300}
+:root[data-theme="light"]{--f-nuc:#6250d6;--f-bio:#1baf7a;--f-gas:#eb6834;--f-wind:#2a78d6;--f-sol:#eda100;--f-oth:#9aa3a9;--f-imp:#008300}
+.chip.ukc{--sig:var(--amb)}
+.mixbar{display:flex;gap:2px;height:12px;margin:6px 0 4px}.mixbar i{display:block;height:100%;border-radius:2px;min-width:2px}
+.mixl{display:grid;grid-template-columns:repeat(2,1fr);gap:2px 14px;font-size:12px;margin-bottom:4px}.mixl div{display:flex;align-items:center;gap:6px}.mixl i{width:9px;height:9px;border-radius:2px;flex:none}.mixl span{flex:1;color:var(--mut)}.mixl b{font:500 12px var(--num)}
+.ukc2{position:relative;margin:4px 0 2px;touch-action:pan-y}
+.ukl{display:flex;flex-wrap:wrap;gap:3px 12px;font-size:11px;color:var(--mut);margin:2px 0 4px}.ukl i{display:inline-block;width:10px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle}
+#map.off-uk .ukp{display:none}
 </style></head><body class="wxon">
 <div id="scroll"><div id="map"></div></div>
 <header id="top" class="gl2"><div class="brand"><i></i><span class="bt">Commodity Map</span> <small id="clk"></small></div>
@@ -288,7 +298,7 @@ const lay=(a,k,c)=>`<g class="${c}">`+a.map((r,i)=>`<path id="ln${k}${i}" class=
 map.innerHTML=g+lay(LN,"l","L-lanes")+lay(PL,"p","L-pipes")+"</svg>";
 map.querySelectorAll(".hit").forEach(h=>h.onclick=()=>{const r=(h.dataset.k=="l"?LN:PL)[h.dataset.i];info(`<h2>${r.n}</h2><div class="row"><span>Carries</span><b>${r.w}</b></div>${r.v?`<div class="row"><span>Via</span><b>${r.v}</b></div>`:""}${r.s?`<div class="row"><span>Status</span><b>${r.s}</b></div>`:""}<div class="note">Indicative route, not an exact track. Flows and status change with politics and sanctions.</div>`)});
 MK.forEach(m=>{const e=document.createElement("div");m.el=e;e.className="mk L-"+m.k;e.style.left=X(m.lon)/3.6+"%";e.style.top=Y(m.lat)/1.8+"%";e.innerHTML=`<span>${m.n}</span>`;e.onclick=()=>m.k=="choke"?showChoke(m):info(`<h2>${m.n}</h2><div class="row"><span>Type</span><b>${m.k=="choke"?"Chokepoint":"Port"}</b></div><div class="row"><span>Why it matters</span><b>${m.w}</b></div>`);map.appendChild(e)});
-[["lanes","Sea lanes"],["pipes","Pipelines"],["choke","Chokepoints"],["ports","Ports"],["pins","Prices"],["storms","Storms"],["enso","ENSO impacts"]].forEach(([k,t])=>{const b=document.createElement("button");b.textContent=t;b.dataset.k=k;b.onclick=()=>{b.classList.toggle("off",map.classList.toggle("off-"+k));layout()};$("#tg").appendChild(b)});
+[["lanes","Sea lanes"],["pipes","Pipelines"],["choke","Chokepoints"],["ports","Ports"],["pins","Prices"],["storms","Storms"],["uk","UK energy"],["enso","ENSO impacts"]].forEach(([k,t])=>{const b=document.createElement("button");b.textContent=t;b.dataset.k=k;b.onclick=()=>{b.classList.toggle("off",map.classList.toggle("off-"+k));layout()};$("#tg").appendChild(b)});
 const kr=(k,i,r)=>`<div class="kr${k=="p"?" pl":""}" data-k="${k}" data-i="${i}"><i style="border-color:${CL[r.c]}"></i><div><b>${r.n}</b><small>${r.w}${r.v?" · via "+r.v:""}${r.s?" · "+r.s:""}</small></div></div>`;
 function hl(k,i){map.classList.remove(k=="l"?"off-lanes":"off-pipes");const el=document.getElementById("ln"+k+i),on=el.classList.contains("hl");document.querySelectorAll(".ln.hl").forEach(x=>x.classList.remove("hl"));map.classList.toggle("hlmode",!on);if(on)return;el.classList.add("hl");const b=el.getBBox(),s=$("#scroll"),W=map.offsetWidth/360;s.scrollTo({left:(b.x+b.width/2)*W-s.clientWidth/2,top:(b.y+b.height/2)*W-s.clientHeight/2,behavior:"smooth"})}
 function openKey(){let s='<h2>Key</h2><div class="note" style="margin:0 0 4px">Tap a row to highlight that route on the map.</div><div class="kh">Shipping lanes</div>';
@@ -510,6 +520,62 @@ function evFor(r){const sn=new Set(),L=EVS.filter(e=>!e.items&&e.c.includes(r.n)
 return'<div class="kh">Upcoming events</div><div class="evl">'+L.sort((a,b)=>a.t-b.t).map(e=>`<div class="evr ev${e.k}"><b>${e.n}</b><small>${fmtT(e)} · <span class="cd" data-t="${e.t.getTime()}">${cd(e)}</span>${e.ap?" · "+e.ap:""}</small></div>`).join("")+"</div>"}
 
 
+
+/* ---- UK energy (NESO carbon intensity + Elexon + optional GIE gas), built every 30 min by Update UK energy ---- */
+let UK=null;
+const UKF=[["nuclear","Nuclear","--f-nuc"],["biomass","Biomass & hydro","--f-bio"],["gas","Gas","--f-gas"],["wind","Wind","--f-wind"],["solar","Solar","--f-sol"],["other","Other & coal","--f-oth"],["imports","Imports","--f-imp"]];
+function ukSeries(){const m=UK&&UK.mix;if(!m)return null;const f=m.f,S={nuclear:f.nuclear,biomass:f.biomass.map((v,i)=>v+(f.hydro[i]||0)),gas:f.gas,wind:f.wind,solar:f.solar,other:f.other.map((v,i)=>v+(f.coal[i]||0)),imports:f.imports};return{t:m.t.map(x=>Date.parse(x)),S}}
+const ukTm=ms=>new Date(ms).toLocaleString("en-GB",{weekday:"short",hour:"2-digit",minute:"2-digit",hour12:false,timeZone:"Europe/London"})+" UK";
+const cssv=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+function tsChart(box,o){const W=box.clientWidth||340,Ht=o.h||150,pl=4,pr=40,pt=8,pb=20,iw=W-pl-pr,ih=Ht-pt-pb,T=o.t,N=T.length;if(N<2){box.innerHTML='<div class="note">Not enough data yet.</div>';return}
+const t0=T[0],t1=T[N-1],x=t=>pl+(t-t0)/(t1-t0||1)*iw;let lo,hi;
+if(o.stack){lo=0;hi=100}else{const all=o.series.flatMap(s=>s.v.filter(v=>v!=null));lo=Math.min(...all);hi=Math.max(...all);if(o.zero)lo=Math.min(0,lo);const pd=(hi-lo)*.08||1;lo-=lo==0?0:pd;hi+=pd}
+const y=v=>pt+(hi-v)/(hi-lo)*ih;let g="";
+const step=[1,2,5,10,20,25,50,100,200,250,500,1000].find(q=>(hi-lo)/q<=4)||2000;for(let v=Math.ceil(lo/step)*step;v<=hi;v+=step)g+=`<line x1="${pl}" x2="${pl+iw}" y1="${y(v)}" y2="${y(v)}" class="gl"/><text x="${W-2}" y="${y(v)+3.5}" class="ax" text-anchor="end">${v}${o.stack?"%":""}</text>`;
+const day=864e5;if(t1-t0<=3*day){for(let t=Math.ceil(t0/36e5)*36e5;t<=t1;t+=36e5){const d=new Date(t),hh=+d.toLocaleString("en-GB",{hour:"2-digit",hour12:false,timeZone:"Europe/London"});if(hh%12)continue;g+=`<text x="${x(t)}" y="${Ht-5}" class="ax" text-anchor="middle">${hh==0?d.toLocaleDateString("en-GB",{weekday:"short",timeZone:"Europe/London"}):"12:00"}</text>`}}
+else{for(let t=t0;t<=t1;t+=day){const d=new Date(t);if(d.getUTCDate()==1)g+=`<text x="${x(t)}" y="${Ht-5}" class="ax" text-anchor="middle">${d.toLocaleDateString("en-GB",{month:"short"})}</text>`}}
+if(o.stack){const acc=new Array(N).fill(0);o.series.forEach(s=>{const top=s.v.map((v,i)=>acc[i]+(v||0));let d="M"+T.map((t,i)=>x(t).toFixed(1)+" "+y(Math.min(100,top[i])).toFixed(1)).join("L");for(let i=N-1;i>=0;i--)d+="L"+x(T[i]).toFixed(1)+" "+y(Math.min(100,acc[i])).toFixed(1);g+=`<path d="${d}Z" fill="var(${s.c})" stroke="var(--card)" stroke-width="1" stroke-linejoin="round"/>`;top.forEach((v,i)=>acc[i]=v)})}
+else{if(o.ref!=null)g+=`<line x1="${pl}" x2="${pl+iw}" y1="${y(o.ref)}" y2="${y(o.ref)}" style="stroke:var(--mut);stroke-dasharray:4 3"/>`;
+o.series.forEach(s=>{let d="",on=0;s.v.forEach((v,i)=>{if(v==null){on=0;return}d+=(on?"L":"M")+x(T[i]).toFixed(1)+" "+y(v).toFixed(1);on=1});g+=`<path d="${d}" fill="none" stroke="${s.c}" stroke-width="${s.w||2}" stroke-linejoin="round" stroke-linecap="round"${s.dash?' stroke-dasharray="4 3"':""}/>`});
+const s0=o.series[0];for(let i=N-1;i>=0;i--)if(s0.v[i]!=null){g+=`<circle cx="${x(T[i])}" cy="${y(s0.v[i])}" r="4" fill="${s0.c}" stroke="var(--card)" stroke-width="2"/>`;break}}
+box.innerHTML=`<svg width="${W}" height="${Ht}" class="chs">${g}<line class="cx" y1="${pt}" y2="${pt+ih}" style="display:none"/><rect x="${pl}" y="0" width="${iw}" height="${Ht}" fill="transparent" class="hz"/></svg><div class="tt" style="display:none"></div>`;
+const hz=box.querySelector(".hz"),cx=box.querySelector(".cx"),tt=box.querySelector(".tt");
+const mv=e=>{const px=e.clientX-hz.getBoundingClientRect().left,tq=t0+px/iw*(t1-t0);let i=0,bd=1e18;T.forEach((t,k)=>{const d=Math.abs(t-tq);if(d<bd){bd=d;i=k}});cx.setAttribute("x1",x(T[i]));cx.setAttribute("x2",x(T[i]));cx.style.display="";tt.textContent="";
+const hd=document.createElement("div");hd.className="th";hd.textContent=o.lab?o.lab(T[i]):ukTm(T[i]);tt.appendChild(hd);
+(o.stack?o.series.slice().reverse():o.series).forEach(s=>{const v=s.v[i];if(v==null)return;const rw=document.createElement("div");rw.className="tr";const k=document.createElement("i");k.style.background=o.stack?`var(${s.c})`:s.c;k.style.height=o.stack?"8px":"2px";const sp=document.createElement("span");sp.textContent=s.n;const b=document.createElement("b");b.textContent=o.fmt(v);rw.append(k,sp,b);tt.appendChild(rw)});
+tt.style.display="";const tw=tt.offsetWidth,X0=x(T[i]);tt.style.left=Math.min(W-tw-2,Math.max(0,X0+10+tw>W?X0-tw-10:X0+10))+"px"};
+hz.addEventListener("pointermove",mv);hz.addEventListener("pointerdown",mv);hz.addEventListener("pointerleave",()=>{cx.style.display="none";tt.style.display="none"})}
+function ukNow(){const s=ukSeries();if(!s)return null;const i=s.t.length-1,o={};UKF.forEach(([k])=>o[k]=s.S[k][i]||0);return{t:s.t[i],o}}
+function ukPrice(){const m=UK&&(UK.mid&&UK.mid.p.length?UK.mid:UK.sp);if(!m)return null;let i=m.p.length-1;return{p:m.p[i],t:Date.parse(m.t[i]),k:m===UK.mid?"mid":"sp"}}
+function ukPin(){let e=document.querySelector(".pin.ukp");if(!e){e=document.createElement("div");e.className="pin ukp";e.style.left=X(-2.5)/3.6+"%";e.style.top=Y(54.6)/1.8+"%";e.innerHTML='<div class="chip ukc"><b>UK power</b><span id="pukp">—</span></div><div class="dot"></div>';e.onclick=()=>{showUK();document.querySelectorAll(".pin").forEach(x=>x.classList.remove("sel"));e.classList.add("sel");layout()};map.appendChild(e)}
+const pr=ukPrice(),n=ukNow();$("#pukp").innerHTML=(pr?`£${Math.round(pr.p)}`:"—")+(n?` <i style="color:var(--f-wind)">wind ${Math.round(n.o.wind)}%</i>`:"")}
+const sumL=(a,n)=>{const s=a.slice(-n).filter(v=>v!=null);return s.length?s.reduce((x,y)=>x+y,0)/s.length:null};
+function showUK(){if(!UK){info(`<h2>UK energy</h2><div class="note">This loads once the Update UK energy job has run in GitHub Actions.</div>`);return}
+const n=ukNow(),pr=ukPrice(),ci=UK.ci&&UK.ci.now,F=UK.fuel;
+let mixH="";if(n){mixH=`<div class="kh">Generation mix now · ${ukTm(n.t)}</div><div class="mixbar">${UKF.map(([k,l,c])=>n.o[k]>0?`<i style="flex:${n.o[k]};background:var(${c})" title="${l} ${n.o[k].toFixed(0)}%"></i>`:"").join("")}</div>
+<div class="mixl">${UKF.slice().sort((a,b)=>n.o[b[0]]-n.o[a[0]]).map(([k,l,c])=>`<div><i style="background:var(${c})"></i><span>${l}</span><b>${n.o[k].toFixed(0)}%</b></div>`).join("")}</div>`}
+let gas="";if(UK.lng||UK.eu){const L=UK.lng,E=UK.eu;let lt="",et="";
+if(L){const s7=sumL(L.s,7),ly=L.s.length>372?sumL(L.s.slice(0,L.s.length-358),7):null;lt=`<div><span class="note" style="margin:0">LNG send-out, 7d avg</span><b>${s7!=null?Math.round(s7):"—"}</b><small>GWh/day${ly?` · ${s7>=ly?"+":"−"}${Math.abs(Math.round((s7/ly-1)*100))}% y/y`:""}</small></div>`}
+if(E){const f=E.full.at(-1),ly=E.full.length>365?E.full[E.full.length-366]:null;et=`<div><span class="note" style="margin:0">EU storage</span><b>${f!=null?f.toFixed(1)+"%":"—"}</b><small>full${ly!=null?` · ${f>=ly?"+":"−"}${Math.abs(f-ly).toFixed(1)} pts y/y`:""}</small></div>`}
+gas=`<div class="kh">Gas</div><div class="tgrid" style="grid-template-columns:repeat(2,1fr)">${lt}${et}</div>${L?`<div class="ukl"><span><i style="background:var(--amb)"></i>LNG into GB, last 120 days</span><span><i style="background:var(--mut)"></i>same days last year</span></div><div class="ukc2" id="ukg"></div>`:""}${E?`<div class="ukl"><span><i style="background:var(--s1)"></i>EU storage % full</span><span><i style="background:var(--mut)"></i>last year</span></div><div class="ukc2" id="uke"></div>`:""}`}
+else gas=`<div class="kh">Gas</div><div class="note">LNG send-out and EU storage need a free GIE account key. Add it as the GIE_API_KEY secret in GitHub to switch this on.</div>`;
+info(`<h2>UK energy</h2><div class="tgrid"><div><span class="note" style="margin:0">Power price</span><b>${pr?"£"+Math.round(pr.p):"—"}</b><small>/MWh${pr?" · "+(pr.k=="mid"?"wholesale":"system"):""}</small></div>
+<div><span class="note" style="margin:0">Wind share</span><b>${n?Math.round(n.o.wind)+"%":"—"}</b><small>${F?"gas "+(F.gas/1000).toFixed(1)+" GW":""}</small></div>
+<div><span class="note" style="margin:0">Carbon</span><b>${ci?ci.v:"—"}</b><small>g/kWh${ci&&ci.idx?" · "+esc(ci.idx):""}</small></div></div>
+${mixH}<div class="kh">Mix, last 48 hours</div><div class="ukc2" id="ukm"></div>
+<div class="kh">Power price, last 48 hours</div><div class="ukl">${UK.mid?'<span><i style="background:var(--amb)"></i>Wholesale (market index)</span>':""}${UK.sp?'<span><i style="background:var(--mut)"></i>System (imbalance) price</span>':""}</div><div class="ukc2" id="ukp"></div>
+${gas}<div class="note">Why it matters: low wind means more gas burned for power, which supports UK (NBP) and European (TTF) gas prices. Strong LNG send-out and full storage ease winter supply worries. Sources: NESO Carbon Intensity, Elexon${UK.lng||UK.eu?", GIE":""}. Updated ${ago(UK.updated)}.</div>`);
+setTimeout(()=>{const s=ukSeries();if(s)tsChart($("#ukm"),{t:s.t,stack:1,h:150,series:UKF.map(([k,l,c])=>({n:l,c,v:s.S[k]})),fmt:v=>v.toFixed(0)+"%"});
+const ser=[];let T=null;if(UK.mid){T=UK.mid.t.map(Date.parse);ser.push({n:"Wholesale",c:"var(--amb)",v:UK.mid.p})}
+if(UK.sp){const st=UK.sp.t.map(Date.parse);if(!T){T=st;ser.push({n:"System",c:"var(--mut)",v:UK.sp.p,w:1.3})}else{const mp=new Map(st.map((t,i)=>[t,UK.sp.p[i]]));ser.push({n:"System",c:"var(--mut)",v:T.map(t=>mp.get(t)??null),w:1.3})}}
+if(T)tsChart($("#ukp"),{t:T,series:ser,fmt:v=>"£"+v.toFixed(0)+"/MWh",zero:0});
+const lab=t=>new Date(t).toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short",year:"numeric"});
+if(UK.lng&&$("#ukg")){const L=UK.lng,n=L.d.length,a=Math.max(0,n-120),T2=L.d.slice(a).map(d=>Date.parse(d+"T12:00Z")),ly=L.d.slice(a).map((d,i)=>{const j=a+i-364;return j>=0?L.s[j]:null});
+tsChart($("#ukg"),{t:T2,h:130,series:[{n:"This year",c:"var(--amb)",v:L.s.slice(a)},{n:"Last year",c:"var(--mut)",v:ly,w:1.3}],fmt:v=>Math.round(v)+" GWh/d",lab,zero:1})}
+if(UK.eu&&$("#uke")){const E=UK.eu,n=E.d.length,a=Math.max(0,n-120),T3=E.d.slice(a).map(d=>Date.parse(d+"T12:00Z")),ly=E.d.slice(a).map((d,i)=>{const j=a+i-365;return j>=0?E.full[j]:null});
+tsChart($("#uke"),{t:T3,h:130,series:[{n:"This year",c:"var(--s1)",v:E.full.slice(a)},{n:"Last year",c:"var(--mut)",v:ly,w:1.3}],fmt:v=>v.toFixed(1)+"% full",lab})}},0)}
+async function ukLoad(){for(const u of rawUrls("uk","uk.json")){try{const r=await fetch(u.replace(/\?t=\d+/,"?t="+(Date.now()/3e5|0)));if(r.ok){UK=await r.json();break}}catch(e){}}if(UK){ukPin();layout()}}
+ukLoad();setInterval(ukLoad,15*6e4);
 /* ---- markets board (delayed Yahoo quotes from prices.json) ---- */
 const MKG=[["Energy",[["BZ=F","Brent crude","$/bbl"],["CL=F","WTI crude","$/bbl"],["NG=F","Henry Hub gas","$/MMBtu"],["HO=F","Heating oil (diesel)","$/gal"],["RB=F","Gasoline (RBOB)","$/gal"]]],
 ["Metals",[["GC=F","Gold","$/oz"],["SI=F","Silver","$/oz"],["PL=F","Platinum","$/oz"],["PA=F","Palladium","$/oz"],["HG=F","Copper","$/lb"],["ALI=F","Aluminium","$/t"],["TIO=F","Iron ore","$/t"]]],
