@@ -53,8 +53,40 @@ jobs:
                   print("fail", name, e)
               time.sleep(2)
           print("got", len(out), "of", len(R))
+          # soil moisture (ERA5, 7-28 cm): last 7 available days vs the same 3-week window in each of the last 10 years
+          soil = {}
+          end = today - dt.timedelta(days=6)
+          for name, (lat, lon) in R.items():
+              if name in ("Copper", "Nat gas"):
+                  continue
+              try:
+                  def sm(a, b):
+                      q = urllib.parse.urlencode({"latitude": lat, "longitude": lon, "start_date": a.isoformat(), "end_date": b.isoformat(),
+                                                  "hourly": "soil_moisture_7_to_28cm", "timezone": "UTC"})
+                      j = json.load(urllib.request.urlopen("https://archive-api.open-meteo.com/v1/archive?" + q, timeout=90))
+                      v = [x for x in j["hourly"]["soil_moisture_7_to_28cm"] if x is not None]
+                      return sum(v) / len(v) if v else None
+                  cur = sm(end - dt.timedelta(days=6), end)
+                  hist = []
+                  for k in range(1, 11):
+                      try:
+                          c = dt.date(end.year - k, end.month, min(end.day, 28))
+                      except ValueError:
+                          continue
+                      v = sm(c - dt.timedelta(days=10), c + dt.timedelta(days=10))
+                      if v is not None:
+                          hist.append(round(v, 4))
+                      time.sleep(.4)
+                  if cur is not None and len(hist) >= 6:
+                      norm = sum(hist) / len(hist)
+                      soil[name] = {"cur": round(cur, 4), "norm": round(norm, 4), "pct": round((cur / norm - 1) * 100, 1),
+                                    "rank": sum(1 for h in hist if h < cur), "n": len(hist), "asof": end.isoformat()}
+              except Exception as e:
+                  print("soil fail", name, e)
+              time.sleep(1)
+          print("soil", {k: v["pct"] for k, v in soil.items()})
           if out:
-              json.dump({"updated": int(time.time()), "regions": out}, open("climate.json", "w"))
+              json.dump({"updated": int(time.time()), "regions": out, "soil": soil}, open("climate.json", "w"))
           PY
       - name: Publish to climate branch
         run: |
