@@ -16,6 +16,12 @@ Personal use only. The free data sources it uses are licensed for personal, non-
 | Shipping | Sea lanes, pipelines, ports, 12 chokepoints coloured by 7-day traffic vs normal | IMF PortWatch |
 | Storms | Tropical storms with forecast cone and track | NHC, GDACS |
 | Earthquakes | M4.5+ in the last week, plate boundaries, nearby mines/ports | USGS; Bird (2003) plate model |
+| Rivers | Rhine at Kaub and Mississippi (Memphis, St. Louis) levels vs barge thresholds, with forecast | PEGELONLINE (WSV); NOAA NWPS / USGS |
+| Frost | 10-day frost forecasts for coffee, citrus, wheat and corn regions in season (snow cover counted for winter wheat) | Open-Meteo |
+| Soil moisture | Root-zone soil water vs the 10-year normal for each crop region | ERA5 via Open-Meteo |
+| Wildfires | Satellite fire detections, last 24 h, binned to 0.5° | NASA FIRMS (VIIRS) |
+| Rail | 18 key commodity rail corridors; US crude-by-rail monthly volumes | Built in; US EIA |
+| Freight | Dry bulk and tanker freight ETFs (BDRY, BWET) on the markets board | Yahoo Finance |
 | Markets board | 54 futures, rates, indices and FX with day/week/month moves | Yahoo Finance |
 | Futures curves | Contract-month curves today vs 1 week and 1 month ago | Yahoo Finance |
 | Seasonality | This year vs 5-year median path, typical next-3-month move | Yahoo Finance (11 years) |
@@ -27,13 +33,15 @@ Personal use only. The free data sources it uses are licensed for personal, non-
 | Calendar | Reports (WASDE, EIA, COT…), central banks, exchange holidays in UK time | Built in + `holidays` package |
 | Brief | Daily ranked "what stands out" across all of the above | Computed on the page |
 
+Search codes include `RIVER`, `FROST`, `FIRE`, `SOIL`, `RAIL`, `FREIGHT`.
+
 Keyboard: `/` search, `L` layers, `M` markets, `+`/`-` zoom, `Esc` close.
 
 ## How it's built
 
 - **Static site on GitHub Pages.** `index.html` is a small shell. Code lives in `app/`:
   `app.js` (map, panels, most features), `cmd.js` (search), `brief.js` (briefing + weather risk),
-  `sat.js` (satellite), `windgl.js` (GPU wind streaks), `pins.js` (pinned tiles), `health.js` (data freshness), `geo.js` (coastlines), `app.css`.
+  `sat.js` (satellite), `hazards.js` (rivers, frost, fires, soil, rail), `windgl.js` (GPU wind streaks), `pins.js` (pinned tiles), `health.js` (data freshness), `geo.js` (coastlines), `app.css`.
 - **GitHub Actions jobs fetch the data** and publish each source to its **own branch**, so `main` only changes when code changes.
   The page reads those files from `raw.githubusercontent.com`.
 - **Service worker** (`sw.js`) caches the app for instant repeat loads and offline use.
@@ -51,11 +59,12 @@ Keyboard: `/` search, `L` layers, `M` markets, `+`/`-` zoom, `Esc` close.
 | Update chokepoints | `chokes/chokes.json` | 09:10, 21:10 |
 | Update futures curves | `curves/curves.json` | 13:15, 21:45 weekdays |
 | Update price history | `hist/history.json` | 22:35 weekdays |
-| Update refining | `refining/refining.json` | Wed after the EIA release, Thu, Mon |
+| Update refining | `refining/refining.json` (incl. crude by rail) | Wed after the EIA release, Thu, Mon |
 | Update COT positioning | `cot/cot.json` | Fri 21:00, Sat 12:00 |
 | Update seasonal patterns | `seasonal/seasonal.json` | Sun, Wed 23:20 |
 | Update ENSO | `enso/enso.json` | Tue, Fri 09:00 |
-| Update climate normals | `climate/climate.json` | daily 04:30 |
+| Update climate normals | `climate/climate.json` (rain normals + soil moisture) | daily 04:30 |
+| Update hazards | `hazards/hazards.json` (rivers, frost, fires) | every 3 h at :25 |
 | Update market holidays | `holidays/holidays.json` | Mon 06:15 |
 | Commodity alerts | reads all of the above, saves `state/alerts_state.json` | after data jobs + :05/:35 |
 | Site check | opens the site at phone and desktop size, fails on page errors | every code push |

@@ -47,7 +47,7 @@ jobs:
               return {"id": "kaub", "n": "Rhine at Kaub", "lat": 50.085, "lon": 7.765, "u": "cm",
                       "t": keys, "v": [daily[k] for k in keys], "fc": [], "src": "PEGELONLINE",
                       "lv": [[100, "Barges start loading less"], [78, "Barge loads sharply reduced"], [40, "Near standstill for larger barges"]],
-                      "why": "The Rhine carries coal, oil products, chemicals and grain into Germany and Switzerland. Low water at Kaub raises freight costs and can squeeze diesel and heating oil supply inland."}
+                      "why": "The Rhine carries coal, oil products, chemicals and grain into Germany and Switzerland. Low water at Kaub raises freight costs and can squeeze diesel and heating oil supply inland. The previous record low was 25 cm (October 2018)."}
           # Mississippi (US National Weather Service; feet). Low water restricts grain barge drafts in autumn.
           def nwps(lid, name, lat, lon, usgs, levels, why):
               j = get(f"https://api.water.noaa.gov/nwps/v1/gauges/{lid}/stageflow")

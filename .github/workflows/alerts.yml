@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Get latest data from the data branches
         run: |
-          for b in prices storms chokes cot climate enso holidays news state; do
+          for b in prices storms chokes cot climate enso holidays news hazards state; do
             if git fetch -q --depth 1 origin "$b" 2>/dev/null; then git checkout -q FETCH_HEAD -- . && echo "got $b"; else echo "no $b branch yet"; fi
           done
           ls -la *.json
@@ -324,13 +324,59 @@ jobs:
                   alert(f"🌍 M{mag:.1f} earthquake{' near ' + near[0][1].split(' (')[0] if near else ''}", body,
                         "urgent" if al in ("orange", "red") or mag >= 7 else "high", "earth_americas")
 
+          # ---------- hazards: river levels, frost forecasts, soil moisture ----------
+          def hazards():
+              H = load("hazards.json") or {}
+              rank = {"ok": 0, "wat": 1, "low": 2, "sev": 3}
+              def state(v, lv):
+                  k = "ok"
+                  for i, (x, _) in enumerate(lv or []):
+                      if v <= x:
+                          k = ["wat", "low", "sev"][min(i, 2)]
+                  return k, (lv[["wat", "low", "sev"].index(k)][1] if k != "ok" else "normal navigation")
+              rv = ST.setdefault("rv", {})
+              for r in H.get("rivers", []):
+                  if not r.get("v"):
+                      continue
+                  v = r["v"][-1]; k, txt = state(v, r.get("lv"))
+                  prev = rv.get(r["id"], "ok"); rv[r["id"]] = k
+                  if rank[k] >= 2 and rank[k] > rank.get(prev, 0) and once(f"rv:{r['id']}:{k}", 14):
+                      alert(f"🚢 {r['n']} down to {v:.0f} {r['u']}" if r["u"] == "cm" else f"🚢 {r['n']} down to {v:.1f} {r['u']}",
+                            f"{txt[0].upper() + txt[1:]}. {r.get('why', '')}", "high", "anchor")
+                  fc = [x for x in r.get("fc") or [] if x[1] is not None]
+                  if fc and rank[k] < 2:
+                      lo = min(fc, key=lambda x: x[1]); fk, ftxt = state(lo[1], r.get("lv"))
+                      if rank[fk] >= 1 and rank[fk] > rank[k] and once(f"rvfc:{r['id']}:{fk}", 10):
+                          when = dt.datetime.fromisoformat(lo[0][:13] + ":00+00:00").astimezone(UK)
+                          alert(f"🚢 {r['n']} forecast to drop to {lo[1]:.1f} {r['u']}", f"Now {v:.1f} {r['u']}; NOAA forecasts {lo[1]:.1f} {r['u']} by {when:%a %d %b}: {ftxt.lower()}. {r.get('why', '')}", "default", "anchor")
+              fr = ST.setdefault("fr", {})
+              for f in H.get("frost", []):
+                  lv = f.get("lvl", 0) if f.get("in_season") else 0
+                  prev = fr.get(f["n"], 0); fr[f["n"]] = lv
+                  if lv and lv > prev and once(f"fr:{f['n']}:{lv}:{f.get('day')}", 5):
+                      day = dt.date.fromisoformat(f["day"])
+                      alert(f"❄️ {'Frost risk' if lv == 2 else 'Frost watch'}: {f['c']} ({f['n']})",
+                            f"Overnight low of {f['t']:.1f}°C forecast for {day:%a %d %b} (damage risk at {f['risk']}°C or below). {f.get('why', '')}",
+                            "high" if lv == 2 else "default", "snowflake")
+              C = load("climate.json") or {}
+              for r in R:
+                  s = (C.get("soil") or {}).get(r["n"])
+                  if not s or r["n"] not in CRIT or UKNOW.month not in CRIT[r["n"]]:
+                      continue
+                  if s["pct"] <= -30 and s["rank"] == 0 and once(f"soil:{r['n']}:dry", 21):
+                      alert(f"🏜️ {r['n']}: driest soil in {s['n'] + 1} years for the time of year",
+                            f"{r['loc']}: root-zone soil moisture {s['pct']:+.0f}% vs the 10-year normal (week to {s['asof']}), at a critical crop stage.", "default", "desert")
+                  if s["pct"] >= 40 and s["rank"] == s["n"] and once(f"soil:{r['n']}:wet", 21):
+                      alert(f"💧 {r['n']}: wettest soil in {s['n'] + 1} years for the time of year",
+                            f"{r['loc']}: root-zone soil moisture {s['pct']:+.0f}% vs the 10-year normal (week to {s['asof']}). Can delay fieldwork and harvest.", "default", "droplet")
+
           # ---------- data health: stale sources and failed jobs ----------
           def health():
               wk = NOW.weekday() < 5
               checks = [("prices.json", "Prices", 3 if wk else 80, "Update prices"), ("storms.json", "Storms", 4, "Update storms"),
                         ("news.json", "News", 3, "Update news"), ("chokes.json", "Shipping", 48, "Update chokepoints"),
                         ("cot.json", "Positioning (CFTC)", 10 * 24, "Update COT positioning"), ("enso.json", "El Nino", 7 * 24, "Update ENSO"),
-                        ("holidays.json", "Market holidays", 40 * 24, "Update market holidays")]
+                        ("holidays.json", "Market holidays", 40 * 24, "Update market holidays"), ("hazards.json", "Rivers, frost, fires", 9, "Update hazards")]
               stale = []
               for f, name, lim, job in checks:
                   d = load(f)
@@ -473,6 +519,9 @@ jobs:
               S = load("storms.json") or {}
               for s in S.get("storms", []):
                   L.append(f"🌀 {s['name']}: {cat(s['kt'])}, {s['kt']} kt")
+              for r in (load("hazards.json") or {}).get("rivers", []):
+                  if r.get("v") and r.get("lv") and r["v"][-1] <= r["lv"][0][0]:
+                      L.append(f"🚢 {r['n']}: {r['v'][-1]:.0f} {r['u']} (low water)" if r["u"] == "cm" else f"🚢 {r['n']}: {r['v'][-1]:.1f} {r['u']} (low water)")
               E = load("enso.json") or {}
               if E.get("roni"):
                   L.append(f"🌊 ENSO: {E.get('status') or ''} · RONI {E['roni'][-1][2]:+.2f} ({sstr(E['roni'][-1][2])})")
@@ -551,7 +600,7 @@ jobs:
               if not TG_TOKEN and not NTFY:
                   print("No delivery set up (add TELEGRAM_TOKEN or NTFY_TOPIC secret). Stopping without saving.")
                   return
-              for f in (price_shocks, weather, storms, cot, enso, chokes, news, quakes, health):
+              for f in (price_shocks, weather, storms, cot, enso, chokes, news, quakes, hazards, health):
                   try:
                       f()
                   except Exception as e:
@@ -559,7 +608,7 @@ jobs:
               if FIRST or MODE == "test":
                   OUT.clear()
                   cx = context_lines()
-                  alert("✅ Commodity alerts connected", "You'll get alerts for big price moves, unusual weather at critical crop stages, storms near markets, crowded fund positioning, shipping chokepoint disruptions, breaking market news, big earthquakes near mines and ports, and El Niño/La Niña changes, plus a 07:00 morning brief and a Sunday week-ahead." + ("\n\nRight now:\n" + "\n".join(cx) if cx else ""), "default", "white_check_mark")
+                  alert("✅ Commodity alerts connected", "You'll get alerts for big price moves, unusual weather at critical crop stages, storms near markets, crowded fund positioning, shipping chokepoint disruptions, breaking market news, big earthquakes near mines and ports, low river levels, crop frost risk, record-dry soils and El Niño/La Niña changes, plus a 07:00 morning brief and a Sunday week-ahead." + ("\n\nRight now:\n" + "\n".join(cx) if cx else ""), "default", "white_check_mark")
               try:
                   digests()
               except Exception as e:
@@ -603,6 +652,7 @@ jobs:
               open(".state_changed", "w").write("1")
 
           main()
+
           PY
       - name: Save alert memory to the state branch
         run: |

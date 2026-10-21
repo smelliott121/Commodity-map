@@ -235,13 +235,13 @@ kbd{font:500 10.5px var(--num);color:var(--mut);border:1px solid var(--line2);bo
 .mkh{gap:10px}.mkh>small{flex:1;color:var(--mut);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mktabs{display:flex;gap:2px;background:color-mix(in srgb,var(--ink) 6%,transparent);border-radius:9px;padding:2px}
 .mktabs button{border:none;height:28px;padding:0 11px;font-size:13px;font-weight:600;color:var(--mut);border-radius:7px}.mktabs button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.25)}
-.rkr{grid-template-columns:minmax(0,1fr) 40px 62px 62px 50px 46px}
+.rkr{grid-template-columns:minmax(0,1fr) 40px 62px 62px 50px 54px 46px}
 .rkr>span:nth-child(2){text-align:center}
 .stl{display:inline-block;width:10px;height:10px;border-radius:2px}.stl.s0{background:#8a949a55}.stl.s1{background:#e0a03a99}.stl.s2{background:#e0563f}
 .rks{font:600 12px var(--num);text-align:center;border-radius:6px;padding:4px 0}
 .rks.cal{color:var(--mut)}.rks.wat{color:#f2c94c;background:#f2c94c1f}.rks.ele{color:#ff8a3d;background:#ff8a3d26}.rks.sev{color:#fff;background:#e5484d}
-@media (max-width:999px){.rkr{grid-template-columns:minmax(0,1fr) 30px 54px 54px 44px 40px;gap:3px}.rkr>span:first-child small{display:none}.mkh>small{display:none}}
-@media (max-width:999px){.mkr.rkr>:nth-child(6){display:block}}
+@media (max-width:999px){.rkr{grid-template-columns:minmax(0,1fr) 22px 50px 50px 40px 48px 38px;gap:3px}.rkr>span:first-child small{display:none}.mkh>small{display:none}}
+@media (max-width:999px){.mkr.rkr>:nth-child(6),.mkr.rkr>:nth-child(7){display:block}}
 
 /* ---- satellite ---- */
 #sat{position:absolute;inset:0;pointer-events:none;display:none;overflow:hidden}
@@ -285,3 +285,23 @@ body.saton #ov .bd{stroke:#fff;stroke-opacity:.55;stroke-width:.8}
 body.saton #wx{opacity:.38}
 :root[data-theme="light"] body.saton #ov .cst:not(.cstd){stroke:#0f1b22}
 :root[data-theme="light"] body.saton #ov .cstd{stroke:#fff}
+
+/* hazards: rivers, frost, fires, rail, soil */
+.mk.L-river{width:12px;height:12px;border-radius:3px;border-color:#4ea8f2;background:color-mix(in srgb,#4ea8f2 30%,var(--sea))}
+.mk.L-river.rv-wat{border-color:var(--amb);background:color-mix(in srgb,var(--amb) 30%,var(--sea))}
+.mk.L-river.rv-low,.mk.L-river.rv-sev{border-color:var(--dn);background:color-mix(in srgb,var(--dn) 35%,var(--sea))}
+.mk.L-river.rv-sev::before{content:"";position:absolute;inset:-6px;border-radius:5px;border:1px solid var(--dn);opacity:.6;animation:qp 2.4s ease-out infinite}
+.mk.L-river span,.mk.L-frost span{font-family:"Geist Mono",monospace}
+.mk.L-frost{width:10px;height:10px;border-radius:50%;border-color:#7cc4ff;background:color-mix(in srgb,#7cc4ff 18%,var(--sea));opacity:.75}
+.mk.L-frost.fl1{opacity:1;border-color:#7cc4ff;background:color-mix(in srgb,#7cc4ff 45%,var(--sea))}
+.mk.L-frost.fl2{opacity:1;width:13px;height:13px;border-color:#fff;background:#3d8fe0;box-shadow:0 0 0 3px color-mix(in srgb,#7cc4ff 35%,transparent)}
+#map.off-river .L-river,#map.off-frost .L-frost,#map.off-fire .L-fire,#map.off-rail .L-rail{display:none}
+.L-fire circle{fill:#ff9a3d;fill-opacity:.55;stroke:none}.L-fire circle.fx1{fill:#ff6a2b;fill-opacity:.7}.L-fire circle.fx2{fill:#ff3b2b;fill-opacity:.85}
+.L-rail .rl{fill:none;stroke:#e0c9a6;stroke-width:3.2;vector-effect:non-scaling-stroke;opacity:.95;stroke-linecap:round;stroke-linejoin:round}
+.L-rail .rl2{fill:none;stroke:#3a2a18;stroke-width:1.4;vector-effect:non-scaling-stroke;stroke-dasharray:2 5;opacity:.9}
+.L-rail .rhit{fill:none;stroke:transparent;stroke-width:14;vector-effect:non-scaling-stroke;pointer-events:stroke;cursor:pointer}
+:root[data-theme="light"] .L-rail .rl{stroke:#7a5e3c}
+.rv-ok{color:var(--wet)}.rv-wat{color:var(--amb)}.rv-low,.rv-sev{color:var(--dn)}
+.fr1{color:#7cc4ff}.fr2{color:#3d8fe0;font-weight:700}:root[data-theme="light"] .fr1{color:#1f6fb5}
+.sm-d{color:var(--dry)}.sm-w{color:var(--wet)}
+@media (prefers-reduced-motion:reduce){.mk.L-river.rv-sev::before{animation:none}}

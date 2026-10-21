@@ -56,7 +56,9 @@
       ["SAT", "Satellite image", "satellite clouds nasa imagery", () => typeof toggleSat == "function" && toggleSat()],
       ["THEME", "Switch light or dark", "theme light dark mode", () => $("#thb").click()],
     ];
+    (window.CMD_FN || []).forEach(x => F.push(x));
     F.forEach(([c, t, k, run]) => L.push({ t, s: c, k: c + " " + k, g: "Function", code: c.toLowerCase(), run }));
+    if (typeof window.CMD_ITEMS == "function") try { L.push(...window.CMD_ITEMS()) } catch (e) {}
     return L;
   }
 
@@ -66,6 +68,7 @@
     document.querySelectorAll("#panel [data-q]").forEach(el => el.onclick = () => { const q = Q[+el.dataset.q], [lon, lat] = q.geometry.coordinates; panTo(lon, lat); showQuake(q) });
   }
   window.quakeList = quakeList;
+  window.panTo = panTo; window.layerOn = layerOn;
 
   function search(q) {
     const words = norm(q).split(/\s+/).filter(Boolean);

@@ -448,14 +448,18 @@ const ukTm=ms=>new Date(ms).toLocaleString("en-GB",{weekday:"short",hour:"2-digi
 const cssv=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 function tsChart(box,o){const W=box.clientWidth||340,Ht=o.h||150,pl=4,pr=40,pt=8,pb=20,iw=W-pl-pr,ih=Ht-pt-pb,T=o.t,N=T.length;if(N<2){box.innerHTML='<div class="note">Not enough data yet.</div>';return}
 const t0=T[0],t1=T[N-1],x=t=>pl+(t-t0)/(t1-t0||1)*iw;let lo,hi;
-if(o.stack){lo=0;hi=100}else{const all=o.series.flatMap(s=>s.v.filter(v=>v!=null)).concat(o.band?o.band.lo.concat(o.band.hi).filter(v=>v!=null):[]);lo=Math.min(...all);hi=Math.max(...all);if(o.zero)lo=Math.min(0,lo);const pd=(hi-lo)*.08||1;lo-=lo==0?0:pd;hi+=pd}
+if(o.stack){lo=0;hi=100}else{const all=o.series.flatMap(s=>s.v.filter(v=>v!=null)).concat(o.band?o.band.lo.concat(o.band.hi).filter(v=>v!=null):[]);lo=Math.min(...all);hi=Math.max(...all);if(o.zero)lo=Math.min(0,lo);if(o.incl){const sp=hi-lo||1;o.incl.forEach(v=>{if(v>=lo-sp&&v<=hi+sp){lo=Math.min(lo,v);hi=Math.max(hi,v)}})}const pd=(hi-lo)*.08||1;lo-=lo==0?0:pd;hi+=pd}
 const y=v=>pt+(hi-v)/(hi-lo)*ih;let g="";
 const step=[.01,.02,.05,.1,.2,.25,.5,1,2,5,10,20,25,50,100,200,250,500,1000,2000,5000].find(q=>(hi-lo)/q<=4)||1e4;for(let v=Math.ceil(lo/step)*step;v<=hi+1e-9;v+=step){const vv=+v.toFixed(4);g+=`<line x1="${pl}" x2="${pl+iw}" y1="${y(vv)}" y2="${y(vv)}" class="gl"${o.zl&&vv==0?' style="stroke:var(--mut)"':""}/><text x="${W-2}" y="${y(vv)+3.5}" class="ax" text-anchor="end">${(o.tk?o.tk(vv):vv)}${o.stack?"%":""}</text>`}
 const day=864e5;if(t1-t0<=3*day){for(let t=Math.ceil(t0/36e5)*36e5;t<=t1;t+=36e5){const d=new Date(t),hh=+d.toLocaleString("en-GB",{hour:"2-digit",hour12:false,timeZone:"Europe/London"});if(hh%12)continue;g+=`<text x="${x(t)}" y="${Ht-5}" class="ax" text-anchor="middle">${hh==0?d.toLocaleDateString("en-GB",{weekday:"short",timeZone:"Europe/London"}):"12:00"}</text>`}}
+else if(t1-t0<=16*day){for(let t=Math.ceil(t0/day)*day+day/2;t<=t1;t+=day){if(x(t)<pl+10||x(t)>pl+iw-10)continue;g+=`<text x="${x(t)}" y="${Ht-5}" class="ax" text-anchor="middle">${new Date(t).toLocaleDateString("en-GB",{weekday:"narrow",timeZone:"UTC"})}</text>`}}
+else if(t1-t0<=75*day){for(let t=Math.ceil(t0/day)*day;t<=t1;t+=day){const d=new Date(t);if(d.getUTCDay()==1&&x(t)>pl+12&&x(t)<pl+iw-12)g+=`<text x="${x(t)}" y="${Ht-5}" class="ax" text-anchor="middle">${d.toLocaleDateString("en-GB",{day:"numeric",month:"short",timeZone:"UTC"})}</text>`}}
+else if(t1-t0>420*day){for(let t=t0;t<=t1;t+=day){const d=new Date(t);if(d.getUTCDate()==1&&d.getUTCMonth()==0&&x(t)>pl+14&&x(t)<pl+iw-14)g+=`<text x="${x(t)}" y="${Ht-5}" class="ax" text-anchor="middle">${d.getUTCFullYear()}</text>`}}
 else{for(let t=t0;t<=t1;t+=day){const d=new Date(t);if(d.getUTCDate()==1)g+=`<text x="${x(t)}" y="${Ht-5}" class="ax" text-anchor="middle">${d.toLocaleDateString("en-GB",{month:"short"})}</text>`}}
 if(o.stack){const acc=new Array(N).fill(0);o.series.forEach(s=>{const top=s.v.map((v,i)=>acc[i]+(v||0));let d="M"+T.map((t,i)=>x(t).toFixed(1)+" "+y(Math.min(100,top[i])).toFixed(1)).join("L");for(let i=N-1;i>=0;i--)d+="L"+x(T[i]).toFixed(1)+" "+y(Math.min(100,acc[i])).toFixed(1);g+=`<path d="${d}Z" fill="var(${s.c})" stroke="var(--card)" stroke-width="1" stroke-linejoin="round"/>`;top.forEach((v,i)=>acc[i]=v)})}
 else{if(o.band){let d="",bk="";T.forEach((t,i)=>{const a=o.band.lo[i],b=o.band.hi[i];if(a==null||b==null)return;d+=(d?"L":"M")+x(t).toFixed(1)+" "+y(b).toFixed(1);bk="L"+x(t).toFixed(1)+" "+y(a).toFixed(1)+bk});if(d)g+=`<path d="${d}${bk}Z" fill="color-mix(in srgb,var(--ink) 9%,transparent)" stroke="none"/>`}
 if(o.ref!=null)g+=`<line x1="${pl}" x2="${pl+iw}" y1="${y(o.ref)}" y2="${y(o.ref)}" style="stroke:var(--mut);stroke-dasharray:4 3"/>`;
+(o.refs||[]).forEach(([v,c,l])=>{if(v<lo||v>hi)return;g+=`<line x1="${pl}" x2="${pl+iw}" y1="${y(v)}" y2="${y(v)}" style="stroke:${c};stroke-dasharray:3 3;opacity:.85"/>`+(l?`<text x="${pl+3}" y="${y(v)-3}" class="ax" style="fill:${c}">${esc(l)}</text>`:"")});
 o.series.forEach(s=>{let d="",on=0;s.v.forEach((v,i)=>{if(v==null){on=0;return}d+=(on?"L":"M")+x(T[i]).toFixed(1)+" "+y(v).toFixed(1);on=1});g+=`<path d="${d}" fill="none" stroke="${s.c}" stroke-width="${s.w||2}" stroke-linejoin="round" stroke-linecap="round"${s.dash?' stroke-dasharray="4 3"':""}/>`});
 const s0=o.series[0];for(let i=N-1;i>=0;i--)if(s0.v[i]!=null){g+=`<circle cx="${x(T[i])}" cy="${y(s0.v[i])}" r="4" fill="${s0.c}" stroke="var(--card)" stroke-width="2"/>`;break}}
 box.innerHTML=`<svg width="${W}" height="${Ht}" class="chs">${g}<line class="cx" y1="${pt}" y2="${pt+ih}" style="display:none"/><rect x="${pl}" y="0" width="${iw}" height="${Ht}" fill="transparent" class="hz"/></svg><div class="tt" style="display:none"></div>`;
@@ -505,6 +509,7 @@ const MKG=[["Energy",[["BZ=F","Brent crude","$/bbl"],["CL=F","WTI crude","$/bbl"
 ["US rates",[["ZT=F","2-year note future","pts"],["ZF=F","5-year note future","pts"],["ZN=F","10-year note future","pts"],["ZB=F","30-year bond future","pts"],["^IRX","3-month bill yield","%","y"],["^FVX","5-year yield","%","y"],["^TNX","10-year yield","%","y"],["^TYX","30-year yield","%","y"]]],
 ["Equity indices",[["ES=F","S&P 500 future","pts"],["NQ=F","Nasdaq 100 future","pts"],["YM=F","Dow future","pts"],["RTY=F","Russell 2000 future","pts"],["^FTSE","FTSE 100","index"],["^GDAXI","DAX","index"],["^STOXX50E","Euro Stoxx 50","index"],["^N225","Nikkei 225","index"],["^HSI","Hang Seng","index"],["000001.SS","Shanghai Composite","index"]]],
 ["Refining",[["CRACK","3-2-1 crack (WTI)","$/bbl"]]],
+["Freight",[["BDRY","Dry bulk freight (Breakwave ETF)","$/share"],["BWET","Tanker freight (Breakwave ETF)","$/share"]]],
 ["FX and volatility",[["DX-Y.NYB","US dollar index","index"],["EURUSD=X","EUR/USD","rate"],["GBPUSD=X","GBP/USD","rate"],["JPY=X","USD/JPY","rate"],["CNY=X","USD/CNY","rate"],["BRL=X","USD/BRL","rate"],["^VIX","VIX","index"]]]];
 let MKS=null,MKSEL=null;
 function mkRow(s){const q=s[0]=="CRACK"?crackNow():PX[s[0]];if(!q||q.price==null)return null;const c=(q.c||[]).slice(),y=s[3]=="y",n=c.length,p=q.price;
@@ -832,7 +837,7 @@ ${r.nw?"":`<div class="row"><span>Rain, last 7 days</span><b>${w?f(w.past)+" mm"
 <div class="row"><span>Rain, next 7 days</span><b>${w?f(w.next)+" mm":"—"}${r.cx!=null?" (normal "+f(r.cx)+")":""}</b></div>
 `}${r.nw&&r.n!="Nat gas"?"":`<div class="row"><span>Temp, next 7 days avg</span><b>${w&&w.tn!=null?f(w.tn)+"°C":"—"}${r.ct!=null?" (normal "+f(r.ct)+")":""}</b></div>
 <div class="row"><span>Now</span><b>${w?f(w.t)+"°C · cloud "+f(w.cl,0)+"%":"—"}</b></div>
-`}${r.st?`<div class="row" style="cursor:pointer" onclick="showStorm(STM[${r.st.si}])"><span>🌀 Storm nearby</span><b class="wrap">${r.st.n} (${r.st.c}), ~${Math.round(r.st.d/50)*50} km from its path ›</b></div>`:""}<div class="row"><span>Signal</span><b class="wrap">${flag}</b></div>${typeof enNote=="function"?enNote(r):""}${cal(r)}
+`}${typeof hzCrop=="function"?hzCrop(r):""}${r.st?`<div class="row" style="cursor:pointer" onclick="showStorm(STM[${r.st.si}])"><span>🌀 Storm nearby</span><b class="wrap">${r.st.n} (${r.st.c}), ~${Math.round(r.st.d/50)*50} km from its path ›</b></div>`:""}<div class="row"><span>Signal</span><b class="wrap">${flag}</b></div>${typeof enNote=="function"?enNote(r):""}${cal(r)}
 ${drv(r)}<div class="note">These are leading indicators, not guarantees: markets already price in forecasts.</div>`);setTimeout(()=>{drawChart(r);drawCot(r);cvDraw(r.sym);if(r.sym)snDraw(r.sym)},0)}
 R.forEach((r,i)=>paint(i));
 let wOK=false,pOK=0;
@@ -844,7 +849,7 @@ R.forEach((r,i)=>{const k=P.names.indexOf(r.n);const d=A[k];if(!d)return;const s
 r.w={tn:tt.length?tt.reduce((a,b)=>a+b,0)/tt.length:null,past:sum(s.slice(0,7)),next:sum(s.slice(7,14)),t:d.current.temperature_2m,cl:d.current.cloud_cover};paint(i)});wOK="gh";break}}catch(e2){}}}
 let pT=0;
 async function prices(){try{const j=await(await getData("prices","prices.json")).json();pT=j.updated;PX=j.prices;R.forEach((r,i)=>{const m=r.sym&&j.prices[r.sym];if(!m)return;r.p=m.price;r.ch=(m.price/m.prev-1)*100;r.live=1;r.gl=Math.abs(r.ch)>25;if(r.gl)r.ch=null;pOK++;paint(i)})}catch(e){}}
-async function climate(){try{const j=await(await getData("climate","climate.json")).json();R.forEach(r=>{const c=j.regions[r.n];if(c){r.cn=c.past;r.cx=c.next;r.ct=c.tnext}})}catch(e){}}
+async function climate(){try{const j=await(await getData("climate","climate.json")).json();R.forEach(r=>{const c=j.regions[r.n];if(c){r.cn=c.past;r.cx=c.next;r.ct=c.tnext}r.soil=j.soil&&j.soil[r.n]||null})}catch(e){}}
 Promise.all([weather(),prices(),climate()]).then(()=>{R.forEach((r,i)=>paint(i));layout();(typeof renderHealth=="function"&&renderHealth())});
 let BW=1800;const WIDE=()=>innerWidth>=1000;
 function fit(){BW=Math.round(Math.max(innerWidth,innerHeight*2))}

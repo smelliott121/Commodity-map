@@ -46,16 +46,22 @@
     if (rp != null) { dry += Math.min(1, Math.max(0, -rp - .2) / .6) * 4; wet += Math.min(1, Math.max(0, rp - .6) / 1.4) * 4 }
     if (rx != null) { dry += Math.min(1, Math.max(0, -rx - .2) / .6) * 3; wet += Math.min(1, Math.max(0, rx - .6) / 1.4) * 2.5 }
     if (out.tA != null) heat = Math.min(1, Math.max(0, out.tA - 1.5) / 3) * 3;
+    const so = r.soil; out.soil = so ? so.pct : null;
+    if (so) { dry += Math.min(1, Math.max(0, -so.pct - 15) / 35) * 2; wet += Math.min(1, Math.max(0, so.pct - 25) / 40) * 1.5 }
+    const fr = typeof hzFrostFor == "function" ? hzFrostFor(r.n) : null;
+    if (fr) { cold = fr.lvl == 2 ? 6 : 2.5; out.frost = fr }
     if (typeof enPhase == "function" && enPhase() && typeof enRegionsFor == "function") {
       const m = new Date().getMonth() + 1, soon = [m, m % 12 + 1, (m + 1) % 12 + 1];
       const rs = enRegionsFor(r.lat, r.lon).filter(x => x.m.some(v => soon.includes(v)) && ["dry", "wet"].includes(effOf(x, enPhase())));
       if (rs.length) { ens = 1; out.enso = effTxt[effOf(rs[0], enPhase())] }
     }
-    const raw = Math.max(dry, wet) + heat + ens;
+    const raw = Math.max(dry, wet) + heat + cold + ens;
     out.score = Math.round(Math.min(10, raw * wt * 1.25) * 10) / 10;
     const rainTxt = [rp != null ? `${sg(rp * 100, 0)}% last week` : "", rx != null ? `${sg(rx * 100, 0)}% next week` : ""].filter(Boolean).join(", ") + " vs normal";
     if (dry > wet && dry >= 1.5) out.why.push(`${rp != null && rp > .2 && rx != null && rx < -.2 ? "turning dry" : "dry"}: rain ${rainTxt}`);
     if (wet > dry && wet >= 1.5) out.why.push(`${rx != null && rx > .6 && (rp == null || rp < .2) ? "turning wet" : "wet"}: rain ${rainTxt}`);
+    if (so && (so.pct <= -20 || so.pct >= 30)) out.why.push(`soil ${sg(so.pct, 0)}% vs normal${so.rank == 0 ? " (driest in " + (so.n + 1) + " yrs)" : so.rank == so.n ? " (wettest in " + (so.n + 1) + " yrs)" : ""}`);
+    if (fr) out.why.push(`${fr.lvl == 2 ? "frost risk" : "frost watch"}: ${fr.t.toFixed(0)}°C forecast ${fr.dayTxt} (${fr.n})`);
     if (heat >= 1) out.why.push(`${sg(out.tA)}°C hotter than normal next week`);
     if (ens) out.why.push(`El Niño/La Niña: typically ${out.enso} now`);
     if (lvl == 2 && out.why.length) out.why.push("critical crop stage");
@@ -95,6 +101,7 @@
     (typeof QK != "undefined" ? QK : []).filter(q => q.properties.mag >= 6 && Date.now() - q.properties.time < 3 * 864e5).forEach(q => L.push({ t: `M${q.properties.mag.toFixed(1)} earthquake: ${q.properties.place || ""}`, run: () => showQuake(q), sev: q.properties.alert == "orange" || q.properties.alert == "red" ? 3 : 1 }));
     if (typeof UK != "undefined" && UK) { const n = ukNow(), pr = ukPrice(); if (n && n.o.wind < 12) L.push({ t: `UK wind only ${Math.round(n.o.wind)}% of power: more gas burn`, run: showUK, sev: 2 }); if (pr && pr.p > 150) L.push({ t: `UK power price £${Math.round(pr.p)}/MWh`, run: showUK, sev: 2 }) }
     if (typeof crackNow == "function") { const c = crackNow(); if (c && c.c.length > 15) { const v = c.c, avg = v.reduce((a, b) => a + b, 0) / v.length; if (Math.abs(c.price - avg) / avg > .15) L.push({ t: `Refining margin $${c.price.toFixed(1)}/bbl, ${c.price > avg ? "well above" : "well below"} its month average`, run: () => showRef(), sev: 1 }) } }
+    if (typeof hzWatch == "function") L.push(...hzWatch());
     if (typeof enPhase == "function" && enPhase()) L.push({ t: `${enPhase() > 0 ? "El Niño" : "La Niña"} conditions (${enStr(EN.roni.at(-1)[2])})`, run: showEnso, sev: 1 });
     return L.sort((a, b) => b.sev - a.sev);
   }
@@ -129,9 +136,9 @@ ${U.length ? `<div class="kh">Coming up (UK time)</div>${U.map(e => `<div class=
     const tc = v => v == null ? '<span class="cg" style="color:var(--mut)">—</span>' : `<span class="cg" style="color:${v >= 0 ? "#ff8a5c" : "#7cc4ff"}">${sg(v)}°</span>`;
     const st = l => ['<i class="stl s0" title="little impact"></i>', '<i class="stl s1" title="moderate"></i>', '<i class="stl s2" title="critical"></i>'][l] || "";
     el.innerHTML = `${mkHead("risk")}
-<div class="mkt"><div class="mkr rkr mkhd"><span>Crop</span><span title="crop stage">Stage</span><span style="text-align:right">Rain 7d</span><span style="text-align:right">Next 7d</span><span style="text-align:right">Temp</span><span style="text-align:right">Risk</span></div>
-${rows.map(({ r, i, k }) => { const L = rLvl(k.score); return `<div class="mkr rkr" data-ri="${i}" title="${esc((k.why && k.why.join ? k.why.join("; ") : k.why) || "")}"><span>${esc(r.n)}<small>${esc(r.loc.split(",")[0])}</small></span><span>${st(k.lvl)}</span>${pc(k.rp)}${pc(k.rx)}${tc(k.tA)}<span class="rks ${L[0]}">${k.score == null ? "—" : k.score.toFixed(1)}</span></div>` }).join("")}</div>
-<div class="mkf">Score 0–10 combines rain last week and the week ahead against the 15-year normal, temperature against normal, El Niño/La Niña effects, weighted by how critical the crop stage is right now. Calm under 2, watch 2–4, elevated 4–6, severe 6+. Tap a row for the full panel.</div>`;
+<div class="mkt"><div class="mkr rkr mkhd"><span>Crop</span><span title="crop stage">Stage</span><span style="text-align:right">Rain 7d</span><span style="text-align:right">Next 7d</span><span style="text-align:right">Temp</span><span style="text-align:right" title="soil moisture vs 10-year normal">Soil</span><span style="text-align:right">Risk</span></div>
+${rows.map(({ r, i, k }) => { const L = rLvl(k.score); return `<div class="mkr rkr" data-ri="${i}" title="${esc((k.why && k.why.join ? k.why.join("; ") : k.why) || "")}"><span>${esc(r.n)}<small>${esc(r.loc.split(",")[0])}</small></span><span>${st(k.lvl)}</span>${pc(k.rp)}${pc(k.rx)}${tc(k.tA)}${pc(k.soil == null ? null : k.soil / 100)}<span class="rks ${L[0]}">${k.score == null ? "—" : k.score.toFixed(1)}</span></div>` }).join("")}</div>
+<div class="mkf">Score 0–10 combines rain last week and the week ahead against the 15-year normal, soil moisture against the 10-year normal, temperature against normal, frost forecasts, El Niño/La Niña effects, weighted by how critical the crop stage is right now. Calm under 2, watch 2–4, elevated 4–6, severe 6+. Tap a row for the full panel.</div>`;
     $("#mkx").onclick = () => mkOpen(false);
     el.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { window.MKTAB = b.dataset.tab; mkBoard() });
     el.querySelectorAll("[data-ri]").forEach(d => d.onclick = () => { const i = +d.dataset.ri; show(i); el.querySelectorAll("[data-ri]").forEach(x => x.classList.toggle("sel", x == d)) });

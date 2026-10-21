@@ -11,6 +11,7 @@
     ["Refining (EIA)", () => typeof RF != "undefined" && RF && RF.updated, 8 * 24],
     ["Positioning (CFTC)", () => typeof COT != "undefined" && COT && COT.updated, 9 * 24],
     ["El Niño", () => typeof EN != "undefined" && EN && EN.updated, 6 * 24],
+    ["Rivers, frost, fires", () => window.HZ && HZ.updated, 7],
   ];
   const wkend = () => { const d = new Date(), w = d.getUTCDay(); return w == 6 || w == 0 || (w == 1 && d.getUTCHours() < 6) };
   const age = t => { const m = Math.round((Date.now() / 1000 - t) / 60); return m < 60 ? m + "m" : m < 2880 ? Math.round(m / 60) + "h" : Math.round(m / 1440) + "d" };
