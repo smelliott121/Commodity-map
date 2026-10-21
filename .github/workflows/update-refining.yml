@@ -33,8 +33,8 @@ jobs:
           UA = {"User-Agent": "Mozilla/5.0 (commodity-map personal project)"}
           since = dt.date.today() - dt.timedelta(days=7 * 330)
           K = os.environ.get("EIA_API_KEY", "").strip()
-          def from_xls(sid):
-              raw = urllib.request.urlopen(urllib.request.Request(f"https://www.eia.gov/dnav/pet/hist_xls/{sid}w.xls", headers=UA), timeout=60).read()
+          def from_xls(sid, f="w", since=since):
+              raw = urllib.request.urlopen(urllib.request.Request(f"https://www.eia.gov/dnav/pet/hist_xls/{sid}{f}.xls", headers=UA), timeout=60).read()
               book = xlrd.open_workbook(file_contents=raw)
               sh = book.sheet_by_name("Data 1") if "Data 1" in book.sheet_names() else book.sheet_by_index(1)
               pts = []
@@ -68,6 +68,24 @@ jobs:
                   print("not enough data for", k, len(pts)); continue
               out["s"][k] = {"n": name, "u": unit, "d": [p for p, _ in pts], "v": [v for _, v in pts]}
               print(k, len(pts), "latest", pts[-1])
+          # crude oil moved by rail (monthly, thousand barrels -> kb/d), about 3 months behind
+          RAIL = {"total": ("ESM_EPC0_RAIL_ZAMN-ZAMN_MBBL", "All US crude by rail"),
+                  "canada": ("ESM_EPC0_RAIL_NUS-NCA_MBBL", "Canada to US by rail"),
+                  "bakken_wc": ("ESM_EPC0_RAIL_R50-R20_MBBL", "Midwest (Bakken) to West Coast by rail")}
+          rail = {}
+          import calendar
+          for k, (sid, name) in RAIL.items():
+              for a in range(3):
+                  try:
+                      pts = from_xls(sid, "m", dt.date.today() - dt.timedelta(days=365 * 10))
+                      pts = [(d[:7], round(v / calendar.monthrange(int(d[:4]), int(d[5:7]))[1], 1)) for d, v in pts]
+                      if pts:
+                          rail[k] = {"n": name, "u": "kb/d", "d": [p for p, _ in pts], "v": [v for _, v in pts]}
+                          print("rail", k, len(pts), pts[-1])
+                      break
+                  except Exception as e:
+                      print("retry rail", k, e); time.sleep(5)
+          out["rail"] = rail
           if len(out["s"]) >= 3:
               json.dump(out, open("out/refining.json", "w"), separators=(",", ":"))
           PY

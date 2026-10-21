@@ -14,7 +14,7 @@ jobs:
           mkdir -p out
           python3 - <<'PY'
           import json, time, urllib.request
-          SYMS = ["CC=F","KC=F","ZW=F","HG=F","SB=F","ZC=F","CT=F","BZ=F","NG=F","ZS=F","GC=F","SI=F","PL=F","LBR=F","OJ=F","ZR=F","TIO=F","CL=F","ZL=F","DX-Y.NYB","^TNX","^VIX","000001.SS","BRL=X","CNY=X","HO=F","RB=F","PA=F","ALI=F","KE=F","ZM=F","ZO=F","LE=F","GF=F","HE=F","ZT=F","ZF=F","ZN=F","ZB=F","^IRX","^FVX","^TYX","ES=F","NQ=F","YM=F","RTY=F","^FTSE","^GDAXI","^STOXX50E","^N225","^HSI","EURUSD=X","GBPUSD=X","JPY=X"]
+          SYMS = ["CC=F","KC=F","ZW=F","HG=F","SB=F","ZC=F","CT=F","BZ=F","NG=F","ZS=F","GC=F","SI=F","PL=F","LBR=F","OJ=F","ZR=F","TIO=F","CL=F","ZL=F","DX-Y.NYB","^TNX","^VIX","000001.SS","BRL=X","CNY=X","HO=F","RB=F","PA=F","ALI=F","KE=F","ZM=F","ZO=F","LE=F","GF=F","HE=F","ZT=F","ZF=F","ZN=F","ZB=F","^IRX","^FVX","^TYX","ES=F","NQ=F","YM=F","RTY=F","^FTSE","^GDAXI","^STOXX50E","^N225","^HSI","EURUSD=X","GBPUSD=X","JPY=X","BDRY","BWET"]
           out = {}
           for s in SYMS:
               for host in ("query1", "query2"):
