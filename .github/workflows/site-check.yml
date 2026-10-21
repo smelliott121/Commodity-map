@@ -1,0 +1,38 @@
+name: Site check
+on:
+  push:
+    branches: [main]
+    paths: ["index.html", "app/**", "sw.js", "tests/**", ".github/workflows/site-check.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Gather the latest data next to the site
+        run: |
+          mkdir -p site && git archive HEAD | tar -x -C site
+          for b in data hist news uk curves seasonal refining prices storms chokes cot climate enso holidays; do
+            if git fetch -q --depth 1 origin "$b" 2>/dev/null; then git archive FETCH_HEAD | tar -x -C site; else echo "no $b branch"; fi
+          done
+          ls site
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install test browser
+        run: |
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund playwright@1.56.0
+          npx playwright install --with-deps chromium
+      - name: Open the site at phone and desktop size
+        run: node tests/smoke.mjs site
+      - name: Keep screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-check-screenshots
+          path: shots/
+          retention-days: 7
