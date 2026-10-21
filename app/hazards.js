@@ -203,8 +203,13 @@ ${k.length ? k.map(x => { const s = rf[x], y = yo(s); return `<div class="row"><
     h += FR.length ? FR.map(f => row(`data-fr="${HZ.frost.indexOf(f)}"`, f.n, f.c + (f.in_season ? "" : " · season starts soon"), f.lvl ? `${f.t.toFixed(0)}°C ${ukDay(f.day).split(" ")[0]}` : `low ${f.low != null ? f.low.toFixed(0) : "—"}°C`, f.lvl == 2 ? "fr2" : f.lvl ? "fr1" : "", f.lvl ? (f.lvl == 2 ? "Risk" : "Watch") : "Clear")).join("") : '<div class="note" style="padding:6px 10px">No crop region is in its frost season.</div>';
     const SO = R.map((r, i) => ({ r, i })).filter(x => x.r.soil).sort((a, b) => Math.abs(b.r.soil.pct) - Math.abs(a.r.soil.pct));
     h += `<div class="mkg">Soil moisture vs 10-yr normal</div>`;
-    h += SO.length ? SO.map(({ r, i }) => { const s = r.soil, w = Math.min(100, Math.abs(s.pct) * 1.6);
-      return row(`data-ri="${i}"`, r.n, r.loc.split(",")[0], `${sg(s.pct, 0)}%`, s.pct <= -20 ? "sm-d" : s.pct >= 25 ? "sm-w" : "", `<i class="hzb"><b style="width:${w}%;background:var(--${s.pct < 0 ? "dry" : "wet"})"></b></i>${s.rank == 0 ? "driest " + (s.n + 1) + "y" : s.rank == s.n ? "wettest " + (s.n + 1) + "y" : ""}`) }).join("") : '<div class="note" style="padding:6px 10px">Appears after the daily climate job runs.</div>';
+    const ord = k => k == 1 ? "" : k == 2 ? "2nd " : k == 3 ? "3rd " : k + "th ";
+    if (SO.length) h += `<div class="mkr hzr hzlg"><span>Dots: this year (bright) ranked against the same weeks in each of the last 10 years</span><span></span><span class="hzc"><span class="hzends"><b style="color:var(--dry)">dry</b><b style="color:var(--wet)">wet</b></span></span></div>`;
+    h += SO.length ? SO.map(({ r, i }) => { const s = r.soil, N = s.n + 1, dp = s.rank + 1, wp = N - s.rank;
+      const tag = dp <= 3 ? ord(dp) + "driest of " + N + " yrs" : wp <= 3 ? ord(wp) + "wettest of " + N + " yrs" : "";
+      const col = dp <= 3 ? "var(--dry)" : wp <= 3 ? "var(--wet)" : "var(--ink)";
+      const dots = `<i class="hzd" title="${tag || "Within the normal range"}">${Array.from({ length: N }, (_, k) => `<b${k == s.rank ? ` class="on" style="background:${col}"` : ""}></b>`).join("")}</i>`;
+      return row(`data-ri="${i}"`, r.n, r.loc.split(",")[0] + (tag ? " · " + tag : ""), `${sg(s.pct, 0)}%`, s.pct <= -20 ? "sm-d" : s.pct >= 25 ? "sm-w" : "", dots) }).join("") : '<div class="note" style="padding:6px 10px">Appears after the daily climate job runs.</div>';
     const fc = HZ && HZ.fires;
     h += `<div class="mkg">Wildfires, last 24 h <button class="hzm" data-ly="fire">Map</button></div>`;
     h += row('data-go="FIRE"', "Satellite fire detections", "NASA FIRMS · biggest clusters and what's near them", fc ? (fc.n || 0).toLocaleString("en") : "—", "", "›");
