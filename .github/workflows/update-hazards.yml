@@ -1,0 +1,172 @@
+name: Update hazards
+on:
+  schedule:
+    - cron: "25 */3 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: hazards
+  cancel-in-progress: false
+jobs:
+  hazards:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch river levels, frost forecasts and wildfires
+        run: |
+          mkdir -p out
+          python3 - <<'PY'
+          import json, time, math, csv, io, datetime as dt, urllib.request, urllib.parse
+          UA = {"User-Agent": "commodity-map personal project (github actions)"}
+          def get(url, raw=False, timeout=60):
+              for a in range(3):
+                  try:
+                      r = urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=timeout).read()
+                      return r if raw else json.loads(r)
+                  except Exception as e:
+                      print("retry", url.split("?")[0], e); time.sleep(4)
+              return None
+          now = dt.datetime.now(dt.timezone.utc)
+          out = {"updated": int(time.time()), "rivers": [], "frost": [], "fires": {}}
+
+          # ---------- rivers ----------
+          # Rhine at Kaub (German federal waterways, cm). Barges load less below ~100 cm, much less below ~78 cm.
+          def kaub():
+              base = "https://pegelonline.wsv.de/webservices/rest-api/v2/stations"
+              m = get(f"{base}/KAUB/W/measurements.json?start=P30D")
+              if not m:
+                  st = get(f"{base}.json") or []
+                  k = next((s for s in st if s.get("shortname", "").upper() == "KAUB" or s.get("longname", "").upper() == "KAUB"), None)
+                  m = k and get(f"{base}/{k['uuid']}/W/measurements.json?start=P30D")
+              if not m:
+                  return None
+              daily = {}
+              for x in m:
+                  daily[x["timestamp"][:13]] = x["value"]
+              keys = sorted(daily)[::6]  # roughly every 6 hours
+              return {"id": "kaub", "n": "Rhine at Kaub", "lat": 50.085, "lon": 7.765, "u": "cm",
+                      "t": keys, "v": [daily[k] for k in keys], "fc": [], "src": "PEGELONLINE",
+                      "lv": [[100, "Barges start loading less"], [78, "Barge loads sharply reduced"], [40, "Near standstill for larger barges"]],
+                      "why": "The Rhine carries coal, oil products, chemicals and grain into Germany and Switzerland. Low water at Kaub raises freight costs and can squeeze diesel and heating oil supply inland."}
+          # Mississippi (US National Weather Service; feet). Low water restricts grain barge drafts in autumn.
+          def nwps(lid, name, lat, lon, usgs, levels, why):
+              j = get(f"https://api.water.noaa.gov/nwps/v1/gauges/{lid}/stageflow")
+              t, v, fc, src = [], [], [], "NOAA NWPS"
+              if j and (j.get("observed") or {}).get("data"):
+                  obs = [d for d in j["observed"]["data"] if d.get("primary") is not None and d["primary"] > -999]
+                  obs = obs[-30 * 24:]
+                  step = max(1, len(obs) // 120)
+                  for d in obs[::step]:
+                      t.append(d["validTime"][:13]); v.append(round(d["primary"], 2))
+                  for d in ((j.get("forecast") or {}).get("data") or [])[::6]:
+                      if d.get("primary") is not None and d["primary"] > -999:
+                          fc.append([d["validTime"][:13], round(d["primary"], 2)])
+              if not t:
+                  q = urllib.parse.urlencode({"sites": usgs, "parameterCd": "00065", "period": "P30D", "format": "json"})
+                  u = get("https://waterservices.usgs.gov/nwis/iv/?" + q, timeout=90)
+                  try:
+                      vals = u["value"]["timeSeries"][0]["values"][0]["value"]
+                      vals = [x for x in vals if x.get("value") not in (None, "", "-999999")]
+                      step = max(1, len(vals) // 120)
+                      for x in vals[::step]:
+                          t.append(x["dateTime"][:13]); v.append(float(x["value"]))
+                      src = "USGS"
+                  except Exception as e:
+                      print("usgs fail", lid, e)
+              if not t:
+                  return None
+              return {"id": lid.lower(), "n": name, "lat": lat, "lon": lon, "u": "ft", "t": t, "v": v, "fc": fc, "src": src, "lv": levels, "why": why}
+          for fn in (lambda: kaub(),
+                     lambda: nwps("MEMT1", "Mississippi at Memphis", 35.15, -90.06, "07032000",
+                                  [[0, "Low water: barge drafts start to be cut"], [-5, "Barge loads restricted, freight rates jump"], [-10, "Near record low (2022: -10.8 ft)"]],
+                                  "Around 60% of US grain exports float down the Mississippi to the Gulf. Low water in autumn cuts barge loads, pushes up freight and widens the gap between farm and export prices."),
+                     lambda: nwps("EADM7", "Mississippi at St. Louis", 38.63, -90.18, "07010000",
+                                  [[0, "Low water: barge drafts start to be cut"], [-5, "Barge loads restricted"], [-10, "Extreme low water"]],
+                                  "Gateway for grain and fertiliser barges between the upper Mississippi, the Illinois River and the Gulf.")):
+              try:
+                  r = fn()
+                  if r:
+                      out["rivers"].append(r); print("river", r["n"], r["src"], r["v"][-1] if r["v"] else None)
+              except Exception as e:
+                  print("river fail", e)
+
+          # ---------- frost and freeze forecasts ----------
+          FROST = [
+              ("Sul de Minas coffee", "Coffee", -21.6, -45.4, [5, 6, 7, 8, 9], 3, 1, None, "Frost scorches coffee trees; the 1975, 1994 and 2021 frosts sent arabica soaring."),
+              ("Cerrado Mineiro coffee", "Coffee", -18.9, -46.9, [5, 6, 7, 8, 9], 3, 1, None, "Brazil's high-plateau arabica region."),
+              ("Paraná coffee", "Coffee", -23.3, -51.2, [5, 6, 7, 8, 9], 3, 1, None, "Southernmost Brazilian coffee, the most frost-exposed."),
+              ("Florida citrus belt", "Orange juice", 28.0, -81.6, [11, 12, 1, 2, 3], 1, -2, None, "Fruit freezes at about -2°C held for a few hours; freezes in the 1980s wiped out much of the northern groves."),
+              ("Kansas winter wheat", "Wheat", 38.5, -98.5, [11, 12, 1, 2, 3], -12, -18, 5, "Bare-ground cold below about -18°C can kill winter wheat; snow cover protects it."),
+              ("Ukraine winter wheat", "Wheat", 49.0, 32.0, [11, 12, 1, 2, 3], -12, -18, 5, "Winterkill risk when deep cold hits without snow cover."),
+              ("Southern Russia winter wheat", "Wheat", 45.5, 40.5, [11, 12, 1, 2, 3], -12, -18, 5, "Russia's main export wheat belt."),
+              ("Argentina wheat", "Wheat", -35.0, -61.0, [8, 9, 10], 1, -2, None, "Frost at heading in spring damages yields."),
+              ("Australia wheat (NSW)", "Wheat", -33.0, 147.0, [8, 9, 10], 1, -2, None, "Spring frost at flowering is a key yield risk."),
+              ("US Corn Belt", "Corn", 42.0, -93.5, [9, 10], 2, 0, None, "An early freeze before the crop matures cuts yield and quality."),
+          ]
+          m = now.month
+          act = [f for f in FROST if m in f[4] or (m % 12) + 1 in f[4]]
+          if act:
+              q = urllib.parse.urlencode({"latitude": ",".join(str(f[2]) for f in act), "longitude": ",".join(str(f[3]) for f in act),
+                                          "daily": "temperature_2m_min", "hourly": "snow_depth", "forecast_days": 10, "timezone": "UTC"})
+              j = get("https://api.open-meteo.com/v1/forecast?" + q)
+              if j is not None:
+                  j = j if isinstance(j, list) else [j]
+                  for f, d in zip(act, j):
+                      name, crop, lat, lon, months, watch, risk, snow, why = f
+                      days, tmin = d["daily"]["time"], d["daily"]["temperature_2m_min"]
+                      sd = {}
+                      for ts, s in zip(d["hourly"]["time"], d["hourly"]["snow_depth"]):
+                          if s is not None:
+                              k = ts[:10]; sd[k] = min(sd.get(k, 99), s * 100)
+                      lo = min((x for x in tmin if x is not None), default=None)
+                      worst = None
+                      for dd, x in zip(days, tmin):
+                          if x is None:
+                              continue
+                          cover = sd.get(dd)
+                          if snow is not None and cover is not None and cover >= snow:
+                              continue
+                          if x <= risk:
+                              lvl = 2
+                          elif x <= watch:
+                              lvl = 1
+                          else:
+                              continue
+                          if not worst or x < worst[1]:
+                              worst = (dd, x, lvl, cover)
+                      out["frost"].append({"n": name, "c": crop, "lat": lat, "lon": lon, "in_season": m in months, "tmin": tmin, "days": days,
+                                           "low": lo, "lvl": worst[2] if worst else 0, "day": worst[0] if worst else None, "t": worst[1] if worst else None,
+                                           "snow": worst[3] if worst else None, "watch": watch, "risk": risk, "needs_snow": snow, "why": why})
+                  print("frost sites", len(out["frost"]), [(x["n"], x["lvl"], x["t"]) for x in out["frost"] if x["lvl"]])
+
+          # ---------- wildfires (NASA FIRMS, VIIRS, last 24 h) ----------
+          raw = get("https://firms.modaps.eosdis.nasa.gov/data/active_fire/suomi-npp-viirs-c2/csv/SUOMI_VIIRS_C2_Global_24h.csv", raw=True, timeout=120)
+          if raw:
+              bins = {}
+              n = 0
+              for r in csv.DictReader(io.StringIO(raw.decode("utf-8", "ignore"))):
+                  try:
+                      if r.get("confidence", "n") == "l":
+                          continue
+                      la, lo, frp = float(r["latitude"]), float(r["longitude"]), float(r.get("frp") or 0)
+                  except Exception:
+                      continue
+                  n += 1
+                  k = (round(la * 2) / 2, round(lo * 2) / 2)
+                  b = bins.setdefault(k, [0, 0.0]); b[0] += 1; b[1] += frp
+              cells = sorted(([k[0], k[1], v[0], round(v[1])] for k, v in bins.items()), key=lambda x: -x[2])
+              out["fires"] = {"n": n, "cells": cells[:1500]}
+              print("fires", n, "cells", len(cells))
+          ok = bool(out["rivers"] or out["frost"] or out["fires"])
+          if ok:
+              json.dump(out, open("out/hazards.json", "w"), separators=(",", ":"))
+          PY
+      - name: Publish to hazards branch
+        run: |
+          [ -f out/hazards.json ] || { echo "no hazards built"; exit 1; }
+          cd out
+          git init -q && git checkout -q -b hazards
+          git config user.name "hazard-bot"
+          git config user.email "hazard-bot@users.noreply.github.com"
+          git add -A && git commit -q -m "Hazards"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" hazards
