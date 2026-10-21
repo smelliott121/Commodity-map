@@ -33,7 +33,7 @@ Keyboard: `/` search, `L` layers, `M` markets, `+`/`-` zoom, `Esc` close.
 
 - **Static site on GitHub Pages.** `index.html` is a small shell. Code lives in `app/`:
   `app.js` (map, panels, most features), `cmd.js` (search), `brief.js` (briefing + weather risk),
-  `sat.js` (satellite), `pins.js` (pinned tiles), `health.js` (data freshness), `geo.js` (coastlines), `app.css`.
+  `sat.js` (satellite), `windgl.js` (GPU wind streaks), `pins.js` (pinned tiles), `health.js` (data freshness), `geo.js` (coastlines), `app.css`.
 - **GitHub Actions jobs fetch the data** and publish each source to its **own branch**, so `main` only changes when code changes.
   The page reads those files from `raw.githubusercontent.com`.
 - **Service worker** (`sw.js`) caches the app for instant repeat loads and offline use.
