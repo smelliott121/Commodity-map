@@ -273,7 +273,7 @@ lineChart($("#enc1"),{labels:lab,tick:i=>SM.indexOf(R0[i][0])%3==0,full:i=>R0[i]
 const cy=new Date().getFullYear(),evs=[[cy,"var(--s1)",3],[1997,"var(--s2)"],[2015,"var(--s3)"],[2023,"var(--s4)"]],L2=[];for(let k=0;k<24;k++)L2.push(SMN[k%12]);
 lineChart($("#enc2"),{labels:L2,tick:i=>i%6==0,full:i=>SMN[i%12]+(i<12?", onset year":", following year"),h:180,series:evs.map(([y0,c,w])=>({n:y0+"–"+String(y0+1).slice(2),c,w:w||1.75,v:Array.from({length:24},(_,k)=>EN.oni?ix(EN.oni,SM[k%12],y0+(k<12?0:1)):null)}))});
 const bm=$("#enmap");if(bm)bm.onclick=()=>{const off=map.classList.toggle("off-enso");bm.textContent=(off?"Show":"Hide")+" on map";const eb=document.querySelector('#tg button[data-k="enso"]');if(eb)eb.classList.toggle("off",off)}}
-(async()=>{try{const r=await fetch("enso.json?t="+(Date.now()/36e5|0));if(!r.ok)return;EN=await r.json();if(!EN.roni||!EN.roni.length)return;
+(async()=>{try{const r=await getData("enso","enso.json");if(!r.ok)return;EN=await r.json();if(!EN.roni||!EN.roni.length)return;
 const ph=enPhase(),v=EN.roni.at(-1)[2],b=$("#enb");b.textContent=`🌊 ${ph>0?"El Niño":ph<0?"La Niña":"ENSO neutral"}${ph?" · "+enStr(v):""}`;b.className="enb "+(ph>0?"pos":ph<0?"neg":"");b.style.display="";b.onclick=showEnso;drawEnLayer()}catch(e){}})();
 
 const ALLC=R.map(r=>r.n),GR=["Corn","Wheat","Soybeans","Cotton","Rice"];
@@ -296,7 +296,7 @@ return Object.entries(by).map(([d,it])=>{const[y,mo,dd]=d.split("-").map(Number)
 const fl=[...new Set(it.map(i=>i.f))],flags=fl.slice(0,4).join("")+(fl.length>4?"+":"");const nms=[...new Set(it.map(i=>i.n.replace(/ \(observed\)/,"").replace(/^Early close \((.*)\)$/,"$1").replace(/ \(Spring Festival\)/,"")))],nm=nms.length==1?nms[0]:"Market holidays";
 const short=[cl.length?cl.map(i=>i.code).join(", ")+" closed":"",oth.length?oth.map(i=>i.code).join(", ")+" "+(oth[0].s=="early close"?"early close":"shortened"):""].filter(Boolean).join("; ");
 return{t:tzAt(y,mo,dd,0,0,"Europe/London"),n:flags+" "+nm+": "+short,c:[...new Set(it.flatMap(i=>i.c))],k:"h",allday:1,items:it,tz:"Europe/London"}})}
-(async()=>{try{const r=await fetch("holidays.json?t="+(Date.now()/36e5|0));if(r.ok){HOL=await r.json();ticker()}}catch(e){}})();
+(async()=>{try{const r=await getData("holidays","holidays.json");if(r.ok){HOL=await r.json();ticker()}}catch(e){}})();
 function hol(d){const s=d.toLocaleDateString("en-CA",{timeZone:"America/New_York"});return US.some(x=>x[0]==s)}
 function weekly(){const out=[],now=new Date(),thx=US.filter(x=>x[1]=="Thanksgiving").map(x=>x[0]);
 for(let k=-1;k<60;k++){const d=new Date(now.getTime()+k*864e5),s=d.toLocaleDateString("en-CA",{timeZone:"America/New_York"}),wd=new Date(s+"T12:00:00Z").getUTCDay();
@@ -570,7 +570,7 @@ $("#tick").onclick=e=>{e.target.closest(".ti.evn")?openNews("brk"):openCal()};se
 setInterval(()=>{document.querySelectorAll(".cd[data-t]").forEach(s=>{const t=+s.dataset.t;s.textContent=cd({t:new Date(t),allday:0})})},6e4);
 setInterval(ticker,30*6e4);
 
-let COT=null;(async()=>{try{const r=await fetch("cot.json?t="+(Date.now()/3e5|0));if(r.ok)COT=await r.json()}catch(e){}})();
+let COT=null;(async()=>{try{const r=await getData("cot","cot.json");if(r.ok)COT=await r.json()}catch(e){}})();
 function cotHTML(r){if(r.n=="Rubber"||r.n=="Iron ore")return`<div class="kh">Fund positioning</div><div class="note">The CFTC doesn't report this market.</div>`;
 return`<div class="kh">Fund positioning · CFTC, weekly</div><div class="lgd"><span><i style="background:var(--s1)"></i>Net long</span><span><i style="background:var(--s2)"></i>Net short</span><span>managed money, last 52 weeks</span></div><div id="cc" class="pc"><div class="note">Loading positioning…</div></div><div id="cst"></div>`}
 function drawCot(r){const box=$("#cc");if(!box)return;const c=COT&&COT.c[r.n];
@@ -598,6 +598,7 @@ $("#cst").innerHTML=`<div class="row"><span>Funds net (managed money)</span><b>$
 <div class="note">As of ${dt}, published the following Friday.${r.n=="Crude oil"?" Uses WTI (NYMEX) positioning; Brent is not reported by the CFTC.":""} Extreme positioning can mean a crowded trade at risk of reversing, not a timing signal on its own.</div>`}
 
 let HI=null;
+async function getData(br,file){for(const u of rawUrls(br,file)){try{const r=await fetch(u);if(r.ok)return r}catch(e){}}return new Response("null",{status:404})}
 function rawUrls(br,file){const m=location.hostname.match(/^([^.]+)\.github\.io$/),rp=location.pathname.split("/")[1];
 return m&&rp?[`https://raw.githubusercontent.com/${m[1]}/${rp}/${br}/${file}?t=${Date.now()/3e5|0}`,file]:[file]}
 async function hist(){for(const u of rawUrls("hist","history.json")){try{const r=await fetch(u);if(r.ok){HI=await r.json();break}}catch(e){}}}
@@ -678,7 +679,7 @@ ${s.fc&&s.fc.length?`<div class="kh">Forecast track</div><table class="ftb"><tr>
 <div class="kh">Within reach of its forecast path</div>${rk.length?'<ul class="dl">'+rk.map(x=>`<li><b>${x.n}</b> · ${x.k}, ~${Math.round(x.d/50)*50} km</li>`).join("")+"</ul>":'<div class="note" style="margin-top:4px">No tracked commodity regions, ports or chokepoints near its path.</div>'}
 ${s.url?`<div class="note"><a href="${s.url}" target="_blank" rel="noopener" style="color:inherit">Official advisory ↗</a></div>`:""}
 <div class="note">Solid line: where it has been. Dashed: forecast track${s.fc.some(f=>f.kt!=null)?", dots coloured by forecast strength":""}. ${s.cone.length?(s.src=="NHC"?"Grey area: NHC forecast cone, the likely path of the centre, not the size of the storm.":"Grey area: forecast reach of 60 km/h winds."):""} Distances are rough.</div>`)}
-async function storms(){let j=null;try{const r=await fetch("storms.json?t="+Date.now());if(r.ok)j=await r.json()}catch(e){}
+async function storms(){let j=null;try{const r=await getData("storms","storms.json");if(r.ok)j=await r.json()}catch(e){}
 document.querySelectorAll(".mk.L-storms").forEach(x=>x.remove());document.querySelectorAll(".chip.storm").forEach(x=>x.classList.remove("storm"));
 let g=OV.querySelector("g.L-storms");if(!g){g=document.createElementNS("http://www.w3.org/2000/svg","g");g.setAttribute("class","L-storms");OV.appendChild(g)}g.innerHTML="";
 STM=j?j.storms:[];
@@ -700,7 +701,7 @@ const ra7=(v,i)=>{let s=0,n=0;for(let k=Math.max(0,i-6);k<=i;k++){s+=v[k];n++}re
 function ckStat(c){const N=c.d.length,bl=a=>{const s=a.slice(Math.max(0,N-365),N-30);return s.length?s.reduce((x,y)=>x+y,0)/s.length:0},cur=a=>ra7(a,N-1);
 const o={};["tot","tank","cont","bulk","cap"].forEach(k=>{const a=c[k]||[],b=bl(a),v=cur(a);o[k]={v,b,p:b>0?v/b-1:null,y:N>371?ra7(a,N-365):null}});
 o.gap=c.tot.slice(-7).every(v=>!v)&&o.tot.b>=3;if(o.gap){o.tot.p=null}const p=o.tot.p;o.lv=o.gap?"gap":p==null||o.tot.b<3?"ok":p<=-.4?"severe":p<=-.2?"low":p>=.3?"high":"ok";o.last=c.d[N-1];return o}
-async function chokes(){try{const r=await fetch("chokes.json?t="+Date.now());if(r.ok)CK=await r.json()}catch(e){}
+async function chokes(){try{const r=await getData("chokes","chokes.json");if(r.ok)CK=await r.json()}catch(e){}
 if(!CK)return;MK.forEach(m=>{if(m.k!="choke"||!m.el)return;const c=CK.c[m.id];m.el.querySelector("b.cb")?.remove();if(!c||c.d.length<60)return;
 const s=m.cs=ckStat(c);m.el.style.setProperty("--cs",CST[s.lv][0]);m.el.classList.add("cdat");
 if(s.lv!="ok"&&s.tot.p!=null)m.el.insertAdjacentHTML("beforeend",`<b class="cb">${s.tot.p>0?"+":"−"}${Math.abs(Math.round(s.tot.p*100))}%</b>`);if(s.gap)m.el.insertAdjacentHTML("beforeend",`<b class="cb">no data</b>`);m.el.classList.toggle("cgap",!!s.gap);
@@ -840,8 +841,8 @@ const tt=(d.daily.temperature_2m_mean||[]).slice(7,14).filter(v=>v!=null);R[i].w
 R.forEach((r,i)=>{const k=P.names.indexOf(r.n);const d=A[k];if(!d)return;const s=d.daily.precipitation_sum,sum=x=>x.reduce((m,v)=>m+(v||0),0),tt=(d.daily.temperature_2m_mean||[]).slice(7,14).filter(v=>v!=null);
 r.w={tn:tt.length?tt.reduce((a,b)=>a+b,0)/tt.length:null,past:sum(s.slice(0,7)),next:sum(s.slice(7,14)),t:d.current.temperature_2m,cl:d.current.cloud_cover};paint(i)});wOK="gh";break}}catch(e2){}}}
 let pT=0;
-async function prices(){try{const j=await(await fetch("prices.json?t="+Date.now())).json();pT=j.updated;PX=j.prices;R.forEach((r,i)=>{const m=r.sym&&j.prices[r.sym];if(!m)return;r.p=m.price;r.ch=(m.price/m.prev-1)*100;r.live=1;r.gl=Math.abs(r.ch)>25;if(r.gl)r.ch=null;pOK++;paint(i)})}catch(e){}}
-async function climate(){try{const j=await(await fetch("climate.json?t="+Date.now())).json();R.forEach(r=>{const c=j.regions[r.n];if(c){r.cn=c.past;r.cx=c.next;r.ct=c.tnext}})}catch(e){}}
+async function prices(){try{const j=await(await getData("prices","prices.json")).json();pT=j.updated;PX=j.prices;R.forEach((r,i)=>{const m=r.sym&&j.prices[r.sym];if(!m)return;r.p=m.price;r.ch=(m.price/m.prev-1)*100;r.live=1;r.gl=Math.abs(r.ch)>25;if(r.gl)r.ch=null;pOK++;paint(i)})}catch(e){}}
+async function climate(){try{const j=await(await getData("climate","climate.json")).json();R.forEach(r=>{const c=j.regions[r.n];if(c){r.cn=c.past;r.cx=c.next;r.ct=c.tnext}})}catch(e){}}
 Promise.all([weather(),prices(),climate()]).then(()=>{R.forEach((r,i)=>paint(i));layout();$("#st").innerHTML=`Weather: ${wOK=="gh"?"via GitHub (6-hourly)":wOK?"live":"unavailable here"}<br>Prices: ${pOK?"delayed, "+new Date(pT*1000).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",hour12:false,timeZone:"Europe/London"})+" UK":"sample values"}`});
 let BW=1800;const WIDE=()=>innerWidth>=1000;
 function fit(){BW=Math.round(Math.max(innerWidth,innerHeight*2))}

@@ -57,9 +57,12 @@ jobs:
           if out:
               json.dump({"updated": int(time.time()), "c": out}, open("cot.json", "w"), separators=(",", ":"))
           PY
-      - name: Commit if changed
+      - name: Publish to cot branch
         run: |
+          [ -f cot.json ] || { echo "no cot.json built"; exit 1; }
+          mkdir -p pub && cp cot.json pub/ && cd pub
+          git init -q && git checkout -q -b cot
           git config user.name "cot-bot"
           git config user.email "cot-bot@users.noreply.github.com"
-          git add cot.json || true
-          git diff --cached --quiet || (git commit -m "Update COT" && git pull --rebase && git push)
+          git add -A && git commit -q -m "Update COT"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" cot

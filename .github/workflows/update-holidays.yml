@@ -80,9 +80,12 @@ jobs:
               print(x["code"], len(x["closed"]), "closed,", len(x["short"]), "shortened,", len(x["early"]), "early")
           json.dump({"updated": int(dt.datetime.now().timestamp()), "x": X}, open("holidays.json", "w"), separators=(",", ":"), ensure_ascii=False)
           PY
-      - name: Commit if changed
+      - name: Publish to holidays branch
         run: |
+          [ -f holidays.json ] || { echo "no holidays.json built"; exit 1; }
+          mkdir -p pub && cp holidays.json pub/ && cd pub
+          git init -q && git checkout -q -b holidays
           git config user.name "holiday-bot"
           git config user.email "holiday-bot@users.noreply.github.com"
-          git add holidays.json || true
-          git diff --cached --quiet || (git commit -m "Update market holidays" && git pull --rebase && git push)
+          git add -A && git commit -q -m "Update holidays"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" holidays

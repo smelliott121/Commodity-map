@@ -21,8 +21,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Get latest headlines
-        run: curl -sf "https://raw.githubusercontent.com/${{ github.repository }}/news/news.json?t=$(date +%s)" -o news.json || echo "no news yet"
+      - name: Get latest data from the data branches
+        run: |
+          for b in prices storms chokes cot climate enso holidays news state; do
+            if git fetch -q --depth 1 origin "$b" 2>/dev/null; then git checkout -q FETCH_HEAD -- . && echo "got $b"; else echo "no $b branch yet"; fi
+          done
+          ls -la *.json
       - name: Check data and send alerts
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
@@ -558,15 +562,16 @@ jobs:
                   return
               ST["last_run"] = NOW.isoformat()
               json.dump(ST, open("alerts_state.json", "w"), indent=0, sort_keys=True)
+              open(".state_changed", "w").write("1")
 
           main()
           PY
-      - name: Save alert memory
+      - name: Save alert memory to the state branch
         run: |
+          [ -f .state_changed ] || { echo "nothing new to save"; exit 0; }
+          mkdir -p pub && cp alerts_state.json pub/ && cd pub
+          git init -q && git checkout -q -b state
           git config user.name "alert-bot"
           git config user.email "alert-bot@users.noreply.github.com"
-          git add alerts_state.json || true
-          if ! git diff --cached --quiet; then
-            git commit -q -m "Update alert state"
-            for i in 1 2 3; do git pull -q --rebase && git push -q && break; sleep 5; done
-          fi
+          git add -A && git commit -q -m "Alert state"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" state
