@@ -11,6 +11,9 @@
   const WLy = document.getElementById("wxl");
   WLy.parentNode.insertBefore(wrap, WLy);
   const bImg = wrap.querySelector(".sb"), dImg = wrap.querySelector(".sd");
+  /* a dark halo under the coastline so countries stay readable over bright cloud */
+  const cst = document.querySelector("#ov path.cst");
+  if (cst) { const halo = cst.cloneNode(); halo.classList.add("cstd"); cst.before(halo) }
   let on = ls("cm_sat") == "1", dIdx = 1, detT = 0, lastU = "";
   function loadBase() {
     const d = day(dIdx);

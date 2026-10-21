@@ -276,3 +276,12 @@ body.unpinned:not(.awake) #pins{transform:translateY(-120px);opacity:0;pointer-e
 .hd{width:6px;height:6px;border-radius:50%;flex:none}.hd.ok{background:#3fcf8e}.hd.wa{background:#f2c94c}.hd.ba{background:#ff5a52}.hd.hm{background:var(--line2)}
 #lyb.warn::after{content:"";width:6px;height:6px;border-radius:50%;background:#ff5a52;margin-left:-2px}
 .lfoot{align-items:flex-start}
+
+/* readable coastlines and borders over satellite imagery */
+.cstd{display:none}
+body.saton #ov .cstd{display:inline;stroke:#000;stroke-opacity:.6;stroke-width:2.6}
+body.saton #ov .cst:not(.cstd){stroke:#fff;stroke-opacity:.95;stroke-width:1.1}
+body.saton #ov .bd{stroke:#fff;stroke-opacity:.55;stroke-width:.8}
+body.saton #wx{opacity:.38}
+:root[data-theme="light"] body.saton #ov .cst:not(.cstd){stroke:#0f1b22}
+:root[data-theme="light"] body.saton #ov .cstd{stroke:#fff}
