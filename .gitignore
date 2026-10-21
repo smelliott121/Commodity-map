@@ -1,0 +1,8 @@
+node_modules/
+shots/
+site/
+pub/
+out/
+.DS_Store
+*.log
+.state_changed
