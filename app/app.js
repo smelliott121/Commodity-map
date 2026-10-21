@@ -703,7 +703,7 @@ o.gap=c.tot.slice(-7).every(v=>!v)&&o.tot.b>=3;if(o.gap){o.tot.p=null}const p=o.
 async function chokes(){try{const r=await fetch("chokes.json?t="+Date.now());if(r.ok)CK=await r.json()}catch(e){}
 if(!CK)return;MK.forEach(m=>{if(m.k!="choke"||!m.el)return;const c=CK.c[m.id];m.el.querySelector("b.cb")?.remove();if(!c||c.d.length<60)return;
 const s=m.cs=ckStat(c);m.el.style.setProperty("--cs",CST[s.lv][0]);m.el.classList.add("cdat");
-if(s.lv!="ok"&&s.tot.p!=null)m.el.insertAdjacentHTML("beforeend",`<b class="cb">${s.tot.p>0?"+":"−"}${Math.abs(Math.round(s.tot.p*100))}%</b>`);
+if(s.lv!="ok"&&s.tot.p!=null)m.el.insertAdjacentHTML("beforeend",`<b class="cb">${s.tot.p>0?"+":"−"}${Math.abs(Math.round(s.tot.p*100))}%</b>`);if(s.gap)m.el.insertAdjacentHTML("beforeend",`<b class="cb">no data</b>`);m.el.classList.toggle("cgap",!!s.gap);
 m.el.title=s.gap?`${m.n}: no ships reported in the last 7 days (possible data gap)`:`${m.n}: ${Math.round(s.tot.v)} ships/day, ${s.tot.p>=0?"+":"−"}${Math.abs(Math.round(s.tot.p*100))}% vs normal`});layout()}
 function ckChart(box,c,s){const N=c.d.length,D=Math.min(120,N),a=N-D,W=box.clientWidth||340,Ht=170,pl=4,pr=36,pt=8,pb=20,iw=W-pl-pr,ih=Ht-pt-pb;
 const cur=[],ly=[];for(let i=a;i<N;i++){cur.push(ra7(c.tot,i));ly.push(i-364>=6?ra7(c.tot,i-364):null)}

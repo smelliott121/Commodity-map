@@ -265,3 +265,5 @@ body.saton .land{fill:color-mix(in srgb,var(--land) 55%,#000)}
 body.mkopen #pins{left:564px}body.calopen #pins{max-width:calc(100% - 360px)}
 body.unpinned:not(.awake) #pins{transform:translateY(-120px);opacity:0;pointer-events:none}
 @media (max-width:999px){#pins{left:8px;top:calc(98px + env(safe-area-inset-top,0px));max-width:calc(100% - 16px)}.ptile{width:126px;padding:6px 8px}.pval{font-size:14px}.pmid svg{width:44px}.ptile .px{opacity:.6}body.mkopen #pins{display:none}}
+
+.mk.L-choke.cgap{border-style:dashed;border-color:#9aa8b0;background:var(--sea)}.mk.L-choke.cgap b.cb{background:#4a565e;color:#e6edf0;font-weight:600;left:14px;top:-3px;transform:none}
