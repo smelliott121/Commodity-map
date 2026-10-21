@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Get latest data from the data branches
         run: |
-          for b in prices storms chokes cot climate enso holidays news hazards state; do
+          for b in prices storms chokes cot climate enso holidays news hazards supply state; do
             if git fetch -q --depth 1 origin "$b" 2>/dev/null; then git checkout -q FETCH_HEAD -- . && echo "got $b"; else echo "no $b branch yet"; fi
           done
           ls -la *.json
@@ -370,13 +370,36 @@ jobs:
                       alert(f"💧 {r['n']}: wettest soil in {s['n'] + 1} years for the time of year",
                             f"{r['loc']}: root-zone soil moisture {s['pct']:+.0f}% vs the 10-year normal (week to {s['asof']}). Can delay fieldwork and harvest.", "default", "droplet")
 
+          # ---------- USDA supply outlook: big revisions at each monthly report ----------
+          SUP_HOME = {"Coffee": "Brazil", "Wheat": "Ukraine", "Palm oil": "Indonesia", "Sugar": "India", "Corn": "United States", "Cotton": "United States", "Soybeans": "Brazil", "Rice": "India"}
+          def supply():
+              S = load("supply.json") or {}
+              rel = S.get("release")
+              if not rel or ST.get("sup_rel") == rel:
+                  return
+              first = ST.get("sup_rel") is None
+              ST["sup_rel"] = rel
+              if first:
+                  return
+              lines = []
+              for k, o in (S.get("c") or {}).items():
+                  my = o["my"][-1]; lab = f"{my}/{(my + 1) % 100:02d}"
+                  for label, lim in (("World production", 1.5), (f"{SUP_HOME.get(k, '')} production", 4)):
+                      L = (o.get("rev") or {}).get(f"{label}|{my}") or []
+                      if len(L) >= 2 and L[-1][0] == rel and L[-2][1]:
+                          p = (L[-1][1] / L[-2][1] - 1) * 100
+                          if abs(p) >= lim:
+                              lines.append(f"{k} {lab}: {label.replace(' production', '')} output {p:+.1f}%")
+              if lines and once("sup:" + rel, 40):
+                  alert(f"🌾 USDA revised {len(lines)} crop estimate{'s' if len(lines) > 1 else ''}", "\n".join("• " + x for x in lines[:8]) + "\nSee the Supply tab on the map.", "default", "ear_of_rice")
+
           # ---------- data health: stale sources and failed jobs ----------
           def health():
               wk = NOW.weekday() < 5
               checks = [("prices.json", "Prices", 3 if wk else 80, "Update prices"), ("storms.json", "Storms", 4, "Update storms"),
                         ("news.json", "News", 3, "Update news"), ("chokes.json", "Shipping", 48, "Update chokepoints"),
                         ("cot.json", "Positioning (CFTC)", 10 * 24, "Update COT positioning"), ("enso.json", "El Nino", 7 * 24, "Update ENSO"),
-                        ("holidays.json", "Market holidays", 40 * 24, "Update market holidays"), ("hazards.json", "Rivers, frost, fires", 9, "Update hazards")]
+                        ("holidays.json", "Market holidays", 40 * 24, "Update market holidays"), ("hazards.json", "Rivers, frost, fires", 9, "Update hazards"), ("supply.json", "Supply outlook (USDA)", 100, "Update supply outlook")]
               stale = []
               for f, name, lim, job in checks:
                   d = load(f)
@@ -600,7 +623,7 @@ jobs:
               if not TG_TOKEN and not NTFY:
                   print("No delivery set up (add TELEGRAM_TOKEN or NTFY_TOPIC secret). Stopping without saving.")
                   return
-              for f in (price_shocks, weather, storms, cot, enso, chokes, news, quakes, hazards, health):
+              for f in (price_shocks, weather, storms, cot, enso, chokes, news, quakes, hazards, supply, health):
                   try:
                       f()
                   except Exception as e:
@@ -608,7 +631,7 @@ jobs:
               if FIRST or MODE == "test":
                   OUT.clear()
                   cx = context_lines()
-                  alert("✅ Commodity alerts connected", "You'll get alerts for big price moves, unusual weather at critical crop stages, storms near markets, crowded fund positioning, shipping chokepoint disruptions, breaking market news, big earthquakes near mines and ports, low river levels, crop frost risk, record-dry soils and El Niño/La Niña changes, plus a 07:00 morning brief and a Sunday week-ahead." + ("\n\nRight now:\n" + "\n".join(cx) if cx else ""), "default", "white_check_mark")
+                  alert("✅ Commodity alerts connected", "You'll get alerts for big price moves, unusual weather at critical crop stages, storms near markets, crowded fund positioning, shipping chokepoint disruptions, breaking market news, big earthquakes near mines and ports, low river levels, crop frost risk, record-dry soils, big USDA crop revisions and El Niño/La Niña changes, plus a 07:00 morning brief and a Sunday week-ahead." + ("\n\nRight now:\n" + "\n".join(cx) if cx else ""), "default", "white_check_mark")
               try:
                   digests()
               except Exception as e:

@@ -20,6 +20,7 @@ Personal use only. The free data sources it uses are licensed for personal, non-
 | Frost | 10-day frost forecasts for coffee, citrus, wheat and corn regions in season (snow cover counted for winter wheat) | Open-Meteo |
 | Soil moisture | Root-zone soil water vs the 10-year normal for each crop region | ERA5 via Open-Meteo |
 | Wildfires | Satellite fire detections, last 24 h, binned to 0.5° | NASA FIRMS (VIIRS) |
+| Supply outlook | USDA world and country production, stocks-to-use vs 10-yr history, monthly revisions, and whether our weather data points below the estimate (season-aware) | USDA FAS PSD |
 | Rail | 18 key commodity rail corridors; US crude-by-rail monthly volumes | Built in; US EIA |
 | Freight | Dry bulk and tanker freight ETFs (BDRY, BWET) on the markets board | Yahoo Finance |
 | Markets board | 54 futures, rates, indices and FX with day/week/month moves | Yahoo Finance |
@@ -34,7 +35,8 @@ Personal use only. The free data sources it uses are licensed for personal, non-
 | Brief | Daily ranked "what stands out" across all of the above | Computed on the page |
 
 The **Hazards** tab on the markets board gathers rivers, frost, soil, fires, rail and freight in one place.
-Search codes include `HAZ`, `RIVER`, `FROST`, `FIRE`, `SOIL`, `RAIL`, `FREIGHT`.
+The **Supply** tab shows USDA crop outlooks next to what the map's weather says about them.
+Search codes include `SUPPLY`, `HAZ`, `RIVER`, `FROST`, `FIRE`, `SOIL`, `RAIL`, `FREIGHT`.
 
 Keyboard: `/` search, `L` layers, `M` markets, `+`/`-` zoom, `Esc` close.
 
@@ -66,6 +68,7 @@ Keyboard: `/` search, `L` layers, `M` markets, `+`/`-` zoom, `Esc` close.
 | Update ENSO | `enso/enso.json` | Tue, Fri 09:00 |
 | Update climate normals | `climate/climate.json` (rain normals + soil moisture) | daily 04:30 |
 | Update hazards | `hazards/hazards.json` (rivers, frost, fires) | every 3 h at :25 |
+| Update supply outlook | `supply/supply.json` (USDA PSD + revision log) | weekdays 17:40 |
 | Update market holidays | `holidays/holidays.json` | Mon 06:15 |
 | Commodity alerts | reads all of the above, saves `state/alerts_state.json` | after data jobs + :05/:35 |
 | Site check | opens the site at phone and desktop size, fails on page errors | every code push |
