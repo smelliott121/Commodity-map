@@ -162,8 +162,8 @@ function startA(){if(!raf)raf=requestAnimationFrame(anim)}
 function legend(){const L=$("#wxlg");if(!G){L.innerHTML="";return}if(wm=="off"){L.innerHTML="";return}
 const s=SC[wm],g=s.map(([v,c],i)=>`${c.length>7?c.slice(0,7)+(i?"":"00"):c} ${i/(s.length-1)*100}%`).join(",");
 L.innerHTML=`<i style="background:linear-gradient(90deg,${g})"></i><small>${s[0][0]}</small><small>${UN[wm]}</small><small>${s[s.length-1][0]}+</small>`}
-function tlabel(){if(!G){$("#wxtl").textContent="weather loading…";return}const d=new Date(G.times[wf]+"Z"),fh=wf*6;
-$("#wxtl").textContent=(fh?"+"+fh+"h · ":"Now · ")+d.toLocaleString("en-GB",{weekday:"short",hour:"2-digit",minute:"2-digit",hour12:false,timeZone:"Europe/London"})+" UK"}
+function tlabel(){if(!G){$("#wxtl").textContent="weather loading…";return}const d=new Date(G.times[wf]+"Z"),fh=Math.round((d-Date.now())/36e5);
+$("#wxtl").textContent=(Math.abs(fh)<=3?"Now · ":(fh>0?"+":"−")+Math.abs(fh)+"h · ")+d.toLocaleString("en-GB",{weekday:"short",hour:"2-digit",minute:"2-digit",hour12:false,timeZone:"Europe/London"})+" UK"}
 function wxResize(){drawWx();sizeP();startA()}
 [["off","Off"],["p","Rain"],["t","Temp"],["w","Wind"],["s","Streaks"]].forEach(([k,t])=>{const b=document.createElement("button");b.textContent=t;b.dataset.k=k;
 b.onclick=()=>{if(k=="s"){streak=!streak}else wm=k;segs();drawWx();startA()};$("#wxm").appendChild(b)});
@@ -172,7 +172,7 @@ $("#wxt").oninput=e=>{wf=+e.target.value;e.target.style.setProperty("--pc",wf/(+
 async function grid(){const m=location.hostname.match(/^([^.]+)\.github\.io$/),rp=location.pathname.split("/")[1];
 const urls=m&&rp?[`https://raw.githubusercontent.com/${m[1]}/${rp}/data/grid.json?t=${Date.now()/3e5|0}`,"grid.json"]:["grid.json"];
 for(const u of urls){try{const r=await fetch(u);if(r.ok){G=await r.json();break}}catch(e){}}
-if(G){$("#wxt").max=G.times.length-1;$("#wxs").textContent="Model data via Open-Meteo, updated "+new Date(G.updated*1000).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}
+if(G){$("#wxt").max=G.times.length-1;{let b=0,bd=1e15;G.times.forEach((t,i)=>{const d=Math.abs(Date.parse(t+"Z")-Date.now());if(d<bd){bd=d;b=i}});wf=b;const el=$("#wxt");el.value=b;el.style.setProperty("--pc",b/(+el.max||1)*100+"%")}$("#wxs").textContent="Model data via Open-Meteo, updated "+new Date(G.updated*1000).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}
 else $("#wxs").textContent="Weather layer not available yet";tlabel();wxResize()}
 segs();grid();
 function gridAt(lon,lat){if(!G)return null;const C=G.lons.length,Rn=G.lats.length,fx=(lon+180)/G.step,fy=(G.lats[0]-lat)/G.step,x0=Math.floor(fx),y0=Math.floor(fy),tx=fx-x0,ty=fy-y0;
