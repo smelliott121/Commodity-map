@@ -1,0 +1,60 @@
+name: Update refining
+on:
+  schedule:
+    - cron: "50 15 * * 3"
+    - cron: "50 16 * * 3"
+    - cron: "20 18 * * 4"
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  refining:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch EIA weekly refinery and stocks data
+        env:
+          EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+        run: |
+          mkdir -p out
+          python3 - <<'PY'
+          import json, os, time, datetime as dt, urllib.request
+          K = os.environ.get("EIA_API_KEY", "").strip()
+          if not K:
+              raise SystemExit("Add the EIA_API_KEY secret first (free key from eia.gov/opendata).")
+          S = {
+              "util": ("WPULEUS3", "Refinery utilisation", "%"),
+              "runs": ("WCRRIUS2", "Crude runs", "kb/d"),
+              "crude": ("WCESTUS1", "Commercial crude stocks", "kb"),
+              "cush": ("W_EPC0_SAX_YCUOK_MBBL", "Cushing crude stocks", "kb"),
+              "gas": ("WGTSTUS1", "Gasoline stocks", "kb"),
+              "dist": ("WDISTUS1", "Distillate stocks", "kb"),
+          }
+          start = (dt.date.today() - dt.timedelta(days=7 * 330)).isoformat()
+          out = {"updated": int(time.time()), "s": {}}
+          for k, (sid, name, unit) in S.items():
+              url = f"https://api.eia.gov/v2/seriesid/PET.{sid}.W?api_key={K}&start={start}&length=5000"
+              j = None
+              for a in range(3):
+                  try:
+                      j = json.load(urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "commodity-map"}), timeout=40)); break
+                  except Exception as e:
+                      print("retry", k, str(e).replace(K, "***")); time.sleep(5)
+              rows = ((j or {}).get("response") or {}).get("data") or []
+              pts = sorted((r["period"], float(r["value"])) for r in rows if r.get("value") not in (None, ""))
+              if len(pts) < 50:
+                  print("not enough data for", k, len(pts)); continue
+              out["s"][k] = {"n": name, "u": unit, "d": [p for p, _ in pts], "v": [v for _, v in pts]}
+              print(k, len(pts), "latest", pts[-1])
+          if len(out["s"]) >= 3:
+              json.dump(out, open("out/refining.json", "w"), separators=(",", ":"))
+          PY
+      - name: Publish to refining branch
+        run: |
+          [ -f out/refining.json ] || { echo "no refining data built"; exit 1; }
+          cd out
+          git init -q && git checkout -q -b refining
+          git config user.name "refining-bot"
+          git config user.email "refining-bot@users.noreply.github.com"
+          git add -A && git commit -q -m "Refining data"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" refining

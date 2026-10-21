@@ -282,6 +282,40 @@ jobs:
                   sent.append([NOW.timestamp(), sorted(w)]); today.append(1); new += 1
               ST["news_sent"] = sent
 
+          # ---------- earthquakes ----------
+          QSITES = [("Escondida copper mine", -24.27, -69.07), ("Collahuasi copper mine", -20.98, -68.64), ("El Teniente copper mine", -34.09, -70.35),
+                    ("Antamina copper-zinc mine", -9.54, -77.05), ("Las Bambas copper mine", -14.21, -72.1), ("Cerro Verde copper mine", -16.53, -71.6),
+                    ("Grasberg copper-gold mine", -4.05, 137.11), ("Morenci copper mine", 33.08, -109.36), ("Cobre Panama copper mine", 8.84, -80.65),
+                    ("Kamoa-Kakula copper mine", -10.8, 25.4), ("Oyu Tolgoi copper mine", 43.0, 106.85), ("Norilsk nickel-palladium", 69.35, 88.2),
+                    ("Weda Bay nickel", 0.47, 127.9), ("Sorowako nickel", -2.53, 121.36), ("Carajas iron ore", -6.06, -50.17), ("Greenbushes lithium", -33.86, 116.06),
+                    ("Atacama lithium brines", -23.5, -68.3), ("Taiwan chip fabs (Hsinchu)", 24.8, 120.97), ("Jamnagar refinery", 22.35, 69.85),
+                    ("Ulsan refinery", 35.47, 129.37), ("Ruwais refinery", 24.1, 52.73), ("Port Arthur refinery", 29.9, -93.95), ("Jurong Island refinery", 1.26, 103.69)]
+          def quakes():
+              try:
+                  Q = json.loads(http("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson"))
+              except Exception as e:
+                  print("USGS fetch failed", e); return
+              sites = [(r["n"] + " (" + r["loc"] + ")", r["lat"], r["lon"]) for r in R] + [(m["n"], m["lat"], m["lon"]) for m in MK] + QSITES
+              for f in Q.get("features", []):
+                  p = f["properties"]; lon, lat, dep = f["geometry"]["coordinates"]
+                  mag = p.get("mag") or 0; al = p.get("alert")
+                  if NOW.timestamp() - p["time"] / 1000 > 6 * 3600:
+                      continue
+                  near = sorted((km(lat, lon, a, b), n) for n, a, b in sites)
+                  near = [(d, n) for d, n in near if d < 300]
+                  if not ((mag >= 6 and near) or al in ("orange", "red") or mag >= 7.5):
+                      continue
+                  if not once("quake:" + f["id"], 30):
+                      continue
+                  when = dt.datetime.fromtimestamp(p["time"] / 1000, dt.timezone.utc).astimezone(UK)
+                  body = f"{p.get('place', '')} at {when:%H:%M} UK, depth {dep:.0f} km." + (f" USGS damage estimate: {al}." if al else "")
+                  if near:
+                      body += "\nNearby: " + "; ".join(f"{n} {d:.0f} km" for d, n in near[:4])
+                  if p.get("tsunami"):
+                      body += "\nTsunami flag raised: check official warnings."
+                  alert(f"🌍 M{mag:.1f} earthquake{' near ' + near[0][1].split(' (')[0] if near else ''}", body,
+                        "urgent" if al in ("orange", "red") or mag >= 7 else "high", "earth_americas")
+
           # ---------- ENSO ----------
           def enso():
               E = load("enso.json")
@@ -411,7 +445,7 @@ jobs:
               if not TG_TOKEN and not NTFY:
                   print("No delivery set up (add TELEGRAM_TOKEN or NTFY_TOPIC secret). Stopping without saving.")
                   return
-              for f in (price_shocks, weather, storms, cot, enso, chokes, news):
+              for f in (price_shocks, weather, storms, cot, enso, chokes, news, quakes):
                   try:
                       f()
                   except Exception as e:
@@ -419,7 +453,7 @@ jobs:
               if FIRST or MODE == "test":
                   OUT.clear()
                   cx = context_lines()
-                  alert("✅ Commodity alerts connected", "You'll get alerts for big price moves, unusual weather at critical crop stages, storms near markets, crowded fund positioning, shipping chokepoint disruptions, breaking market news and El Niño/La Niña changes, plus a 07:00 morning brief and a Sunday week-ahead." + ("\n\nRight now:\n" + "\n".join(cx) if cx else ""), "default", "white_check_mark")
+                  alert("✅ Commodity alerts connected", "You'll get alerts for big price moves, unusual weather at critical crop stages, storms near markets, crowded fund positioning, shipping chokepoint disruptions, breaking market news, big earthquakes near mines and ports, and El Niño/La Niña changes, plus a 07:00 morning brief and a Sunday week-ahead." + ("\n\nRight now:\n" + "\n".join(cx) if cx else ""), "default", "white_check_mark")
               try:
                   digests()
               except Exception as e:
