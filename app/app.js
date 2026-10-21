@@ -684,7 +684,7 @@ ${s.url?`<div class="note"><a href="${s.url}" target="_blank" rel="noopener" sty
 async function storms(){let j=null;try{const r=await getData("storms","storms.json");if(r.ok)j=await r.json()}catch(e){}
 document.querySelectorAll(".mk.L-storms").forEach(x=>x.remove());document.querySelectorAll(".chip.storm").forEach(x=>x.classList.remove("storm"));
 let g=OV.querySelector("g.L-storms");if(!g){g=document.createElementNS("http://www.w3.org/2000/svg","g");g.setAttribute("class","L-storms");OV.appendChild(g)}g.innerHTML="";
-STM=j?j.storms:[];
+STM=j?j.storms:[];window.STU=j?j.updated:null;
 STM.forEach((s,si)=>{s.past=s.past||[];s.fc=s.fc||[];s.cone.forEach(c=>g.insertAdjacentHTML("beforeend",`<path class="stc" d="${wrapPath(c,1)}"/>`));
 if(s.past.length>1)g.insertAdjacentHTML("beforeend",`<path class="stp" d="${wrapPath(s.past.concat([[s.lon,s.lat]]),0)}"/>`);
 if(s.track.length>1)g.insertAdjacentHTML("beforeend",`<path class="stt" d="${wrapPath(s.track,0)}"/>`);
@@ -845,7 +845,7 @@ r.w={tn:tt.length?tt.reduce((a,b)=>a+b,0)/tt.length:null,past:sum(s.slice(0,7)),
 let pT=0;
 async function prices(){try{const j=await(await getData("prices","prices.json")).json();pT=j.updated;PX=j.prices;R.forEach((r,i)=>{const m=r.sym&&j.prices[r.sym];if(!m)return;r.p=m.price;r.ch=(m.price/m.prev-1)*100;r.live=1;r.gl=Math.abs(r.ch)>25;if(r.gl)r.ch=null;pOK++;paint(i)})}catch(e){}}
 async function climate(){try{const j=await(await getData("climate","climate.json")).json();R.forEach(r=>{const c=j.regions[r.n];if(c){r.cn=c.past;r.cx=c.next;r.ct=c.tnext}})}catch(e){}}
-Promise.all([weather(),prices(),climate()]).then(()=>{R.forEach((r,i)=>paint(i));layout();$("#st").innerHTML=`Weather: ${wOK=="gh"?"via GitHub (6-hourly)":wOK?"live":"unavailable here"}<br>Prices: ${pOK?"delayed, "+new Date(pT*1000).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",hour12:false,timeZone:"Europe/London"})+" UK":"sample values"}`});
+Promise.all([weather(),prices(),climate()]).then(()=>{R.forEach((r,i)=>paint(i));layout();(typeof renderHealth=="function"&&renderHealth())});
 let BW=1800;const WIDE=()=>innerWidth>=1000;
 function fit(){BW=Math.round(Math.max(innerWidth,innerHeight*2))}
 fit();let z=1;map.style.width=BW*z+"px";

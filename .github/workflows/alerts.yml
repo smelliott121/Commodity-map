@@ -13,6 +13,7 @@ on:
         default: true
 permissions:
   contents: write
+  actions: read
 concurrency:
   group: alerts
   cancel-in-progress: false
@@ -32,6 +33,7 @@ jobs:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          GH_TOKEN: ${{ github.token }}
           ALERT_MODE: ${{ inputs.test && 'test' || 'auto' }}
         run: |
           python3 - <<'PY'
@@ -322,6 +324,42 @@ jobs:
                   alert(f"🌍 M{mag:.1f} earthquake{' near ' + near[0][1].split(' (')[0] if near else ''}", body,
                         "urgent" if al in ("orange", "red") or mag >= 7 else "high", "earth_americas")
 
+          # ---------- data health: stale sources and failed jobs ----------
+          def health():
+              wk = NOW.weekday() < 5
+              checks = [("prices.json", "Prices", 3 if wk else 80, "Update prices"), ("storms.json", "Storms", 4, "Update storms"),
+                        ("news.json", "News", 3, "Update news"), ("chokes.json", "Shipping", 48, "Update chokepoints"),
+                        ("cot.json", "Positioning (CFTC)", 10 * 24, "Update COT positioning"), ("enso.json", "El Nino", 7 * 24, "Update ENSO"),
+                        ("holidays.json", "Market holidays", 40 * 24, "Update market holidays")]
+              stale = []
+              for f, name, lim, job in checks:
+                  d = load(f)
+                  if not d or not d.get("updated"):
+                      continue
+                  h = (NOW.timestamp() - d["updated"]) / 3600
+                  if h > lim:
+                      stale.append(f"{name}: last updated {h:.0f}h ago (job: {job})")
+              if stale and once("health:stale:" + UKNOW.strftime("%Y-%m-%d"), 1):
+                  alert("🩺 Some map data has gone stale", "\n".join("• " + x for x in stale) + "\nCheck the Actions tab in GitHub for a failing job.", "default", "stethoscope")
+              tok = os.environ.get("GH_TOKEN", "").strip()
+              if not tok:
+                  return
+              try:
+                  runs = json.loads(http(f"https://api.github.com/repos/{REPO}/actions/runs?status=failure&per_page=20",
+                                         headers={"Authorization": f"Bearer {tok}", "Accept": "application/vnd.github+json", "User-Agent": "commodity-alerts"}))
+              except Exception as e:
+                  print("could not read job runs", e); return
+              bad = []
+              for r in runs.get("workflow_runs", []):
+                  try:
+                      t = dt.datetime.fromisoformat(r["updated_at"].replace("Z", "+00:00"))
+                  except Exception:
+                      continue
+                  if (NOW - t).total_seconds() < 12 * 3600 and r.get("name") != "Commodity alerts" and once("health:run:" + str(r["id"]), 30):
+                      bad.append(f"{r['name']} failed at {t.astimezone(UK):%H:%M} UK")
+              if bad:
+                  alert("🛠️ A data job failed", "\n".join("• " + x for x in bad[:5]) + "\nIt will retry on its next schedule; tell Claude if it keeps failing.", "default", "hammer_and_wrench")
+
           # ---------- ENSO ----------
           def enso():
               E = load("enso.json")
@@ -513,7 +551,7 @@ jobs:
               if not TG_TOKEN and not NTFY:
                   print("No delivery set up (add TELEGRAM_TOKEN or NTFY_TOPIC secret). Stopping without saving.")
                   return
-              for f in (price_shocks, weather, storms, cot, enso, chokes, news, quakes):
+              for f in (price_shocks, weather, storms, cot, enso, chokes, news, quakes, health):
                   try:
                       f()
                   except Exception as e:
