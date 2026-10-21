@@ -64,6 +64,17 @@ jobs:
                   "mining.com", "lloyd's list", "tradewinds", "splash247", "oilprice", "rigzone", "kitco", "barchart", "nasdaq", "marketwatch",
                   "business recorder", "the edge", "bernama", "hellenic shipping", "ship & bunker", "fastmarkets", "argus media", "bbc", "al jazeera", "guardian"]
           UA = {"User-Agent": "Mozilla/5.0 (commodity-map news)"}
+          # a headline only counts for a market if it mentions it (Google sometimes returns off-topic stories)
+          KW = {"Cocoa": ["cocoa", "cacao", "grind"], "Coffee": ["coffee", "arabica", "robusta"], "Wheat": ["wheat", "grain"], "Palm oil": ["palm"],
+                "Copper": ["copper"], "Sugar": ["sugar", "cane", "ethanol"], "Corn": ["corn", "maize"], "Cotton": ["cotton"],
+                "Crude oil": ["oil", "crude", "brent", "opec", "wti", "refiner"], "Nat gas": ["gas", "lng", "henry hub", "ttf"],
+                "Soybeans": ["soy", "soybean", "soybeans"], "Gold": ["gold", "bullion"], "Silver": ["silver"], "Platinum": ["platinum", "palladium", "pgm"],
+                "Lumber": ["lumber", "timber", "sawmill", "softwood"], "Orange juice": ["orange", "citrus", "oj"], "Rubber": ["rubber"], "Rice": ["rice"],
+                "Lithium": ["lithium"], "Iron ore": ["iron ore", "steel"], "chokepoint6": ["hormuz"], "chokepoint4": ["red sea", "bab el", "houthi"],
+                "chokepoint1": ["suez"], "chokepoint2": ["panama"], "chokepoint5": ["malacca"], "chokepoint3": ["bosphorus", "bosporus", "black sea"], "chokepoint11": ["taiwan"]}
+          def latin(t):
+              L = [c for c in t if c.isalpha()]
+              return not L or sum(1 for c in L if ord(c) > 0x24F and not 0x1E00 <= ord(c) <= 0x1EFF) / len(L) < .15
           STOP = set("the a an of to in on for and or as at by with from is are be its it this that after over amid into than up down new says said may could will".split())
           def words(t):
               return set(w for w in re.findall(r"[a-z0-9]+", t.lower()) if w not in STOP and len(w) > 2)
@@ -90,7 +101,9 @@ jobs:
                       ts = email.utils.parsedate_to_datetime(it.findtext("pubDate")).timestamp()
                   except Exception:
                       ts = now
-                  if now - ts > 3 * 86400 or not title:
+                  if now - ts > 3 * 86400 or not title or not latin(title):
+                      continue
+                  if key in KW and not any(" " + w in " " + re.sub(r"[^a-z0-9 ]", " ", title.lower()) + " " for w in KW[key]):
                       continue
                   iid = re.sub(r"[^a-z0-9]", "", title.lower())[:80]
                   x = items.get(iid)

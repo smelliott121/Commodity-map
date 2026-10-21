@@ -229,7 +229,7 @@ jobs:
                   a7 = sum(t[-7:]) / 7
                   bl = t[max(0, n - 365):n - 30]
                   base = sum(bl) / len(bl) if bl else 0
-                  if base < 3:
+                  if base < 3 or sum(t[-7:]) == 0:
                       continue
                   pct = a7 / base - 1
                   lv = "severe" if pct <= -0.4 else "low" if pct <= -0.2 else "high" if pct >= 0.3 else "ok"
@@ -415,7 +415,7 @@ jobs:
                   if n < 120:
                       continue
                   bl = t[max(0, n - 365):n - 30]; base = sum(bl) / len(bl) if bl else 0
-                  if base >= 3:
+                  if base >= 3 and sum(t[-7:]) > 0:
                       p = (sum(t[-7:]) / 7) / base - 1
                       if p <= -.2 or p >= .3:
                           L.append(f"{names.get(pid, c['name'])} shipping traffic {p * 100:+.0f}% vs normal")

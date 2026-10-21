@@ -53,8 +53,9 @@
     }
     const raw = Math.max(dry, wet) + heat + ens;
     out.score = Math.round(Math.min(10, raw * wt * 1.25) * 10) / 10;
-    if (dry > wet && dry >= 1.5) out.why.push(`dry: rain ${rp != null ? sg(rp * 100, 0) + "%" : ""} last week${rx != null ? `, ${sg(rx * 100, 0)}% next week` : ""} vs normal`);
-    if (wet > dry && wet >= 1.5) out.why.push(`wet: rain ${rp != null ? sg(rp * 100, 0) + "%" : ""} last week${rx != null ? `, ${sg(rx * 100, 0)}% next week` : ""} vs normal`);
+    const rainTxt = [rp != null ? `${sg(rp * 100, 0)}% last week` : "", rx != null ? `${sg(rx * 100, 0)}% next week` : ""].filter(Boolean).join(", ") + " vs normal";
+    if (dry > wet && dry >= 1.5) out.why.push(`${rp != null && rp > .2 && rx != null && rx < -.2 ? "turning dry" : "dry"}: rain ${rainTxt}`);
+    if (wet > dry && wet >= 1.5) out.why.push(`${rx != null && rx > .6 && (rp == null || rp < .2) ? "turning wet" : "wet"}: rain ${rainTxt}`);
     if (heat >= 1) out.why.push(`${sg(out.tA)}°C hotter than normal next week`);
     if (ens) out.why.push(`El Niño/La Niña: typically ${out.enso} now`);
     if (lvl == 2 && out.why.length) out.why.push("critical crop stage");
@@ -89,7 +90,7 @@
   }
   function watching() {
     const L = [];
-    MK.forEach(m => { if (m.cs && m.cs.lv != "ok") L.push({ t: `${m.n}: shipping traffic ${sg(m.cs.tot.p * 100, 0)}% vs normal`, run: () => showChoke(m), sev: m.cs.lv == "severe" ? 3 : 2 }) });
+    MK.forEach(m => { if (m.cs && m.cs.lv != "ok" && m.cs.lv != "gap") L.push({ t: `${m.n}: shipping traffic ${sg(m.cs.tot.p * 100, 0)}% vs normal`, run: () => showChoke(m), sev: m.cs.lv == "severe" ? 3 : 2 }) });
     (typeof STM != "undefined" && STM ? STM : []).forEach(s => L.push({ t: `Storm ${s.name}: ${s.kt} kt`, run: () => showStorm(s), sev: s.kt >= 64 ? 3 : 1 }));
     (typeof QK != "undefined" ? QK : []).filter(q => q.properties.mag >= 6 && Date.now() - q.properties.time < 3 * 864e5).forEach(q => L.push({ t: `M${q.properties.mag.toFixed(1)} earthquake: ${q.properties.place || ""}`, run: () => showQuake(q), sev: q.properties.alert == "orange" || q.properties.alert == "red" ? 3 : 1 }));
     if (typeof UK != "undefined" && UK) { const n = ukNow(), pr = ukPrice(); if (n && n.o.wind < 12) L.push({ t: `UK wind only ${Math.round(n.o.wind)}% of power: more gas burn`, run: showUK, sev: 2 }); if (pr && pr.p > 150) L.push({ t: `UK power price £${Math.round(pr.p)}/MWh`, run: showUK, sev: 2 }) }

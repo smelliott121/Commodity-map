@@ -34,7 +34,7 @@
     } else if (p.t == "k") {
       const m = MK.find(x => x.id == p.k || x.n == p.k); if (!m) return null;
       name = m.n.replace("Strait of ", ""); open = () => showChoke(m);
-      if (m.cs) { val = Math.round(m.cs.tot.v) + " ships"; sub = `<i style="color:${CST[m.cs.lv][0]}">${sg(m.cs.tot.p * 100)}%</i> vs normal` }
+      if (m.cs) { val = Math.round(m.cs.tot.v) + " ships"; sub = m.cs.gap ? "no recent data" : `<i style="color:${CST[m.cs.lv][0]}">${sg(m.cs.tot.p * 100)}%</i> vs normal` }
     } else if (p.t == "uk") {
       name = "UK power"; open = () => showUK();
       if (typeof UK != "undefined" && UK) { const pr = ukPrice(), n = ukNow(); if (pr) val = "£" + Math.round(pr.p); if (n) sub = `<i style="color:var(--f-wind)">wind ${Math.round(n.o.wind)}%</i>` }

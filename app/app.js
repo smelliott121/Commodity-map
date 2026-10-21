@@ -558,7 +558,11 @@ info(`<h2>Market news</h2><div class="seg" id="nwf">${fl.map(([k,t])=>`<button d
 <div class="nwl">${L.length?L.map(x=>nwRow(x,1)).join(""):'<div class="note">Nothing in this group right now.</div>'}</div>
 <div class="note">Headlines via Google News, refreshed every 20 minutes. Updated ${ago(NW.updated)}. ⚡ Breaking = strong market-moving words, carried by several outlets, in the last 6 hours.</div>`);
 document.querySelectorAll("#nwf button").forEach(b=>b.onclick=()=>openNews(b.dataset.k))}
-async function news(){for(const u of rawUrls("news","news.json")){try{const r=await fetch(u.replace(/\?t=\d+/,"?t="+(Date.now()/12e4|0)));if(r.ok){NW=await r.json();break}}catch(e){}}
+const NKW={"Cocoa":["cocoa","cacao","grind"],"Coffee":["coffee","arabica","robusta"],"Wheat":["wheat","grain"],"Palm oil":["palm"],"Copper":["copper"],"Sugar":["sugar","cane","ethanol"],"Corn":["corn","maize"],"Cotton":["cotton"],"Crude oil":["oil","crude","brent","opec","wti","refiner"],"Nat gas":["gas","lng","henry hub","ttf"],"Soybeans":["soy","soybean","soybeans"],"Gold":["gold","bullion"],"Silver":["silver"],"Platinum":["platinum","palladium","pgm"],"Lumber":["lumber","timber","sawmill","softwood"],"Orange juice":["orange","citrus","oj"],"Rubber":["rubber"],"Rice":["rice"],"Lithium":["lithium"],"Iron ore":["iron ore","steel"],chokepoint6:["hormuz"],chokepoint4:["red sea","bab el","houthi"],chokepoint1:["suez"],chokepoint2:["panama"],chokepoint5:["malacca"],chokepoint3:["bosphorus","bosporus","black sea"],chokepoint11:["taiwan"]};
+/* drop off-topic and non-English headlines that Google News sometimes returns for a search */
+function nwClean(){if(!NW||!NW.items)return;const latin=t=>{const L=t.replace(/[\s\d\p{P}\p{S}]/gu,"");if(!L)return true;const bad=L.replace(/[\u0000-ɏḀ-ỿ]/g,"").length;return bad/L.length<.15};
+NW.items=NW.items.filter(x=>latin(x.t)).map(x=>{const t=" "+x.t.toLowerCase().replace(/[^a-z0-9 ]/g," ")+" ";x.k=x.k.filter(k=>!NKW[k]||NKW[k].some(w=>t.includes(" "+w)));return x}).filter(x=>x.k.length)}
+async function news(){for(const u of rawUrls("news","news.json")){try{const r=await fetch(u.replace(/\?t=\d+/,"?t="+(Date.now()/12e4|0)));if(r.ok){NW=await r.json();nwClean();break}}catch(e){}}
 if(!NW)return;const B=nwBreaking();$("#nwb").classList.toggle("hot",B.length>0);
 R.forEach((r,i)=>{const c=$("#c"+i);c&&c.classList.toggle("brk",B.some(x=>x.k.includes(r.n)))});ticker()}
 $("#nwb").onclick=()=>openNews("all");news();setInterval(news,10*6e4);
@@ -691,16 +695,16 @@ layout()}
 storms();
 
 /* ---- chokepoint traffic (IMF PortWatch) ---- */
-let CK=null;const CST={severe:["#d33b3b","Severe drop"],low:["#e0a020","Below normal"],ok:["#3a9a5b","Normal"],high:["#2a78d6","Busier than normal"]};
+let CK=null;const CST={gap:["#6f7d86","No recent data"],severe:["#d33b3b","Severe drop"],low:["#e0a020","Below normal"],ok:["#3a9a5b","Normal"],high:["#2a78d6","Busier than normal"]};
 const ra7=(v,i)=>{let s=0,n=0;for(let k=Math.max(0,i-6);k<=i;k++){s+=v[k];n++}return s/n};
 function ckStat(c){const N=c.d.length,bl=a=>{const s=a.slice(Math.max(0,N-365),N-30);return s.length?s.reduce((x,y)=>x+y,0)/s.length:0},cur=a=>ra7(a,N-1);
 const o={};["tot","tank","cont","bulk","cap"].forEach(k=>{const a=c[k]||[],b=bl(a),v=cur(a);o[k]={v,b,p:b>0?v/b-1:null,y:N>371?ra7(a,N-365):null}});
-const p=o.tot.p;o.lv=p==null||o.tot.b<3?"ok":p<=-.4?"severe":p<=-.2?"low":p>=.3?"high":"ok";o.last=c.d[N-1];return o}
+o.gap=c.tot.slice(-7).every(v=>!v)&&o.tot.b>=3;if(o.gap){o.tot.p=null}const p=o.tot.p;o.lv=o.gap?"gap":p==null||o.tot.b<3?"ok":p<=-.4?"severe":p<=-.2?"low":p>=.3?"high":"ok";o.last=c.d[N-1];return o}
 async function chokes(){try{const r=await fetch("chokes.json?t="+Date.now());if(r.ok)CK=await r.json()}catch(e){}
 if(!CK)return;MK.forEach(m=>{if(m.k!="choke"||!m.el)return;const c=CK.c[m.id];m.el.querySelector("b.cb")?.remove();if(!c||c.d.length<60)return;
 const s=m.cs=ckStat(c);m.el.style.setProperty("--cs",CST[s.lv][0]);m.el.classList.add("cdat");
 if(s.lv!="ok"&&s.tot.p!=null)m.el.insertAdjacentHTML("beforeend",`<b class="cb">${s.tot.p>0?"+":"−"}${Math.abs(Math.round(s.tot.p*100))}%</b>`);
-m.el.title=`${m.n}: ${Math.round(s.tot.v)} ships/day, ${s.tot.p>=0?"+":"−"}${Math.abs(Math.round(s.tot.p*100))}% vs normal`});layout()}
+m.el.title=s.gap?`${m.n}: no ships reported in the last 7 days (possible data gap)`:`${m.n}: ${Math.round(s.tot.v)} ships/day, ${s.tot.p>=0?"+":"−"}${Math.abs(Math.round(s.tot.p*100))}% vs normal`});layout()}
 function ckChart(box,c,s){const N=c.d.length,D=Math.min(120,N),a=N-D,W=box.clientWidth||340,Ht=170,pl=4,pr=36,pt=8,pb=20,iw=W-pl-pr,ih=Ht-pt-pb;
 const cur=[],ly=[];for(let i=a;i<N;i++){cur.push(ra7(c.tot,i));ly.push(i-364>=6?ra7(c.tot,i-364):null)}
 const mx=Math.max(s.tot.b,...cur,...ly.filter(v=>v!=null))*1.12,x=i=>pl+i/(D-1)*iw,y=v=>pt+(1-v/mx)*ih;
