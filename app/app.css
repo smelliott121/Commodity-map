@@ -200,3 +200,26 @@ body.wxon #mkp{bottom:calc(118px + env(safe-area-inset-bottom,0px))}body.mkopen 
 @media (prefers-reduced-motion:reduce){.mk.L-quake.qr::before{animation:none}}
 #map.off-quake .L-quake{display:none}
 .qtag{display:inline-block;font-size:11px;font-weight:600;border-radius:5px;padding:2px 7px;margin-right:6px;color:#111;background:var(--qc)}
+
+/* ---- command bar ---- */
+#cmd{position:fixed;inset:0;z-index:50;display:none;background:rgba(3,8,12,.5)}
+:root[data-theme="light"] #cmd{background:rgba(15,27,34,.18)}
+#cmd.open{display:block}
+.cmdbox{position:absolute;left:50%;top:max(70px,12vh);transform:translateX(-50%);width:min(620px,calc(100% - 20px));border-radius:16px;overflow:hidden;animation:cmdin .16s cubic-bezier(.2,.8,.2,1)}
+@keyframes cmdin{from{opacity:0;transform:translateX(-50%) translateY(-6px) scale(.98)}}
+.cmdin{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.cmdin svg{width:18px;height:18px;color:var(--amb);flex:none}
+#cmdq{flex:1;min-width:0;background:none;border:none;outline:none;color:var(--ink);font:500 17px var(--ui);letter-spacing:-.01em}
+#cmdq::placeholder{color:var(--mut)}
+kbd{font:500 10.5px var(--num);color:var(--mut);border:1px solid var(--line2);border-radius:5px;padding:1px 5px}
+#cmdr{max-height:min(420px,60dvh);overflow:auto;padding:6px}
+.cmdi{display:grid;grid-template-columns:86px minmax(0,1fr);grid-template-rows:auto auto;column-gap:10px;padding:8px 10px;border-radius:9px;cursor:pointer}
+.cmdi.on{background:var(--amb2)}.cmdi.on b{color:var(--amb)}
+.cmdg{grid-row:1/3;align-self:center;font-size:11px;color:var(--mut)}
+.cmdi b{font-weight:500;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cmdi small{color:var(--mut);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cmdh{padding:10px 10px 12px;font-size:12px;color:var(--mut)}.cmdh>span{margin-right:8px}
+.cmdh button{font:500 12px var(--num);padding:3px 9px;margin:0 6px 6px 0;border-radius:7px;color:var(--ink)}
+.cmdh p{margin:8px 0 0;line-height:1.5}.cmdh b{color:var(--ink);font-weight:500}
+#cmdb kbd{margin-left:2px}
+@media (max-width:999px){.cmdbox{top:10px}.cmdi{grid-template-columns:72px minmax(0,1fr)}#enb{max-width:132px;overflow:hidden;text-overflow:ellipsis}}
