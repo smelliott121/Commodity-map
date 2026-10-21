@@ -1,0 +1,145 @@
+name: Update supply outlook
+on:
+  schedule:
+    - cron: "40 17 * * 1-5"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: supply
+  cancel-in-progress: false
+jobs:
+  supply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build supply outlook from USDA PSD
+        run: |
+          mkdir -p out
+          curl -sf "https://raw.githubusercontent.com/${{ github.repository }}/supply/supply.json" -o prev.json || echo "no previous supply file"
+          python3 - <<'PY'
+          # USDA Foreign Agricultural Service, Production, Supply and Distribution (PSD) database: public CSV downloads, updated after each WASDE.
+          import csv, io, json, time, zipfile, urllib.request, datetime as dt
+          UA = {"User-Agent": "commodity-map personal project (github actions)"}
+          BASE = "https://apps.fas.usda.gov/psdonline/downloads/"
+          FILES = ["psd_grains_pulses_csv.zip", "psd_oilseeds_csv.zip", "psd_coffee_csv.zip", "psd_sugar_csv.zip", "psd_cotton_csv.zip", "psd_fruits_vegetables_csv.zip"]
+          def fetch(name):
+              for a in range(3):
+                  try:
+                      return urllib.request.urlopen(urllib.request.Request(BASE + name, headers=UA), timeout=180).read()
+                  except Exception as e:
+                      print("retry", name, e); time.sleep(10)
+              return None
+          # map commodity on the map -> (PSD commodity, focus countries)
+          C = {
+              "Coffee": ("Coffee, Green", ["Brazil", "Vietnam", "Colombia"]),
+              "Wheat": ("Wheat", ["Russia", "Ukraine", "United States", "European Union"]),
+              "Palm oil": ("Oil, Palm", ["Indonesia", "Malaysia"]),
+              "Sugar": ("Sugar, Centrifugal", ["India", "Brazil", "Thailand"]),
+              "Corn": ("Corn", ["United States", "Brazil", "Ukraine", "Argentina"]),
+              "Cotton": ("Cotton", ["United States", "India", "Brazil", "China"]),
+              "Soybeans": ("Oilseed, Soybean", ["Brazil", "United States", "Argentina"]),
+              "Orange juice": ("Orange Juice", ["Brazil", "United States"]),
+              "Rice": ("Rice, Milled", ["India", "Thailand", "Vietnam", "China"]),
+          }
+          want = {v[0] for v in C.values()}
+          USE = ["Domestic Consumption", "Domestic Use", "Total Use", "Dom. Consumption", "Total Dom. Cons.", "Human Dom. Consumption"]
+          ATTR = {"Production", "Ending Stocks", "Exports", "Imports", "Yield", "Area Harvested"} | set(USE)
+          rows = {}  # (commodity, country, attr, my) -> value
+          units, seen_attrs, release = {}, {}, (0, 0)
+          got = 0
+          for f in FILES:
+              raw = fetch(f)
+              if not raw:
+                  continue
+              got += 1
+              z = zipfile.ZipFile(io.BytesIO(raw))
+              for nm in z.namelist():
+                  for r in csv.DictReader(io.TextIOWrapper(z.open(nm), encoding="utf-8-sig", errors="ignore")):
+                      c = r.get("Commodity_Description", "").strip()
+                      if c not in want:
+                          continue
+                      a = r.get("Attribute_Description", "").strip()
+                      seen_attrs.setdefault(c, set()).add(a)
+                      if a not in ATTR:
+                          continue
+                      try:
+                          my, v = int(r["Market_Year"]), float(r["Value"])
+                      except Exception:
+                          continue
+                      if my < dt.date.today().year - 16:
+                          continue
+                      rows[(c, r["Country_Name"].strip(), a, my)] = v
+                      units[(c, a)] = r.get("Unit_Description", "").strip()
+                      try:
+                          release = max(release, (int(r["Calendar_Year"]), int(r["Month"])))
+                      except Exception:
+                          pass
+          print("files ok", got, "rows", len(rows), "release", release)
+          if got < 3 or not rows:
+              raise SystemExit("PSD download failed")
+          try:
+              prev = json.load(open("prev.json"))
+          except Exception:
+              prev = {}
+          rel = f"{release[0]}-{release[1]:02d}"
+          out = {"updated": int(time.time()), "release": rel, "src": "USDA FAS PSD", "c": {}, "attrs": {k: sorted(v) for k, v in seen_attrs.items()}}
+          for key, (psd, focus) in C.items():
+              cs = {k[1] for k in rows if k[0] == psd}
+              if not cs:
+                  print("no data for", key); continue
+              use_attr = next((u for u in USE if any(k[0] == psd and k[2] == u for k in rows)), None)
+              mys = sorted({k[3] for k in rows if k[0] == psd})
+              world = "World" if "World" in cs else None
+              def W(attr, my):
+                  if world:
+                      return rows.get((psd, world, attr, my))
+                  vals = [v for (c, cc, a, m), v in rows.items() if c == psd and a == attr and m == my and cc != "World"]
+                  return sum(vals) if vals else None
+              wp = {my: W("Production", my) for my in mys}
+              we = {my: W("Ending Stocks", my) for my in mys}
+              wu = {my: W(use_attr, my) for my in mys} if use_attr else {}
+              stu = {my: round(we[my] / wu[my] * 100, 1) for my in mys if we.get(my) and wu.get(my)}
+              cur = mys[-1]
+              ctry = {}
+              for c in focus:
+                  if c not in cs:
+                      continue
+                  ctry[c] = {a: [rows.get((psd, c, a, my)) for my in mys] for a in ("Production", "Exports", "Ending Stocks", "Yield") if any((psd, c, a, my) in rows for my in mys)}
+              o = {"psd": psd, "my": mys, "unit": units.get((psd, "Production"), ""), "yunit": units.get((psd, "Yield"), ""),
+                   "use": use_attr, "w": {"prod": [wp.get(m) for m in mys], "end": [we.get(m) for m in mys], "use": [wu.get(m) for m in mys], "stu": [stu.get(m) for m in mys]},
+                   "ctry": ctry}
+              # revision tracking: keep a log of each release's estimate for the newest two market years
+              po = (prev.get("c") or {}).get(key) or {}
+              rev = po.get("rev") or {}
+              def track(label, val, my):
+                  if val is None:
+                      return
+                  k = f"{label}|{my}"
+                  L = rev.setdefault(k, [])
+                  if not L or abs(L[-1][1] - val) > 1e-9:
+                      if L and L[-1][0] == rel:
+                          L[-1] = [rel, val]
+                      else:
+                          L.append([rel, val])
+                  rev[k] = L[-8:]
+              for my in mys[-2:]:
+                  track("World production", wp.get(my), my)
+                  track("World ending stocks", we.get(my), my)
+                  for c in focus:
+                      track(f"{c} production", rows.get((psd, c, "Production", my)), my)
+              rev = {k: v for k, v in rev.items() if int(k.rsplit("|", 1)[1]) >= mys[-2]}
+              o["rev"] = rev
+              out["c"][key] = o
+              s = stu.get(cur)
+              print(key, psd, "MY", cur, "world prod", wp.get(cur), "stu", s, "use attr", use_attr, "countries", list(ctry))
+          json.dump(out, open("out/supply.json", "w"), separators=(",", ":"))
+          PY
+      - name: Publish to supply branch
+        run: |
+          [ -f out/supply.json ] || { echo "no supply built"; exit 1; }
+          cd out
+          git init -q && git checkout -q -b supply
+          git config user.name "supply-bot"
+          git config user.email "supply-bot@users.noreply.github.com"
+          git add -A && git commit -q -m "Supply outlook"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" supply
