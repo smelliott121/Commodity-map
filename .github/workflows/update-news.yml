@@ -138,10 +138,11 @@ jobs:
           # keep the newest 15 per key, plus anything that scores highly
           keep = set()
           for key in Q:
-              for i in [i for i in L if key in i["k"]][:15]:
+              for i in [i for i in L if key in i["k"]][:12]:
                   keep.add(i["id"])
           L = [i for i in L if i["id"] in keep or i["sc"] >= 5][:400]
-          json.dump({"updated": int(now), "items": L}, open("out/news.json", "w"), separators=(",", ":"), ensure_ascii=False)
+          slim = [{k: i[k] for k in ("id", "t", "s", "u", "d", "k", "n", "sc") if k in i} for i in L if now - i["d"] < 2 * 86400 or i.get("sc", 0) >= 6]
+          json.dump({"updated": int(now), "items": slim}, open("out/news.json", "w"), separators=(",", ":"), ensure_ascii=False)
           print("items", len(L), "| top:", [(i["sc"], i["t"][:70]) for i in sorted(L, key=lambda i: -i["sc"])[:5]])
           PY
       - name: Publish to news branch

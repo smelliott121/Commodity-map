@@ -1,3 +1,5 @@
+/* run non-essential loads after the map has drawn */
+const later=(fn,d=900)=>setTimeout(()=>("requestIdleCallback"in window?requestIdleCallback(fn,{timeout:2500}):fn()),d);
 
 const R=[
 {n:"Cocoa",loc:"Ivory Coast",lat:6.8,lon:-5.3,sym:"CC=F",u:"$/t",p:6000},
@@ -344,7 +346,7 @@ return'<div class="kh">Upcoming events</div><div class="evl">'+L.sort((a,b)=>a.t
 
 /* ---- earthquakes (USGS live feed) and plate boundaries (Bird 2003 via Ahlenius/Nordpil, ODC-By) ---- */
 
-fetch("faults.json").then(r=>r.json()).then(FLT=>{let g=document.createElementNS("http://www.w3.org/2000/svg","g");g.setAttribute("class","L-quake");let d="";FLT.forEach(a=>{for(let i=0;i<a.length;i+=2)d+=(i?"L":"M")+(a[i]+180).toFixed(1)+" "+(90-a[i+1]).toFixed(1)});g.innerHTML=`<path class="flt" d="${d}"/>`;OV.insertBefore(g,OV.firstChild.nextSibling)})
+later(()=>fetch("faults.json").then(r=>r.json()).then(FLT=>{let g=document.createElementNS("http://www.w3.org/2000/svg","g");g.setAttribute("class","L-quake");let d="";FLT.forEach(a=>{for(let i=0;i<a.length;i+=2)d+=(i?"L":"M")+(a[i]+180).toFixed(1)+" "+(90-a[i+1]).toFixed(1)});g.innerHTML=`<path class="flt" d="${d}"/>`;OV.insertBefore(g,OV.firstChild.nextSibling)}))
 const MINES=[["Escondida copper mine",-24.27,-69.07],["Collahuasi copper mine",-20.98,-68.64],["Codelco El Teniente copper mine",-34.09,-70.35],["Antamina copper-zinc mine",-9.54,-77.05],["Las Bambas copper mine",-14.21,-72.1],["Cerro Verde copper mine",-16.53,-71.6],["Grasberg copper-gold mine",-4.05,137.11],["Morenci copper mine",33.08,-109.36],["Cobre Panamá copper mine",8.84,-80.65],["Kamoa-Kakula copper mine",-10.8,25.4],["Oyu Tolgoi copper mine",43.0,106.85],["Norilsk nickel-palladium",69.35,88.2],["Weda Bay nickel",0.47,127.9],["Sorowako nickel",-2.53,121.36],["Carajás iron ore",-6.06,-50.17],["Greenbushes lithium",-33.86,116.06],["Atacama lithium brines",-23.5,-68.3],["Taiwan chip fabs (Hsinchu)",24.8,120.97],["Kashiwazaki-Kariwa nuclear",37.43,138.6]];
 let QK=[];
 function qAssets(lat,lon){const out=[],add=(n,la,lo,k)=>{const d=km(lat,lon,la,lo);if(d<350)out.push({n,d,k})};
@@ -363,7 +365,7 @@ QK.slice().sort((a,b)=>a.properties.mag-b.properties.mag).forEach(q=>{const p=q.
 e.className="mk L-quake"+(age<6&&p.mag>=5.5?" qr":"");e.style.left=X(lon)/3.6+"%";e.style.top=Y(lat)/1.8+"%";e.style.setProperty("--qs",Math.round(7+Math.max(0,p.mag-4.5)*7)+"px");e.style.setProperty("--qc",p.alert?QC[p.alert]:"#ffb020");e.style.opacity=Math.max(.35,1-age/168*.65).toFixed(2);
 e.title=`M${p.mag.toFixed(1)} · ${p.place||""}`;e.onclick=ev=>{ev.stopPropagation();showQuake(q);e.classList.add("on")};map.appendChild(e)});layout()}
 async function quakes(){try{const r=await fetch("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_week.geojson");if(!r.ok)return;const j=await r.json();QK=(j.features||[]).filter(q=>q.properties&&q.properties.mag!=null);drawQuakes()}catch(e){}}
-quakes();setInterval(quakes,10*6e4);
+later(quakes,1500);setInterval(quakes,10*6e4);
 /* ---- refining: 3-2-1 crack from futures + EIA weekly data (Update refining job) ---- */
 let RF=null;
 const REFS=[["Jamnagar (Reliance)",22.35,69.85,1400,"India · world's largest refining complex; big diesel and gasoline exporter"],["Paraguaná (PDVSA)",11.75,-70.2,940,"Venezuela · nameplate capacity, runs far below it"],["Ruwais (ADNOC)",24.1,52.73,920,"UAE · major product exporter to Asia and Africa"],["Ulsan (SK Energy)",35.47,129.37,840,"South Korea · key Asian product exporter"],["Yeosu (GS Caltex)",34.86,127.69,800,"South Korea"],["Zhoushan (ZPC)",29.95,122.28,800,"China · Rongsheng's integrated refinery-petrochemical complex"],["Dangote",6.43,4.0,650,"Nigeria · changing West African gasoline import flows"],["Port Arthur (Motiva)",29.9,-93.95,630,"US Gulf Coast · largest US refinery; hurricane exposed"],["Galveston Bay (Marathon)",29.37,-94.92,630,"US Gulf Coast · hurricane exposed"],["Al-Zour (KIPIC)",28.73,48.37,615,"Kuwait · low-sulphur fuel oil and diesel for export"],["Garyville (Marathon)",30.06,-90.6,600,"US Gulf Coast · Mississippi river refinery"],["Jurong Island (ExxonMobil)",1.26,103.69,590,"Singapore · Asian pricing hub"],["Baytown (ExxonMobil)",29.75,-95.0,560,"US Gulf Coast"],["Ras Tanura (Aramco)",26.64,50.16,550,"Saudi Arabia"],["Pernis (Shell)",51.88,4.38,400,"Rotterdam · Europe's largest refinery; ARA pricing hub"],["Pembroke (Valero)",51.68,-5.0,270,"UK · one of the UK's four remaining large refineries"],["Fawley (ExxonMobil)",50.83,-1.33,270,"UK · the UK's largest refinery"]];
@@ -390,17 +392,17 @@ info(`${top}<div class="tgrid"><div><span class="note" style="margin:0">3-2-1 cr
 ${RF?stkRow("util")+stkRow("runs")+stkRow("crude",1)+stkRow("cush",1)+stkRow("gas",1)+stkRow("dist",1):`<div class="note">EIA data loads once the Update refining job has run with your EIA_API_KEY secret.</div>`}
 ${RF&&RF.s.util?`<div class="kh">US utilisation through the year</div><div class="ukl"><span><i style="background:var(--amb)"></i>This year</span><span><i style="background:var(--ink)"></i>5-year average</span><span><i style="background:color-mix(in srgb,var(--ink) 25%,transparent);height:8px"></i>5-year range</span></div><div class="ukc2" id="rfu"></div>`:""}
 <div class="note">The 3-2-1 crack is the gross margin for turning 3 barrels of WTI into 2 of gasoline and 1 of diesel (NYMEX front months). High cracks pull refiners to run hard and support crude demand; maintenance season (spring and autumn) lowers utilisation. Shaded bars show the 5-year range for the same week, with the marker at today's level. EIA data comes out Wednesdays 15:30 UK.</div>`);
-setTimeout(()=>{const cs=crackSeries(),box=$("#rfc");if(cs&&box&&cs.t.length>300){const N=cs.t.length,a=Math.max(0,N-260),T=cs.t.slice(a).map(d=>d*864e5),m=new Map(cs.t.map((d,i)=>[d,cs.v[i]])),ly=cs.t.slice(a).map(d=>{for(let k=0;k<4;k++){const v=m.get(d-364-k);if(v!=null)return v}return null});
+setTimeout(async()=>{if(!HI)await needHist();const cs=crackSeries(),box=$("#rfc");if(cs&&box&&cs.t.length>300){const N=cs.t.length,a=Math.max(0,N-260),T=cs.t.slice(a).map(d=>d*864e5),m=new Map(cs.t.map((d,i)=>[d,cs.v[i]])),ly=cs.t.slice(a).map(d=>{for(let k=0;k<4;k++){const v=m.get(d-364-k);if(v!=null)return v}return null});
 tsChart(box,{t:T,h:140,series:[{n:"This year",c:"var(--amb)",v:cs.v.slice(a)},{n:"Year before",c:"var(--mut)",v:ly,w:1.3}],fmt:v=>"$"+v.toFixed(1)+"/bbl",lab:t=>new Date(t).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})})}
 else if(box)box.innerHTML='<div class="note">Crack history appears once the price history job has gasoline and heating oil.</div>';
 const ub=$("#rfu"),S=RF&&RF.s.util;if(ub&&S){const wk=d=>Math.min(52,Math.floor((Date.UTC(+d.slice(0,4),+d.slice(5,7)-1,+d.slice(8,10))-Date.UTC(+d.slice(0,4),0,1))/864e5/7)),cy=S.d.at(-1).slice(0,4);
 const cur=Array(53).fill(null),by={};S.d.forEach((d,i)=>{const y=d.slice(0,4),w=wk(d);if(y==cy)cur[w]=S.v[i];else if(+cy-+y<=5){(by[w]=by[w]||[]).push(S.v[i])}});
 const avg=[],lo=[],hi=[];for(let w=0;w<53;w++){const v=by[w]||[];avg.push(v.length?v.reduce((a,b)=>a+b,0)/v.length:null);lo.push(v.length>=3?Math.min(...v):null);hi.push(v.length>=3?Math.max(...v):null)}
 tsChart(ub,{t:[...Array(53)].map((_,w)=>Date.UTC(2001,0,1+w*7)),h:140,band:{lo,hi},series:[{n:cy,c:"var(--amb)",v:cur},{n:"5-yr avg",c:"var(--ink)",v:avg,w:1.3,dash:1}],fmt:v=>v.toFixed(1)+"%",tk:v=>v+"%",lab:t=>"Week of "+new Date(t).toLocaleDateString("en-GB",{day:"numeric",month:"short",timeZone:"UTC"})})}},0)}
-(async()=>{for(const u of rawUrls("refining","refining.json")){try{const r=await fetch(u);if(r.ok){RF=await r.json();break}}catch(e){}}})();
+later(async()=>{for(const u of rawUrls("refining","refining.json")){try{const r=await fetch(u);if(r.ok){RF=await r.json();break}}catch(e){}}},2000);
 /* ---- futures curves & seasonal patterns ---- */
 let CV=null,SN=null,snP=null;
-(async()=>{for(const u of rawUrls("curves","curves.json")){try{const r=await fetch(u);if(r.ok){CV=await r.json();break}}catch(e){}}})();
+later(async()=>{for(const u of rawUrls("curves","curves.json")){try{const r=await fetch(u);if(r.ok){CV=await r.json();break}}catch(e){}}},1500);
 function snLoad(){if(!snP)snP=(async()=>{for(const u of rawUrls("seasonal","seasonal.json")){try{const r=await fetch(u);if(r.ok){SN=await r.json();break}}catch(e){}}return SN})();return snP}
 const cvRoot=sym=>sym&&sym.endsWith("=F")?sym.slice(0,-2):null;
 function cvHTML(sym){const k=cvRoot(sym);if(!k||!CV||!CV.c[k])return"";return`<div class="kh">Futures curve</div><div class="cvs" id="cvs"></div><div class="ukl"><span><i style="background:var(--amb)"></i>Today</span><span><i style="background:var(--mut)"></i>1 week ago</span><span><i style="background:var(--mut);opacity:.5"></i>1 month ago</span></div><div class="ukc2" id="cvc"></div>`}
@@ -493,7 +495,7 @@ tsChart($("#ukg"),{t:T2,h:130,series:[{n:"This year",c:"var(--amb)",v:L.s.slice(
 if(UK.eu&&$("#uke")){const E=UK.eu,n=E.d.length,a=Math.max(0,n-120),T3=E.d.slice(a).map(d=>Date.parse(d+"T12:00Z")),ly=E.d.slice(a).map((d,i)=>{const j=a+i-365;return j>=0?E.full[j]:null});
 tsChart($("#uke"),{t:T3,h:130,series:[{n:"This year",c:"var(--s1)",v:E.full.slice(a)},{n:"Last year",c:"var(--mut)",v:ly,w:1.3}],fmt:v=>v.toFixed(1)+"% full",lab})}},0)}
 async function ukLoad(){for(const u of rawUrls("uk","uk.json")){try{const r=await fetch(u.replace(/\?t=\d+/,"?t="+(Date.now()/3e5|0)));if(r.ok){UK=await r.json();break}}catch(e){}}if(UK){ukPin();layout()}}
-ukLoad();setInterval(ukLoad,15*6e4);
+later(ukLoad,1200);setInterval(ukLoad,15*6e4);
 /* ---- markets board (delayed Yahoo quotes from prices.json) ---- */
 const MKG=[["Energy",[["BZ=F","Brent crude","$/bbl"],["CL=F","WTI crude","$/bbl"],["NG=F","Henry Hub gas","$/MMBtu"],["HO=F","Heating oil (diesel)","$/gal"],["RB=F","Gasoline (RBOB)","$/gal"]]],
 ["Metals",[["GC=F","Gold","$/oz"],["SI=F","Silver","$/oz"],["PL=F","Platinum","$/oz"],["PA=F","Palladium","$/oz"],["HG=F","Copper","$/lb"],["ALI=F","Aluminium","$/t"],["TIO=F","Iron ore","$/t"]]],
@@ -565,12 +567,12 @@ NW.items=NW.items.filter(x=>latin(x.t)).map(x=>{const t=" "+x.t.toLowerCase().re
 async function news(){for(const u of rawUrls("news","news.json")){try{const r=await fetch(u.replace(/\?t=\d+/,"?t="+(Date.now()/12e4|0)));if(r.ok){NW=await r.json();nwClean();break}}catch(e){}}
 if(!NW)return;const B=nwBreaking();$("#nwb").classList.toggle("hot",B.length>0);
 R.forEach((r,i)=>{const c=$("#c"+i);c&&c.classList.toggle("brk",B.some(x=>x.k.includes(r.n)))});ticker()}
-$("#nwb").onclick=()=>openNews("all");news();setInterval(news,10*6e4);
+$("#nwb").onclick=()=>openNews("all");later(news,700);setInterval(news,10*6e4);
 $("#tick").onclick=e=>{e.target.closest(".ti.evn")?openNews("brk"):openCal()};setTimeout(ticker,0);
 setInterval(()=>{document.querySelectorAll(".cd[data-t]").forEach(s=>{const t=+s.dataset.t;s.textContent=cd({t:new Date(t),allday:0})})},6e4);
 setInterval(ticker,30*6e4);
 
-let COT=null;(async()=>{try{const r=await getData("cot","cot.json");if(r.ok)COT=await r.json()}catch(e){}})();
+let COT=null;later(async()=>{try{const r=await getData("cot","cot.json");if(r.ok)COT=await r.json()}catch(e){}});
 function cotHTML(r){if(r.n=="Rubber"||r.n=="Iron ore")return`<div class="kh">Fund positioning</div><div class="note">The CFTC doesn't report this market.</div>`;
 return`<div class="kh">Fund positioning · CFTC, weekly</div><div class="lgd"><span><i style="background:var(--s1)"></i>Net long</span><span><i style="background:var(--s2)"></i>Net short</span><span>managed money, last 52 weeks</span></div><div id="cc" class="pc"><div class="note">Loading positioning…</div></div><div id="cst"></div>`}
 function drawCot(r){const box=$("#cc");if(!box)return;const c=COT&&COT.c[r.n];
@@ -602,14 +604,14 @@ async function getData(br,file){for(const u of rawUrls(br,file)){try{const r=awa
 function rawUrls(br,file){const m=location.hostname.match(/^([^.]+)\.github\.io$/),rp=location.pathname.split("/")[1];
 return m&&rp?[`https://raw.githubusercontent.com/${m[1]}/${rp}/${br}/${file}?t=${Date.now()/3e5|0}`,file]:[file]}
 async function hist(){for(const u of rawUrls("hist","history.json")){try{const r=await fetch(u);if(r.ok){HI=await r.json();break}}catch(e){}}}
-hist();
+let histP=null;const needHist=()=>histP||(histP=hist());
 const sma=(c,n)=>c.map((_,i)=>{if(i<n-1)return null;let s=0;for(let k=i-n+1;k<=i;k++)s+=c[k];return s/n});
 let CR=126;
 function chartHTML(r){if(!r.sym)return`<div class="kh">Price history</div><div class="note">No free price history for this one.</div>`;
 return`<div class="kh">Price history</div><div class="rng" id="rng">${[[21,"1M"],[63,"3M"],[126,"6M"],[252,"1Y"]].map(([n,t])=>`<button data-n="${n}"${n==CR?' class="on"':""}>${t}</button>`).join("")}</div>
 <div class="lgd"><span><i style="background:var(--s1)"></i>Price</span><span><i style="background:var(--s2)"></i>50-day avg</span><span><i style="background:var(--s3)"></i>200-day avg</span></div>
 <div id="pc" class="pc"><div class="note">Loading history…</div></div><div id="pst"></div>`}
-function drawChart(r){const box=$("#pc");if(!box||!r.sym)return;const H=HI&&HI.s[r.sym];
+function drawChart(r){const box=$("#pc");if(!box||!r.sym)return;if(!HI){box.innerHTML='<div class="note">Loading history…</div>';needHist().then(()=>{if(HI)drawChart(r);else box.innerHTML='<div class="note">History not loaded yet. Run the Update price history job.</div>'});return}const H=HI&&HI.s[r.sym];
 if(!H){box.innerHTML=`<div class="note">${HI?"No history for this contract yet.":"History not loaded yet. Run the Update price history job."}</div>`;return}
 const C=H.c,T=H.t,m50=sma(C,50),m200=sma(C,200),N=C.length,a=Math.max(0,N-CR);
 const W=box.clientWidth||340,Ht=180,pl=4,pr=44,pt=10,pb=22,iw=W-pl-pr,ih=Ht-pt-pb;
@@ -735,7 +737,7 @@ info(`<h2>⚓ ${m.n} <span class="cpill" style="--cs:${CST[s.lv][0]}">${CST[s.lv
 <div class="row"><span>Cargo capacity</span><b>${capT}/day <span class="${pc(s.cap.p)}">${P(s.cap.p)}</span></b></div>${why}${nwHTML(m.id,4)}
 <div class="note">IMF PortWatch, counted from satellite ship tracking (AIS). Runs about ${lag} days behind: latest day ${new Date(s.last+"T12:00Z").toLocaleDateString("en-GB",{day:"numeric",month:"short"})}. Normal = average of the past year excluding the last 30 days. Colours: <b style="color:${CST.severe[0]}">red</b> 40%+ below normal, <b style="color:${CST.low[0]}">amber</b> 20%+ below, <b style="color:${CST.high[0]}">blue</b> 30%+ above. <a href="https://portwatch.imf.org/" target="_blank" rel="noopener">PortWatch ↗</a></div>`);
 m.el&&m.el.classList.add("on");requestAnimationFrame(()=>ckChart($("#ckc"),c,s))}
-chokes();
+later(chokes,1000);
 
 $("#tg").insertAdjacentHTML("beforeend",'<div class="lg"><i style="color:#d9692a">━ oil</i><i style="color:#4aa35a">━ ag</i><i style="color:#6b86c9">━ metals</i><i style="color:#a86bd6">╌ gas</i><i>dashed = pipeline</i></div>');
 const LD=document.createElementNS("http://www.w3.org/2000/svg","svg");LD.id="ld";map.appendChild(LD);

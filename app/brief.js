@@ -7,8 +7,8 @@
 
   /* typical daily move from 40 days of history */
   function dailyVol(sym) {
-    const h = HI && HI.s[sym]; if (!h) return null;
-    const c = h.c.slice(-41), r = [];
+    const q = PX[sym], h = typeof HI != "undefined" && HI && HI.s[sym];
+    const c = h ? h.c.slice(-41) : q && q.c ? q.c.slice() : null, r = []; if (!c) return null;
     for (let i = 1; i < c.length; i++) if (c[i] > 0 && c[i - 1] > 0) r.push(Math.log(c[i] / c[i - 1]));
     if (r.length < 15) return null;
     const mu = r.reduce((a, b) => a + b, 0) / r.length;
