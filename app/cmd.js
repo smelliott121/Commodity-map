@@ -53,6 +53,7 @@
       ["TEMP", "Show temperature", "weather temperature heat", () => wxMode("t")],
       ["WIND", "Show wind", "weather wind", () => wxMode("w")],
       ["WXOFF", "Weather layer off", "weather off clear", () => wxMode("off")],
+      ["SAT", "Satellite image", "satellite clouds nasa imagery", () => typeof toggleSat == "function" && toggleSat()],
       ["THEME", "Switch light or dark", "theme light dark mode", () => $("#thb").click()],
     ];
     F.forEach(([c, t, k, run]) => L.push({ t, s: c, k: c + " " + k, g: "Function", code: c.toLowerCase(), run }));

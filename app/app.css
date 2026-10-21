@@ -242,3 +242,12 @@ kbd{font:500 10.5px var(--num);color:var(--mut);border:1px solid var(--line2);bo
 .rks.cal{color:var(--mut)}.rks.wat{color:#f2c94c;background:#f2c94c1f}.rks.ele{color:#ff8a3d;background:#ff8a3d26}.rks.sev{color:#fff;background:#e5484d}
 @media (max-width:999px){.rkr{grid-template-columns:minmax(0,1fr) 30px 54px 54px 44px 40px;gap:3px}.rkr>span:first-child small{display:none}.mkh>small{display:none}}
 @media (max-width:999px){.mkr.rkr>:nth-child(6){display:block}}
+
+/* ---- satellite ---- */
+#sat{position:absolute;inset:0;pointer-events:none;display:none;overflow:hidden}
+body.saton #sat{display:block}
+#sat img{position:absolute;display:block;width:100%;height:100%;left:0;top:0;mix-blend-mode:screen;opacity:.95;image-rendering:auto}
+#sat .sd{display:none}
+:root[data-theme="light"] #sat img{mix-blend-mode:normal;opacity:.8}
+body.saton .land{fill:color-mix(in srgb,var(--land) 55%,#000)}
+:root[data-theme="light"] body.saton .land{fill:var(--land)}

@@ -126,8 +126,15 @@ const SCR=$("#scroll");let WSM=null,smKey="",wxRAF=0;const DPR=1;let AFT=[],ASK=
 let GEO=null;function wlGeo(){const W=map.offsetWidth,H=map.offsetHeight,w=Math.min(SCR.clientWidth,W),h=Math.min(SCR.clientHeight,H);if(!GEO||GEO.w!=w||GEO.h!=h){WL.style.width=w+"px";WL.style.height=h+"px";WL.style.marginBottom=-h+"px"}GEO={W,H,w,h,ml:map.offsetLeft,mt:map.offsetTop};return GEO}
 function wlSize(){const g=wlGeo();return[g.w,g.h]}
 function wlOff(){const g=GEO||wlGeo();return[Math.max(0,Math.min(g.W-g.w,SCR.scrollLeft-g.ml)),Math.max(0,Math.min(g.H-g.h,SCR.scrollTop-g.mt))]}
-function smGrid(){const key=wm+wf+(G?G.updated:"");if(WSM&&smKey==key)return WSM;const R=G.lats.length,C=G.lons.length,sm=document.createElement("canvas");sm.width=C+1;sm.height=R+2;const sx=sm.getContext("2d"),im=sx.createImageData(C+1,R+2);
-for(let y=0;y<R+2;y++)for(let x=0;x<=C;x++){const v=gval(wm,wf,y-1,x),q=col(wm,v),o=(y*(C+1)+x)*4;im.data[o]=q[0];im.data[o+1]=q[1];im.data[o+2]=q[2];im.data[o+3]=q[3]*255}
+function smGrid(){const key=wm+wf+(G?G.updated:"");if(WSM&&smKey==key)return WSM;const R=G.lats.length,C=G.lons.length,K=innerWidth<700?3:4,w=(C+1)*K,h=(R+2)*K;
+/* sample the grid once, then upsample values with Catmull-Rom so colour bands blend smoothly instead of showing grid squares */
+const V=new Float32Array((C+4)*(R+4));for(let y=0;y<R+4;y++)for(let x=0;x<C+4;x++)V[y*(C+4)+x]=gval(wm,wf,y-2,x-2);
+const at=(x,y)=>V[(y+2)*(C+4)+(x+2)],cr=(p0,p1,p2,p3,t)=>p1+.5*t*(p2-p0+t*(2*p0-5*p1+4*p2-p3+t*(3*(p1-p2)+p3-p0)));
+const sm=document.createElement("canvas");sm.width=w;sm.height=h;const sx=sm.getContext("2d"),im=sx.createImageData(w,h),lo=wm=="t"?-99:0;
+for(let py=0;py<h;py++){const fy=(py+.5)/K-.5-1,y0=Math.floor(fy),ty=fy-y0,yy=[y0-1,y0,y0+1,y0+2].map(v=>Math.max(-2,Math.min(R+1,v)));
+for(let px=0;px<w;px++){const fx=(px+.5)/K-.5,x0=Math.floor(fx),tx=fx-x0,xx=[x0-1,x0,x0+1,x0+2].map(v=>Math.max(-2,Math.min(C+1,v)));
+const r=yy.map(yv=>cr(at(xx[0],yv),at(xx[1],yv),at(xx[2],yv),at(xx[3],yv),tx));let v=cr(r[0],r[1],r[2],r[3],ty);if(v<lo)v=lo;
+const q=col(wm,v),o=(py*w+px)*4;im.data[o]=q[0];im.data[o+1]=q[1];im.data[o+2]=q[2];im.data[o+3]=q[3]*255}}
 sx.putImageData(im,0,0);WSM=sm;smKey=key;return sm}
 function drawWx(){const[w,h]=wlSize();if(wx.width!=w||wx.height!=h){wx.width=w;wx.height=h}const c=wx.getContext("2d");c.clearRect(0,0,w,h);
 if(!G||wm=="off"){legend();return}const sm=smGrid(),W=GEO.W,H=GEO.H,[ox,oy]=wlOff(),C=G.lons.length,R=G.lats.length,cw=W/C,ch=H/(R+1);
@@ -158,7 +165,7 @@ $("#wxtl").textContent=(fh?"+"+fh+"h · ":"Now · ")+d.toLocaleString("en-GB",{w
 function wxResize(){drawWx();sizeP();startA()}
 [["off","Off"],["p","Rain"],["t","Temp"],["w","Wind"],["s","Streaks"]].forEach(([k,t])=>{const b=document.createElement("button");b.textContent=t;b.dataset.k=k;
 b.onclick=()=>{if(k=="s"){streak=!streak}else wm=k;segs();drawWx();startA()};$("#wxm").appendChild(b)});
-function segs(){document.body.classList.toggle("wxon",wm!="off");document.querySelectorAll("#wxm button").forEach(b=>b.classList.toggle("on",b.dataset.k=="s"?streak&&wm!="off":b.dataset.k==wm))}
+function segs(){document.body.classList.toggle("wxon",wm!="off");document.querySelectorAll("#wxm button[data-k]").forEach(b=>b.classList.toggle("on",b.dataset.k=="s"?streak&&wm!="off":b.dataset.k==wm))}
 $("#wxt").oninput=e=>{wf=+e.target.value;e.target.style.setProperty("--pc",wf/(+e.target.max||1)*100+"%");tlabel();drawWx()};
 async function grid(){const m=location.hostname.match(/^([^.]+)\.github\.io$/),rp=location.pathname.split("/")[1];
 const urls=m&&rp?[`https://raw.githubusercontent.com/${m[1]}/${rp}/data/grid.json?t=${Date.now()/3e5|0}`,"grid.json"]:["grid.json"];
