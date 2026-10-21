@@ -12,16 +12,16 @@ jobs:
   refining:
     runs-on: ubuntu-latest
     steps:
+      - name: Install Excel reader
+        run: pip install --quiet xlrd==2.0.1
       - name: Fetch EIA weekly refinery and stocks data
         env:
           EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
         run: |
           mkdir -p out
           python3 - <<'PY'
-          import json, os, time, datetime as dt, urllib.request
-          K = os.environ.get("EIA_API_KEY", "").strip()
-          if not K:
-              raise SystemExit("Add the EIA_API_KEY secret first (free key from eia.gov/opendata).")
+          # Uses EIA's public history downloads (no key needed). If an EIA_API_KEY secret exists it is used as a fallback.
+          import json, os, time, datetime as dt, urllib.request, xlrd
           S = {
               "util": ("WPULEUS3", "Refinery utilisation", "%"),
               "runs": ("WCRRIUS2", "Crude runs", "kb/d"),
@@ -30,18 +30,40 @@ jobs:
               "gas": ("WGTSTUS1", "Gasoline stocks", "kb"),
               "dist": ("WDISTUS1", "Distillate stocks", "kb"),
           }
-          start = (dt.date.today() - dt.timedelta(days=7 * 330)).isoformat()
+          UA = {"User-Agent": "Mozilla/5.0 (commodity-map personal project)"}
+          since = dt.date.today() - dt.timedelta(days=7 * 330)
+          K = os.environ.get("EIA_API_KEY", "").strip()
+          def from_xls(sid):
+              raw = urllib.request.urlopen(urllib.request.Request(f"https://www.eia.gov/dnav/pet/hist_xls/{sid}w.xls", headers=UA), timeout=60).read()
+              book = xlrd.open_workbook(file_contents=raw)
+              sh = book.sheet_by_name("Data 1") if "Data 1" in book.sheet_names() else book.sheet_by_index(1)
+              pts = []
+              for r in range(sh.nrows):
+                  a, b = sh.cell_value(r, 0), sh.cell_value(r, 1) if sh.ncols > 1 else None
+                  if isinstance(a, float) and isinstance(b, float):
+                      d = xlrd.xldate_as_datetime(a, book.datemode).date()
+                      if d >= since:
+                          pts.append((d.isoformat(), b))
+              return pts
+          def from_api(sid):
+              url = f"https://api.eia.gov/v2/seriesid/PET.{sid}.W?api_key={K}&start={since.isoformat()}&length=5000"
+              j = json.load(urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=60))
+              return [(r["period"], float(r["value"])) for r in j["response"]["data"] if r.get("value") not in (None, "")]
           out = {"updated": int(time.time()), "s": {}}
           for k, (sid, name, unit) in S.items():
-              url = f"https://api.eia.gov/v2/seriesid/PET.{sid}.W?api_key={K}&start={start}&length=5000"
-              j = None
-              for a in range(3):
-                  try:
-                      j = json.load(urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "commodity-map"}), timeout=40)); break
-                  except Exception as e:
-                      print("retry", k, str(e).replace(K, "***")); time.sleep(5)
-              rows = ((j or {}).get("response") or {}).get("data") or []
-              pts = sorted((r["period"], float(r["value"])) for r in rows if r.get("value") not in (None, ""))
+              pts = []
+              for how in ("xls", "api"):
+                  if how == "api" and not K:
+                      continue
+                  for a in range(3):
+                      try:
+                          pts = from_xls(sid) if how == "xls" else from_api(sid)
+                          break
+                      except Exception as e:
+                          print("retry", k, how, str(e).replace(K, "***") if K else e); time.sleep(5)
+                  if len(pts) >= 50:
+                      break
+              pts = sorted(set(pts))
               if len(pts) < 50:
                   print("not enough data for", k, len(pts)); continue
               out["s"][k] = {"n": name, "u": unit, "d": [p for p, _ in pts], "v": [v for _, v in pts]}
