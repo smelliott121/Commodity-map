@@ -223,3 +223,22 @@ kbd{font:500 10.5px var(--num);color:var(--mut);border:1px solid var(--line2);bo
 .cmdh p{margin:8px 0 0;line-height:1.5}.cmdh b{color:var(--ink);font-weight:500}
 #cmdb kbd{margin-left:2px}
 @media (max-width:999px){.cmdbox{top:10px}.cmdi{grid-template-columns:72px minmax(0,1fr)}#enb{max-width:132px;overflow:hidden;text-overflow:ellipsis}}
+
+/* ---- briefing ---- */
+#brb .nd{display:none;width:6px;height:6px;border-radius:50%;background:var(--amb);box-shadow:0 0 6px var(--amb)}#brb.hot .nd{display:inline-block}
+.bst{padding:10px 12px;margin:0 0 8px;border:1px solid var(--line);border-radius:12px;cursor:pointer;transition:border-color .15s}.bst:hover{border-color:var(--line2)}
+.bsh{display:flex;justify-content:space-between;align-items:baseline;font-weight:600;font-size:14.5px}.bsh b{font:600 13.5px var(--num)}
+.bsw{font-size:12.5px;line-height:1.45;color:var(--ink);opacity:.86;margin-top:3px}
+.bsn{display:block;font-size:12px;color:var(--ink);text-decoration:none;margin-top:6px;padding-top:6px;border-top:1px solid var(--line);line-height:1.35}.bsn:hover{color:var(--amb)}.bsn i{font-style:normal;color:var(--mut);font-size:11px}.bsn .bk{padding:1px 4px}
+
+/* ---- markets tabs and weather risk ---- */
+.mkh{gap:10px}.mkh>small{flex:1;color:var(--mut);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mktabs{display:flex;gap:2px;background:color-mix(in srgb,var(--ink) 6%,transparent);border-radius:9px;padding:2px}
+.mktabs button{border:none;height:28px;padding:0 11px;font-size:13px;font-weight:600;color:var(--mut);border-radius:7px}.mktabs button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.rkr{grid-template-columns:minmax(0,1fr) 40px 62px 62px 50px 46px}
+.rkr>span:nth-child(2){text-align:center}
+.stl{display:inline-block;width:10px;height:10px;border-radius:2px}.stl.s0{background:#8a949a55}.stl.s1{background:#e0a03a99}.stl.s2{background:#e0563f}
+.rks{font:600 12px var(--num);text-align:center;border-radius:6px;padding:4px 0}
+.rks.cal{color:var(--mut)}.rks.wat{color:#f2c94c;background:#f2c94c1f}.rks.ele{color:#ff8a3d;background:#ff8a3d26}.rks.sev{color:#fff;background:#e5484d}
+@media (max-width:999px){.rkr{grid-template-columns:minmax(0,1fr) 30px 54px 54px 44px 40px;gap:3px}.rkr>span:first-child small{display:none}.mkh>small{display:none}}
+@media (max-width:999px){.mkr.rkr>:nth-child(6){display:block}}

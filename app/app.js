@@ -508,23 +508,25 @@ function cgc(v,sc,y){if(v==null)return`<span class="cg" style="color:var(--mut)"
 return`<span class="cg" style="color:var(--${k});background:color-mix(in srgb,var(--${k}) ${a.toFixed(0)}%,transparent)">${v>=0?"+":"−"}${Math.abs(v).toFixed(y?0:Math.abs(v)<10?2:1)}${y?"bp":"%"}</span>`}
 const pxf=o=>o.p>=1000?o.p.toLocaleString("en",{maximumFractionDigits:0}):o.p>=100?o.p.toFixed(1):o.p>=10?o.p.toFixed(2):o.p.toFixed(o.u=="rate"?4:3);
 function rowH(o){return`<div class="mkr${MKSEL==o.sym?" sel":""}" data-s="${esc(o.sym)}" title="${esc(o.n)} · ${esc(o.u)}"><span>${esc(o.n)}<small>${esc(o.u)}</small></span>${spark(o)}<span class="px">${pxf(o)}</span>${cgc(o.d1,o.y?10:2,o.y)}${cgc(o.w1,o.y?25:5,o.y)}${cgc(o.m1,o.y?50:10,o.y)}</div>`}
-function mkBoard(){const el=$("#mkp");if(!document.body.classList.contains("mkopen"))return;const rows=MKG.map(([g,L])=>[g,L.map(mkRow).filter(Boolean)]);
+window.MKTAB=window.MKTAB||"px";
+function mkHead(tab){return`<div class="mkh"><div class="mktabs" role="tablist"><button data-tab="px" role="tab" aria-selected="${tab=="px"}" class="${tab=="px"?"on":""}">Markets</button><button data-tab="risk" role="tab" aria-selected="${tab=="risk"}" class="${tab=="risk"?"on":""}">Weather risk</button></div><small>${tab=="px"?"Delayed ~15 min · "+(pT?new Date(pT*1000).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",hour12:false,timeZone:"Europe/London"})+" UK":"—"):"Crop regions vs normal"}</small><button class="x" id="mkx" aria-label="Close">×</button></div>`}
+function mkBoard(){const el=$("#mkp");if(!document.body.classList.contains("mkopen"))return;if(MKTAB=="risk"&&typeof renderRisk=="function"){renderRisk(el);return}const rows=MKG.map(([g,L])=>[g,L.map(mkRow).filter(Boolean)]);
 const all=rows.flatMap(r=>r[1]),mv=all.filter(o=>!o.y&&o.d1!=null).sort((a,b)=>b.d1-a.d1);
 const hd=[["n","Market"],[null,""],[null,"Last"],["d1","1D"],["w1","1W"],["m1","1M"]].map(([k,t])=>k?`<button data-k="${k}"${MKS&&MKS[0]==k?` class="on" data-d="${MKS[1]>0?"↓":"↑"}"`:""}>${t}</button>`:`<span style="text-align:right">${t}</span>`).join("");
 let body="";if(!all.length)body=`<div class="note" style="padding:16px">Prices load once the Update prices job has run with the new markets list.</div>`;
 else if(MKS){const[k,d]=MKS,val=o=>o.y||o[k]==null?null:o[k];const pct=all.filter(o=>k=="n"||val(o)!=null),rest=all.filter(o=>!pct.includes(o));body=pct.sort((a,b)=>k=="n"?-d*a.n.localeCompare(b.n):(val(b)-val(a))*d).map(rowH).join("")+(rest.length?`<div class="mkg">Yields and no data</div>`+rest.map(rowH).join(""):"")}
 else body=rows.filter(r=>r[1].length).map(([g,L])=>`<div class="mkg">${g}</div>${L.map(rowH).join("")}`).join("");
 const top=a=>a.map(o=>`<a data-s="${esc(o.sym)}"><span>${esc(o.n)}</span>${cgc(o.d1,2)}</a>`).join("");
-el.innerHTML=`<div class="mkh"><div><b>Markets</b><small>Delayed about 15 min · updated ${pT?new Date(pT*1000).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",hour12:false,timeZone:"Europe/London"})+" UK":"—"}</small></div><button class="x" id="mkx" aria-label="Close markets">×</button></div>
+el.innerHTML=`${mkHead("px")}
 ${mv.length>5?`<div class="mvs"><div><span>Top gainers today</span>${top(mv.slice(0,3))}</div><div><span>Top fallers today</span>${top(mv.slice(-3).reverse())}</div></div>`:""}
 <div class="mkt"><div class="mkr mkhd">${hd}</div>${body}</div><div class="mkf">Yields move in basis points (bp), everything else in %. Bund and Gilt futures aren't in the free feed, so they're missing for now. Tap a row for its chart.</div>`;
-$("#mkx").onclick=()=>mkOpen(false);el.querySelectorAll(".mkhd button").forEach(b=>b.onclick=()=>{const k=b.dataset.k;MKS=MKS&&MKS[0]==k?(MKS[1]>0?[k,-1]:null):[k,k=="n"?-1:1];mkBoard()});
+$("#mkx").onclick=()=>mkOpen(false);el.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{MKTAB=b.dataset.tab;mkBoard()});el.querySelectorAll(".mkhd button").forEach(b=>b.onclick=()=>{const k=b.dataset.k;MKS=MKS&&MKS[0]==k?(MKS[1]>0?[k,-1]:null):[k,k=="n"?-1:1];mkBoard()});
 el.querySelectorAll("[data-s]").forEach(r=>r.onclick=()=>mkShow(r.dataset.s))}
 function mkShow(sym){MKSEL=sym;if(sym=="CRACK"){showRef();document.querySelectorAll("#mkp .mkr").forEach(r=>r.classList.toggle("sel",r.dataset.s==sym));return}const i=R.findIndex(r=>r.sym==sym);if(i>=0){show(i)}else{const s=MKG.flatMap(g=>g[1]).find(x=>x[0]==sym),o=mkRow(s);if(!o)return;
 const o2={n:s[1],sym,u:s[2],p:o.p};info(`<h2>${esc(s[1])}</h2><div class="row"><span>Last (delayed)</span><b>${pxf(o)} ${esc(s[2])}</b></div>
 <div class="row"><span>Day · week · month</span><b>${cgc(o.d1,o.y?10:2,o.y)} ${cgc(o.w1,o.y?25:5,o.y)} ${cgc(o.m1,o.y?50:10,o.y)}</b></div>${chartHTML(o2)}${cvHTML(sym)}${snHTML(sym)}<div class="note">Symbol ${esc(sym)} on Yahoo Finance, delayed. Futures are the front month and can jump when the contract rolls.</div>`);setTimeout(()=>{drawChart(o2);cvDraw(sym);snDraw(sym)},0)}
 document.querySelectorAll("#mkp .mkr").forEach(r=>r.classList.toggle("sel",r.dataset.s==sym))}
-function mkOpen(o){document.body.classList.toggle("mkopen",o);$("#mkb").setAttribute("aria-pressed",o);if(o)mkBoard()}
+function mkOpen(o){if(o&&!WIDE()){const pp=$("#panel");if(pp.classList.contains("open"))$("#px").click()}document.body.classList.toggle("mkopen",o);$("#mkb").setAttribute("aria-pressed",o);if(o)mkBoard()}
 $("#mkb").onclick=()=>mkOpen(!document.body.classList.contains("mkopen"));
 addEventListener("keydown",e=>{if(e.target.closest("input,textarea"))return;if(e.key=="m"||e.key=="M")mkOpen(!document.body.classList.contains("mkopen"));if(e.key=="Escape"&&document.body.classList.contains("mkopen")&&!$("#panel").classList.contains("open"))mkOpen(false)});
 setInterval(async()=>{await prices();mkBoard()},5*6e4);
