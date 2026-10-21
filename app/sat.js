@@ -42,7 +42,7 @@
     if (on) detail();
   }
   const btn = document.createElement("button");
-  btn.textContent = "Satellite"; btn.dataset.x = "sat"; btn.title = "NASA satellite image (yesterday)";
+  btn.textContent = innerWidth < 500 ? "Sat" : "Satellite"; btn.dataset.x = "sat"; btn.title = "NASA satellite image (yesterday)";
   btn.onclick = () => { on = !on; ls("cm_sat", on ? "1" : "0"); apply() };
   document.getElementById("wxm").appendChild(btn);
   document.getElementById("scroll").addEventListener("scroll", () => on && detail(), { passive: true });
