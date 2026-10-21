@@ -190,6 +190,43 @@ ${k.length ? k.map(x => { const s = rf[x], y = yo(s); return `<div class="row"><
   }
   later(load, 1800); setInterval(load, 30 * 6e4);
 
+  /* ---------- Hazards tab on the markets board: everything physical in one place ---------- */
+  function renderHaz(el) {
+    const row = (attr, name, sub, val, cls, ch) => `<div class="mkr hzr" ${attr}><span>${esc(name)}${sub ? `<small>${esc(sub)}</small>` : ""}</span><span class="hzv ${cls || ""}">${val}</span><span class="hzc">${ch || ""}</span></div>`;
+    let h = "";
+    const RV = HZ && HZ.rivers || [];
+    h += `<div class="mkg">River levels <button class="hzm" data-ly="river">Map</button></div>`;
+    h += RV.length ? RV.map((r, i) => { const s = rvState(r), f = (r.fc || []).reduce((a, b) => !a || b[1] < a[1] ? b : a, null), fs = f && rvState({ v: [f[1]], lv: r.lv });
+      return row(`data-rv="${i}"`, r.n.replace("Mississippi at ", "Mississippi · ").replace("Rhine at ", "Rhine · "), s.t, `${r.v.at(-1).toFixed(r.u == "cm" ? 0 : 1)} ${r.u}`, "rv-" + s.k, fs && fs.k != "ok" && fs.k != s.k ? `<span class="rv-${fs.k}">→ ${f[1].toFixed(1)} fcst</span>` : "") }).join("") : '<div class="note" style="padding:6px 10px">Loading…</div>';
+    const FR = (HZ && HZ.frost || []).filter(f => f.in_season || f.lvl).sort((a, b) => b.lvl - a.lvl || (a.low ?? 99) - (b.low ?? 99));
+    h += `<div class="mkg">Frost watch, next 10 days <button class="hzm" data-ly="frost">Map</button></div>`;
+    h += FR.length ? FR.map(f => row(`data-fr="${HZ.frost.indexOf(f)}"`, f.n, f.c + (f.in_season ? "" : " · season starts soon"), f.lvl ? `${f.t.toFixed(0)}°C ${ukDay(f.day).split(" ")[0]}` : `low ${f.low != null ? f.low.toFixed(0) : "—"}°C`, f.lvl == 2 ? "fr2" : f.lvl ? "fr1" : "", f.lvl ? (f.lvl == 2 ? "Risk" : "Watch") : "Clear")).join("") : '<div class="note" style="padding:6px 10px">No crop region is in its frost season.</div>';
+    const SO = R.map((r, i) => ({ r, i })).filter(x => x.r.soil).sort((a, b) => Math.abs(b.r.soil.pct) - Math.abs(a.r.soil.pct));
+    h += `<div class="mkg">Soil moisture vs 10-yr normal</div>`;
+    h += SO.length ? SO.map(({ r, i }) => { const s = r.soil, w = Math.min(100, Math.abs(s.pct) * 1.6);
+      return row(`data-ri="${i}"`, r.n, r.loc.split(",")[0], `${sg(s.pct, 0)}%`, s.pct <= -20 ? "sm-d" : s.pct >= 25 ? "sm-w" : "", `<i class="hzb"><b style="width:${w}%;background:var(--${s.pct < 0 ? "dry" : "wet"})"></b></i>${s.rank == 0 ? "driest " + (s.n + 1) + "y" : s.rank == s.n ? "wettest " + (s.n + 1) + "y" : ""}`) }).join("") : '<div class="note" style="padding:6px 10px">Appears after the daily climate job runs.</div>';
+    const fc = HZ && HZ.fires;
+    h += `<div class="mkg">Wildfires, last 24 h <button class="hzm" data-ly="fire">Map</button></div>`;
+    h += row('data-go="FIRE"', "Satellite fire detections", "NASA FIRMS · biggest clusters and what's near them", fc ? (fc.n || 0).toLocaleString("en") : "—", "", "›");
+    const rf = typeof RF != "undefined" && RF && RF.rail, px = s => typeof PX != "undefined" && PX && PX[s];
+    h += `<div class="mkg">Rail and freight <button class="hzm" data-ly="rail">Map</button></div>`;
+    if (rf && rf.total) h += row('data-go="RAIL"', "US crude by rail", "EIA · " + new Date(rf.total.d.at(-1) + "-15").toLocaleDateString("en-GB", { month: "short", year: "numeric" }), rf.total.v.at(-1).toFixed(0) + " kb/d", "", "›");
+    [["BDRY", "Dry bulk freight", "Breakwave ETF"], ["BWET", "Tanker freight", "Breakwave ETF"]].forEach(([k, n, sub]) => { const q = px(k); if (q && q.price != null) { const d = (q.price / q.prev - 1) * 100; h += row(`data-mk="${k}"`, n, sub, "$" + q.price.toFixed(2), "", `<span style="color:var(--${d >= 0 ? "up" : "dn"})">${sg(d)}%</span>`) } });
+    el.innerHTML = `${mkHead("haz")}<div class="mkt">${h}</div><div class="mkf">Physical risks to supply and transport. Tap a row for detail and charts; "Map" switches that layer on. Rivers and frost update every 3 hours, soil daily, rail monthly.</div>`;
+    $("#mkx").onclick = () => mkOpen(false);
+    el.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { window.MKTAB = b.dataset.tab; mkBoard() });
+    const sel = d => el.querySelectorAll(".hzr").forEach(x => x.classList.toggle("sel", x == d));
+    el.querySelectorAll("[data-rv]").forEach(d => d.onclick = () => { const r = HZ.rivers[+d.dataset.rv]; layerOn("river"); go(r.lon, r.lat); showRiver(r); sel(d) });
+    el.querySelectorAll("[data-fr]").forEach(d => d.onclick = () => { const f = HZ.frost[+d.dataset.fr]; layerOn("frost"); go(f.lon, f.lat); showFrost(f); sel(d) });
+    el.querySelectorAll("[data-ri]").forEach(d => d.onclick = () => { const i = +d.dataset.ri; go(R[i].lon, R[i].lat); show(i); sel(d) });
+    el.querySelectorAll("[data-go]").forEach(d => d.onclick = () => { FN[d.dataset.go](); sel(d) });
+    el.querySelectorAll("[data-mk]").forEach(d => d.onclick = () => { mkShow(d.dataset.mk); sel(d) });
+    el.querySelectorAll(".hzm").forEach(b => { const k = b.dataset.ly, on = () => !map.classList.contains("off-" + k); b.classList.toggle("on", on());
+      b.onclick = e => { e.stopPropagation(); document.querySelector(`#tg button[data-k="${k}"]`)?.click(); b.classList.toggle("on", on()) } });
+  }
+  window.renderHaz = renderHaz;
+  window.openHaz = () => { window.MKTAB = "haz"; mkOpen(true) };
+
   /* watch list for the brief */
   window.hzWatch = () => {
     const L = [];
@@ -210,9 +247,11 @@ ${k.length ? k.map(x => { const s = rf[x], y = yo(s); return `<div class="row"><
     SOIL: () => soilList(),
     RAIL: () => { layerOn("rail"); showRail(null) },
     FREIGHT: () => { typeof mkShow == "function" && mkShow("BDRY") },
+    HAZ: () => openHaz(),
   };
   window.CMD_RUN = c => FN[c] && FN[c]();
   window.CMD_FN = [
+    ["HAZ", "Hazards board (rivers, frost, soil, fires, rail)", "hazards physical risk river frost soil fire rail freight", FN.HAZ],
     ["RIVER", "River levels (Rhine, Mississippi)", "river rhine kaub mississippi barge low water draft", FN.RIVER],
     ["FROST", "Frost watch for crops", "frost freeze cold coffee citrus wheat winterkill", FN.FROST],
     ["FIRE", "Wildfires, last 24 hours", "fire fires wildfire firms burning smoke", FN.FIRE],

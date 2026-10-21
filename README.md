@@ -33,7 +33,8 @@ Personal use only. The free data sources it uses are licensed for personal, non-
 | Calendar | Reports (WASDE, EIA, COT…), central banks, exchange holidays in UK time | Built in + `holidays` package |
 | Brief | Daily ranked "what stands out" across all of the above | Computed on the page |
 
-Search codes include `RIVER`, `FROST`, `FIRE`, `SOIL`, `RAIL`, `FREIGHT`.
+The **Hazards** tab on the markets board gathers rivers, frost, soil, fires, rail and freight in one place.
+Search codes include `HAZ`, `RIVER`, `FROST`, `FIRE`, `SOIL`, `RAIL`, `FREIGHT`.
 
 Keyboard: `/` search, `L` layers, `M` markets, `+`/`-` zoom, `Esc` close.
 

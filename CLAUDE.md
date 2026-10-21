@@ -11,6 +11,7 @@ Personal project for Sam (UK, Jersey). Commodity weather map on GitHub Pages. Se
 ## Code layout
 - `index.html`: shell only. Scripts load with `defer` in order: geo → app → windgl → cmd → brief → sat → hazards → pins → health. They share globals (classic scripts), so later files call `show()`, `R`, `MK`, `PX`, `info()` etc. from `app.js`.
 - `app/app.js`: everything core (map, pins/labels `layout()`, weather canvas, lanes, storms, ENSO, calendar/ticker, panels, markets board, news, UK energy, curves/seasonal, refining, quakes). Top-level `const`/`let` names must not clash across files (e.g. `SM`, `ukT` already caused bugs).
+- Zoom gestures (pinch, wheel) only CSS-scale `#map` (`zg` state); the real resize, `layout()` and weather redraw run once in `zCommit()` when the gesture pauses. Don't resize the map per gesture event again.
 - Weather draws into a viewport-sized sticky layer (`#wxl`) using cached geometry (`GEO`); don't make canvases map-sized again.
 - `later(fn)` defers non-critical loads; `getData(branch,file)` / `rawUrls()` read data branches (fall back to local files when served locally).
 - `windgl.js` replaces `anim`/`sizeP` with a WebGL trail renderer (canvas `#wpg`); falls back to the 2D `#wp` canvas if WebGL is missing or the context is lost.

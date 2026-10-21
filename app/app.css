@@ -305,3 +305,10 @@ body.saton #wx{opacity:.38}
 .fr1{color:#7cc4ff}.fr2{color:#3d8fe0;font-weight:700}:root[data-theme="light"] .fr1{color:#1f6fb5}
 .sm-d{color:var(--dry)}.sm-w{color:var(--wet)}
 @media (prefers-reduced-motion:reduce){.mk.L-river.rv-sev::before{animation:none}}
+
+.hzr{grid-template-columns:minmax(0,1fr) auto 112px;cursor:pointer}.hzr .hzv{font-family:"Geist Mono",monospace;font-weight:600;text-align:right}
+.hzr .hzc{display:flex;align-items:center;justify-content:flex-end;gap:6px;font-size:11px;color:var(--mut);white-space:nowrap}
+.hzb{display:block;width:44px;height:5px;border-radius:3px;background:color-mix(in srgb,var(--ink) 9%,transparent);overflow:hidden}.hzb b{display:block;height:100%;border-radius:3px}
+.mkg .hzm{float:right;height:20px;padding:0 8px;font-size:11px;border-radius:10px;border:1px solid var(--line2);color:var(--mut);margin-top:-2px}.mkg .hzm.on{color:var(--amb);border-color:var(--amb)}
+@media (max-width:999px){.mkr.hzr{grid-template-columns:minmax(0,1fr) auto 96px}.mkr.hzr>:nth-child(3){display:flex}.mkr.hzr>span:first-child small{display:inline}}
+.mktabs button{white-space:nowrap}@media (max-width:999px){.mktabs button{padding:0 8px;font-size:12.5px}}

@@ -57,6 +57,7 @@
   window.anim = function (ts) {
     raf = 0;
     if (lost) return;
+    if (typeof zg != "undefined" && zg) { raf = requestAnimationFrame(anim); return }  // paused while a zoom gesture is scaling the map
     if (!G || wm == "off" || !streak) { gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); clearTrails(); return }
     if (!W) sizeP();
     if (ts) { AFT.push(ts); if (AFT.length > 40) AFT.shift(); const slow = AFT.length > 20 && (AFT.at(-1) - AFT[0]) / (AFT.length - 1) > 22; if (slow && (skip ^= 1)) { raf = requestAnimationFrame(anim); return } }

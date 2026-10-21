@@ -149,7 +149,7 @@ const bl=a=>g(a,y0,x0)*(1-tx)*(1-ty)+g(a,y0,x0+1)*tx*(1-ty)+g(a,y0+1,x0)*(1-tx)*
 function seed(W,H){return{x:Math.random()*W,y:Math.random()*H,a:Math.random()*80|0}}
 function sizeP(){const[w,h]=wlSize();wp.width=Math.round(w*DPR);wp.height=Math.round(h*DPR);const n=Math.min(2600,Math.round(w*h/850));PA=Array.from({length:n},()=>seed(w,h));PO=null}
 let PO=null;
-function anim(ts){raf=0;const c=wp.getContext("2d");if(ts){AFT.push(ts);if(AFT.length>40)AFT.shift();const slow=AFT.length>20&&(AFT.at(-1)-AFT[0])/(AFT.length-1)>22;if(slow&&(ASK^=1)){raf=requestAnimationFrame(anim);return}}if(!G||wm=="off"||!streak){c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,wp.width,wp.height);return}
+function anim(ts){raf=0;if(zg){raf=requestAnimationFrame(anim);return}const c=wp.getContext("2d");if(ts){AFT.push(ts);if(AFT.length>40)AFT.shift();const slow=AFT.length>20&&(AFT.at(-1)-AFT[0])/(AFT.length-1)>22;if(slow&&(ASK^=1)){raf=requestAnimationFrame(anim);return}}if(!G||wm=="off"||!streak){c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,wp.width,wp.height);return}
 const g=GEO||wlGeo(),w=wp.width/DPR,h=wp.height/DPR,W=g.W,H=g.H,k=W/900*.16,[ox,oy]=wlOff();c.setTransform(DPR,0,0,DPR,0,0);
 if(PO&&(PO[0]!=ox||PO[1]!=oy)){const dx=ox-PO[0],dy=oy-PO[1];for(const p of PA){p.x-=dx;p.y-=dy}c.clearRect(0,0,w,h)}PO=[ox,oy];
 c.globalCompositeOperation="destination-in";c.fillStyle="rgba(0,0,0,.9)";c.fillRect(0,0,w,h);c.globalCompositeOperation="source-over";
@@ -523,8 +523,8 @@ return`<span class="cg" style="color:var(--${k});background:color-mix(in srgb,va
 const pxf=o=>o.p>=1000?o.p.toLocaleString("en",{maximumFractionDigits:0}):o.p>=100?o.p.toFixed(1):o.p>=10?o.p.toFixed(2):o.p.toFixed(o.u=="rate"?4:3);
 function rowH(o){return`<div class="mkr${MKSEL==o.sym?" sel":""}" data-s="${esc(o.sym)}" title="${esc(o.n)} · ${esc(o.u)}"><span>${esc(o.n)}<small>${esc(o.u)}</small></span>${spark(o)}<span class="px">${pxf(o)}</span>${cgc(o.d1,o.y?10:2,o.y)}${cgc(o.w1,o.y?25:5,o.y)}${cgc(o.m1,o.y?50:10,o.y)}</div>`}
 window.MKTAB=window.MKTAB||"px";
-function mkHead(tab){return`<div class="mkh"><div class="mktabs" role="tablist"><button data-tab="px" role="tab" aria-selected="${tab=="px"}" class="${tab=="px"?"on":""}">Markets</button><button data-tab="risk" role="tab" aria-selected="${tab=="risk"}" class="${tab=="risk"?"on":""}">Weather risk</button></div><small>${tab=="px"?"Delayed ~15 min · "+(pT?new Date(pT*1000).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",hour12:false,timeZone:"Europe/London"})+" UK":"—"):"Crop regions vs normal"}</small><button class="x" id="mkx" aria-label="Close">×</button></div>`}
-function mkBoard(){const el=$("#mkp");if(!document.body.classList.contains("mkopen"))return;if(MKTAB=="risk"&&typeof renderRisk=="function"){renderRisk(el);return}const rows=MKG.map(([g,L])=>[g,L.map(mkRow).filter(Boolean)]);
+function mkHead(tab){return`<div class="mkh"><div class="mktabs" role="tablist"><button data-tab="px" role="tab" aria-selected="${tab=="px"}" class="${tab=="px"?"on":""}">Markets</button><button data-tab="risk" role="tab" aria-selected="${tab=="risk"}" class="${tab=="risk"?"on":""}">Weather risk</button><button data-tab="haz" role="tab" aria-selected="${tab=="haz"}" class="${tab=="haz"?"on":""}">Hazards</button></div><small>${tab=="haz"?"Rivers, frost, soil, fires, rail":tab=="px"?"Delayed ~15 min · "+(pT?new Date(pT*1000).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",hour12:false,timeZone:"Europe/London"})+" UK":"—"):"Crop regions vs normal"}</small><button class="x" id="mkx" aria-label="Close">×</button></div>`}
+function mkBoard(){const el=$("#mkp");if(!document.body.classList.contains("mkopen"))return;if(MKTAB=="risk"&&typeof renderRisk=="function"){renderRisk(el);return}if(MKTAB=="haz"&&typeof renderHaz=="function"){renderHaz(el);return}const rows=MKG.map(([g,L])=>[g,L.map(mkRow).filter(Boolean)]);
 const all=rows.flatMap(r=>r[1]),mv=all.filter(o=>!o.y&&o.d1!=null).sort((a,b)=>b.d1-a.d1);
 const hd=[["n","Market"],[null,""],[null,"Last"],["d1","1D"],["w1","1W"],["m1","1M"]].map(([k,t])=>k?`<button data-k="${k}"${MKS&&MKS[0]==k?` class="on" data-d="${MKS[1]>0?"↓":"↑"}"`:""}>${t}</button>`:`<span style="text-align:right">${t}</span>`).join("");
 let body="";if(!all.length)body=`<div class="note" style="padding:16px">Prices load once the Update prices job has run with the new markets list.</div>`;
@@ -855,10 +855,16 @@ let BW=1800;const WIDE=()=>innerWidth>=1000;
 function fit(){BW=Math.round(Math.max(innerWidth,innerHeight*2))}
 fit();let z=1;map.style.width=BW*z+"px";
 const MSC=$("#scroll");let heavyT;
+/* Zoom: during a pinch or wheel gesture the map is only scaled on the GPU (CSS transform, no re-layout);
+   the real resize, label layout and weather redraw happen once, when the gesture pauses. */
+let zg=null;
+function zApply(nz,cx,cy){const W0=map.offsetWidth,H0=map.offsetHeight,ox=map.offsetLeft,oy=map.offsetTop,wx=(MSC.scrollLeft+cx-ox)/W0,wy=(MSC.scrollTop+cy-oy)/H0;z=nz;map.style.width=BW*z+"px";
+const W1=map.offsetWidth,H1=map.offsetHeight;MSC.scrollLeft=wx*W1+map.offsetLeft-cx;MSC.scrollTop=wy*H1+map.offsetTop-cy;map.classList.toggle("big",W1>=Math.max(2000,innerWidth*1.25));map.classList.toggle("zm",W1>=Math.max(2600,innerWidth*1.4));layout();wxResize();coastLOD()}
+function zCommit(){clearTimeout(heavyT);if(!zg)return;const g=zg;zg=null;const nz=z;z=g.z0;map.style.transform="";map.style.transformOrigin="";map.style.willChange="";map.classList.remove("zoomg");zApply(nz,g.cx,g.cy)}
 function setZoom(nz,cx,cy,quick){const zmin=Math.min(1,innerWidth/BW);nz=Math.min(5,Math.max(zmin,nz));if(cx==null){cx=MSC.clientWidth/2;cy=MSC.clientHeight/2}
-const W0=map.offsetWidth,H0=map.offsetHeight,wx=(MSC.scrollLeft+cx)/W0,wy=(MSC.scrollTop+cy)/H0;z=nz;map.style.width=BW*z+"px";
-const W1=map.offsetWidth,H1=map.offsetHeight;MSC.scrollLeft=wx*W1-cx;MSC.scrollTop=wy*H1-cy;map.classList.toggle("big",W1>=Math.max(2000,innerWidth*1.25));map.classList.toggle("zm",W1>=Math.max(2600,innerWidth*1.4));
-clearTimeout(heavyT);if(quick)heavyT=setTimeout(()=>{layout();wxResize();coastLOD()},160);else{layout();wxResize();coastLOD()}}
+if(!quick){zCommit();zApply(nz,cx,cy);return}
+if(!zg){zg={z0:z,cx,cy};map.style.transformOrigin=`${MSC.scrollLeft+cx-map.offsetLeft}px ${MSC.scrollTop+cy-map.offsetTop}px`;map.style.willChange="transform";map.classList.add("zoomg")}
+z=nz;map.style.transform=`scale(${(z/zg.z0).toFixed(4)})`;clearTimeout(heavyT);heavyT=setTimeout(zCommit,180)}
 let C50=null,C50p=null,cLvl=0;
 function coastLOD(){const want=map.offsetWidth>=2200?1:0;if(want==cLvl)return;
 const apply=(L,B)=>{map.querySelectorAll("path.land,path.cst").forEach(p=>p.setAttribute("d",L));map.querySelectorAll("path.bd").forEach(p=>p.setAttribute("d",B))};
@@ -877,7 +883,7 @@ MSC.addEventListener("click",e=>{if(suppress){e.stopPropagation();e.preventDefau
 let pin2=null;
 MSC.addEventListener("touchstart",e=>{if(e.touches.length==2){const[a,b]=e.touches,r=MSC.getBoundingClientRect();pin2={d:Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY),z0:z,cx:(a.clientX+b.clientX)/2-r.left,cy:(a.clientY+b.clientY)/2-r.top}}},{passive:true});
 MSC.addEventListener("touchmove",e=>{if(pin2&&e.touches.length==2){e.preventDefault();const[a,b]=e.touches;setZoom(pin2.z0*Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY)/pin2.d,pin2.cx,pin2.cy,1)}},{passive:false});
-MSC.addEventListener("touchend",e=>{if(e.touches.length<2)pin2=null},{passive:true});
+MSC.addEventListener("touchend",e=>{if(e.touches.length<2){if(pin2)zCommit();pin2=null}},{passive:true});
 map.classList.toggle("big",map.offsetWidth>=Math.max(2000,innerWidth*1.25));MSC.scrollLeft=(WIDE()?190:200)/360*map.offsetWidth-innerWidth/2;MSC.scrollTop=(90-18)/180*map.offsetHeight-innerHeight/2;
 /* ---- chrome behaviour ---- */
 (()=>{const ls=(k,v)=>{try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}};
