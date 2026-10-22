@@ -1,0 +1,218 @@
+name: Update European storms
+on:
+  schedule:
+    - cron: "50 */3 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: eustorms
+  cancel-in-progress: false
+jobs:
+  eustorms:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Track Atlantic/European windstorms, gust swaths and wind warnings
+        run: |
+          mkdir -p out
+          python3 - <<'PY'
+          import json, time, math, re, html, urllib.request, urllib.parse, datetime as dt
+          import xml.etree.ElementTree as ET
+          UA = {"User-Agent": "commodity-map personal project (github actions)"}
+          def get(url, raw=False, timeout=90):
+              for a in range(3):
+                  try:
+                      r = urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=timeout).read()
+                      return r if raw else json.loads(r)
+                  except Exception as e:
+                      print("retry", url.split("?")[0][:90], e); time.sleep(5 + 5 * a)
+              return None
+          now = dt.datetime.now(dt.timezone.utc)
+          out = {"updated": int(time.time()), "lows": [], "gust": [], "warn": {}, "named": [], "mo": [], "dbg": []}
+
+          # ---------- 1. pressure and gusts on a 2-degree grid (Open-Meteo, best-match model) ----------
+          LAT = [36 + 2 * i for i in range(18)]          # 36..70 N
+          LON = [-40 + 2 * j for j in range(36)]         # 40 W..30 E
+          pts = [(la, lo) for la in LAT for lo in LON]
+          P, G, T = {}, {}, None
+          for k in range(0, len(pts), 160):
+              ch = pts[k:k + 160]
+              q = urllib.parse.urlencode({"latitude": ",".join(str(a) for a, _ in ch), "longitude": ",".join(str(b) for _, b in ch),
+                                          "hourly": "pressure_msl,wind_gusts_10m", "past_days": 1, "forecast_days": 4, "timezone": "UTC", "wind_speed_unit": "kmh"})
+              j = get("https://api.open-meteo.com/v1/forecast?" + q)
+              if j is None:
+                  out["dbg"].append(f"grid chunk {k} failed"); continue
+              j = j if isinstance(j, list) else [j]
+              for (la, lo), d in zip(ch, j):
+                  h = d["hourly"]
+                  if T is None:
+                      T = h["time"]
+                  P[(la, lo)] = h["pressure_msl"][::3]
+                  G[(la, lo)] = h["wind_gusts_10m"]
+              time.sleep(2)
+          if T:
+              T3 = T[::3]
+              nt = len(T3)
+              # local pressure minima at each 3-hourly step, refined with a quadratic fit
+              steps = []
+              for ti in range(nt):
+                  mins = []
+                  for i, la in enumerate(LAT[1:-1], 1):
+                      for jx, lo in enumerate(LON[1:-1], 1):
+                          p = P.get((la, lo)); p = p[ti] if p else None
+                          if p is None or p > 1002:
+                              continue
+                          nb = [P.get((LAT[i + di], LON[jx + dj])) for di in (-1, 0, 1) for dj in (-1, 0, 1) if di or dj]
+                          nb = [x[ti] for x in nb if x and x[ti] is not None]
+                          if len(nb) < 8 or p > min(nb) or p >= sum(nb) / 8 - 1.5:
+                              continue
+                          def q1(a, b, c):
+                              den = a - 2 * b + c
+                              return 0 if den <= 0 else max(-.5, min(.5, (a - c) / (2 * den)))
+                          pn, ps = P[(LAT[i + 1], lo)][ti], P[(LAT[i - 1], lo)][ti]
+                          pe, pw = P[(la, LON[jx + 1])][ti], P[(la, LON[jx - 1])][ti]
+                          y = la + 2 * q1(ps, p, pn); x = lo + 2 * q1(pw, p, pe)
+                          mins.append([round(x, 2), round(y, 2), round(p, 1)])
+                  steps.append(mins)
+              # link minima into tracks (nearest within 650 km per 3 h)
+              def km(a, b, c, d):
+                  r = math.pi / 180
+                  return 12742 * math.asin(math.sqrt(math.sin((c - a) * r / 2) ** 2 + math.cos(a * r) * math.cos(c * r) * math.sin((d - b) * r / 2) ** 2))
+              tracks = []
+              for ti, mins in enumerate(steps):
+                  used = set()
+                  for tr in sorted([t for t in tracks if t["last"] == ti - 1], key=lambda t: t["pts"][-1][2]):
+                      lx, ly = tr["pts"][-1][0], tr["pts"][-1][1]
+                      best = min(((km(ly, lx, m[1], m[0]), n) for n, m in enumerate(mins) if n not in used), default=None)
+                      if best and best[0] < 650:
+                          used.add(best[1]); m = mins[best[1]]; tr["pts"].append([m[0], m[1], m[2], T3[ti]]); tr["last"] = ti
+                  for n, m in enumerate(mins):
+                      if n not in used:
+                          tracks.append({"pts": [[m[0], m[1], m[2], T3[ti]]], "last": ti})
+              nowk = now.strftime("%Y-%m-%dT%H")
+              for tr in tracks:
+                  pp = [p[2] for p in tr["pts"]]
+                  if len(pp) < 4 or min(pp) > 990:
+                      continue
+                  # deepening: biggest 24 h fall (explosive if >= 24 hPa scaled by latitude)
+                  fall = max((pp[i] - pp[i + 8] for i in range(len(pp) - 8)), default=0)
+                  ilo = pp.index(min(pp))
+                  la0 = tr["pts"][ilo][1]
+                  bomb = fall >= 24 * math.sin(math.radians(max(30, la0))) / math.sin(math.radians(60))
+                  # strongest gusts within 400 km of the track while it is in the forecast window
+                  gmax, gwhere = 0, None
+                  for x, y, p, t in tr["pts"]:
+                      if t[:13] < nowk:
+                          continue
+                      ti = T.index(t) if t in T else None
+                      if ti is None:
+                          continue
+                      for (la, lo), g in G.items():
+                          if abs(la - y) > 4.5 or km(y, x, la, lo) > 400:
+                              continue
+                          v = max([v for v in g[ti:ti + 3] if v is not None], default=0)
+                          if v > gmax:
+                              gmax, gwhere = v, (la, lo)
+                  out["lows"].append({"pts": tr["pts"], "min": min(pp), "fall24": round(fall, 1), "bomb": bool(bomb), "gmax": round(gmax), "gat": gwhere})
+              out["lows"].sort(key=lambda l: l["min"])
+              out["lows"] = out["lows"][:8]
+              # gust swath: max gust from now through +72 h at each grid point
+              i0 = next((i for i, t in enumerate(T) if t[:13] >= nowk), 0)
+              for (la, lo), g in G.items():
+                  v = max([v for v in g[i0:i0 + 72] if v is not None], default=0)
+                  if v >= 75:
+                      it = i0 + max(range(len(g[i0:i0 + 72])), key=lambda k: g[i0 + k] or 0)
+                      out["gust"].append([la, lo, round(v), T[it]])
+              out["grid"] = {"lat": [LAT[0], LAT[-1], 2], "lon": [LON[0], LON[-1], 2]}
+              print("lows", [(round(l["min"]), l["pts"][0][:2], l["pts"][-1][:2], l["bomb"], l["gmax"]) for l in out["lows"]], "gust cells", len(out["gust"]))
+
+          # ---------- 2. which storm names are in use (Met Office / Met Eireann / KNMI 2026-27 list) ----------
+          NAMES = ["Austen", "Boelo", "Chloe", "Dano", "Evelyn", "Finn", "Gwendolyn", "Heather", "Ivy", "Jade", "Kilian", "Laoise", "Miriam", "Nicola", "Olaf", "Phelim", "Ruban", "Shaun", "Theo", "Vesna", "Wende"]
+          q = " OR ".join(f'"Storm {n}"' for n in NAMES)
+          seen = {}
+          try:
+              raw = get("https://news.google.com/rss/search?" + urllib.parse.urlencode({"q": f"({q}) when:4d", "hl": "en-GB", "gl": "GB", "ceid": "GB:en"}), raw=True)
+              for it in ET.fromstring(raw).iter("item"):
+                  t = html.unescape(it.findtext("title") or "")
+                  for n in NAMES:
+                      if re.search(rf"\bStorm {n}\b", t):
+                          seen.setdefault(n, []).append(t[:140])
+          except Exception as e:
+              out["dbg"].append(f"news {e}")
+          named = [n for n in NAMES if len(seen.get(n, [])) >= 2]
+          out["named"] = [{"n": n, "hits": len(seen[n]), "eg": seen[n][:3]} for n in named]
+          # attach the newest name in use to the deepest low that reaches the British Isles / North Sea area
+          if named and out["lows"]:
+              def near_bi(l):
+                  return any(-14 <= x <= 8 and 48 <= y <= 62 for x, y, p, t in l["pts"])
+              cand = [l for l in out["lows"] if near_bi(l)]
+              if cand:
+                  cand[0]["name"] = named[-1]
+          print("names in the news", {k: len(v) for k, v in seen.items()})
+
+          # ---------- 3. official wind warnings ----------
+          # MeteoAlarm (all national met services): count wind / coastal warnings by country and level
+          CTRY = {"united-kingdom": ("UK", -2.5, 54), "ireland": ("Ireland", -8, 53.2), "france": ("France", 2.3, 46.6), "netherlands": ("Netherlands", 5.4, 52.2),
+                  "belgium": ("Belgium", 4.6, 50.6), "germany": ("Germany", 10.3, 51.1), "denmark": ("Denmark", 9.4, 56), "norway": ("Norway", 9, 61),
+                  "spain": ("Spain", -3.7, 40.3), "portugal": ("Portugal", -8.2, 39.6), "sweden": ("Sweden", 15.5, 60.5), "poland": ("Poland", 19.2, 52)}
+          NS = {"a": "http://www.w3.org/2005/Atom", "cap": "urn:oasis:names:tc:emergency:cap:1.2"}
+          for slug, (name, lo, la) in CTRY.items():
+              raw = get(f"https://feeds.meteoalarm.org/feeds/meteoalarm-legacy-atom-{slug}", raw=True, timeout=60)
+              if not raw:
+                  out["dbg"].append("meteoalarm " + slug); continue
+              try:
+                  root = ET.fromstring(raw)
+              except Exception as e:
+                  out["dbg"].append(f"meteoalarm parse {slug} {e}"); continue
+              lv = {"yellow": 0, "orange": 0, "red": 0}; areas = {"orange": [], "red": []}; first = None
+              for en in root.findall("a:entry", NS):
+                  ev = (en.findtext("cap:event", "", NS) or "").lower()
+                  at = (en.findtext("cap:awareness_type", "", NS) or "").lower()
+                  al = (en.findtext("cap:awareness_level", "", NS) or "").lower()
+                  if not ("wind" in at or "coastal" in at or "wind" in ev or "coastal" in ev or "gale" in ev or "storm" in ev):
+                      continue
+                  try:
+                      exp = dt.datetime.fromisoformat((en.findtext("cap:expires", "", NS) or "").replace("Z", "+00:00"))
+                      if exp < now:
+                          continue
+                  except Exception:
+                      pass
+                  k = "red" if "red" in al else "orange" if "orange" in al else "yellow" if "yellow" in al else None
+                  if not k:
+                      continue
+                  lv[k] += 1
+                  ar = en.findtext("cap:areaDesc", "", NS) or ""
+                  if k in areas and ar and ar not in areas[k]:
+                      areas[k].append(ar[:60])
+                  on = en.findtext("cap:onset", "", NS) or en.findtext("cap:effective", "", NS)
+                  if on and (first is None or on < first):
+                      first = on
+              if any(lv.values()):
+                  out["warn"][name] = {"lon": lo, "lat": la, "n": lv, "areas": {k: v[:6] for k, v in areas.items() if v}, "from": first}
+          # Met Office (UK) warnings feed: headline text, which usually names the storm
+          raw = get("https://www.metoffice.gov.uk/public/data/PWSCache/WarningsRSS/Region/UK", raw=True, timeout=60)
+          if raw:
+              try:
+                  for it in ET.fromstring(raw).iter("item"):
+                      t = html.unescape(it.findtext("title") or ""); d = html.unescape(re.sub("<[^>]+>", " ", it.findtext("description") or ""))
+                      if re.search(r"wind|storm|gale", t + d, re.I):
+                          out["mo"].append({"t": t[:160], "d": re.sub(r"\s+", " ", d)[:400], "u": it.findtext("link") or ""})
+              except Exception as e:
+                  out["dbg"].append(f"metoffice {e}")
+          else:
+              out["dbg"].append("metoffice feed")
+          print("warnings", {k: v["n"] for k, v in out["warn"].items()}, "| met office", len(out["mo"]), "| dbg", out["dbg"])
+          if out["lows"] or out["warn"] or out["gust"]:
+              json.dump(out, open("out/eustorms.json", "w"), separators=(",", ":"))
+          else:
+              json.dump(out, open("out/eustorms.json", "w"), separators=(",", ":"))
+          PY
+      - name: Publish to eustorms branch
+        run: |
+          [ -f out/eustorms.json ] || { echo "nothing built"; exit 1; }
+          cd out
+          git init -q && git checkout -q -b eustorms
+          git config user.name "eustorm-bot"
+          git config user.email "eustorm-bot@users.noreply.github.com"
+          git add -A && git commit -q -m "European storms"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" eustorms
