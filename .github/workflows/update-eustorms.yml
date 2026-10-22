@@ -153,8 +153,8 @@ jobs:
           if named and out["lows"]:
               cut = (now - dt.timedelta(hours=36)).strftime("%Y-%m-%dT%H")
               def arrival(l):
-                  return next((t for x, y, p, t in l["pts"] if -16 <= x <= 9 and 47 <= y <= 63), None)
-              cand = sorted([l for l in out["lows"] if arrival(l) and arrival(l)[:13] >= cut], key=arrival)
+                  return next((t for x, y, p, t in l["pts"] if -11.5 <= x <= 9 and 49 <= y <= 61), None)
+              cand = sorted([l for l in out["lows"] if arrival(l) and arrival(l)[:13] >= cut and l["gmax"] >= 90], key=arrival)
               use = named[-len(cand):] if len(cand) < len(named) else named
               for l, n in zip(cand, use):
                   l["name"] = n
