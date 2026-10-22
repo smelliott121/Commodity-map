@@ -142,12 +142,21 @@ jobs:
           named = [n for n in NAMES if len(seen.get(n, [])) >= 2]
           out["named"] = [{"n": n, "hits": len(seen[n]), "eg": seen[n][:3]} for n in named]
           # attach the newest name in use to the deepest low that reaches the British Isles / North Sea area
+          # drop track fragments that end on a deeper track's points, keep the lows that matter (<= 985 hPa)
+          keep = []
+          for l in out["lows"]:
+              pts = {(round(x, 1), round(y, 1), t) for x, y, p, t in l["pts"]}
+              if any(len(pts & {(round(x, 1), round(y, 1), t) for x, y, p, t in k["pts"]}) for k in keep):
+                  continue
+              keep.append(l)
+          out["lows"] = [l for l in keep if l["min"] <= 985][:6]
+          # storm names go to the lows that reach the British Isles / Ireland / North Sea, in order of arrival (names are given in order)
           if named and out["lows"]:
-              def near_bi(l):
-                  return any(-14 <= x <= 8 and 48 <= y <= 62 for x, y, p, t in l["pts"])
-              cand = [l for l in out["lows"] if near_bi(l)]
-              if cand:
-                  cand[0]["name"] = named[-1]
+              def arrival(l):
+                  return next((t for x, y, p, t in l["pts"] if -16 <= x <= 9 and 47 <= y <= 63), None)
+              cand = sorted([l for l in out["lows"] if arrival(l)], key=arrival)
+              for l, n in zip(cand[-len(named):] if len(cand) > len(named) else cand, named[-len(cand):] if len(named) > len(cand) else named):
+                  l["name"] = n
           print("names in the news", {k: len(v) for k, v in seen.items()})
 
           # ---------- 3. official wind warnings ----------
@@ -165,26 +174,31 @@ jobs:
               except Exception as e:
                   out["dbg"].append(f"meteoalarm parse {slug} {e}"); continue
               lv = {"yellow": 0, "orange": 0, "red": 0}; areas = {"orange": [], "red": []}; first = None
-              for en in root.findall("a:entry", NS):
-                  ev = (en.findtext("cap:event", "", NS) or "").lower()
-                  at = (en.findtext("cap:awareness_type", "", NS) or "").lower()
-                  al = (en.findtext("cap:awareness_level", "", NS) or "").lower()
+              ents = [e for e in root.iter() if e.tag.split("}")[-1] == "entry"]
+              if not out.get("mdbg"):
+                  out["mdbg"] = {"slug": slug, "entries": len(ents), "fields": {c.tag.split("}")[-1]: (c.text or "")[:60] for c in ents[0]} if ents else {}}
+              for en in ents:
+                  F = {}
+                  for c in en:
+                      F.setdefault(c.tag.split("}")[-1], (c.text or "").strip())
+                  ev, at, al = F.get("event", "").lower(), F.get("awareness_type", "").lower(), F.get("awareness_level", "").lower()
                   if not ("wind" in at or "coastal" in at or "wind" in ev or "coastal" in ev or "gale" in ev or "storm" in ev):
                       continue
                   try:
-                      exp = dt.datetime.fromisoformat((en.findtext("cap:expires", "", NS) or "").replace("Z", "+00:00"))
+                      exp = dt.datetime.fromisoformat(F.get("expires", "").replace("Z", "+00:00"))
                       if exp < now:
                           continue
                   except Exception:
                       pass
-                  k = "red" if "red" in al else "orange" if "orange" in al else "yellow" if "yellow" in al else None
+                  sev = F.get("severity", "").lower()
+                  k = "red" if "red" in al or sev == "extreme" else "orange" if "orange" in al or sev == "severe" else "yellow" if "yellow" in al or sev == "moderate" else None
                   if not k:
                       continue
                   lv[k] += 1
-                  ar = en.findtext("cap:areaDesc", "", NS) or ""
+                  ar = F.get("areaDesc", "")
                   if k in areas and ar and ar not in areas[k]:
                       areas[k].append(ar[:60])
-                  on = en.findtext("cap:onset", "", NS) or en.findtext("cap:effective", "", NS)
+                  on = F.get("onset") or F.get("effective")
                   if on and (first is None or on < first):
                       first = on
               if any(lv.values()):
