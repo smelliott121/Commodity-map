@@ -12,13 +12,18 @@
     ["Dover Strait / Channel", 51.0, 1.4, "World's busiest shipping lane"], ["Felixstowe", 51.95, 1.33, "UK's largest container port"], ["Rotterdam", 51.9, 4.1, "Europe's largest port and refining hub"], ["Antwerp", 51.3, 4.3, "Port and chemicals hub"],
     ["Milford Haven LNG", 51.7, -5.05, "UK LNG import terminals"], ["Isle of Grain LNG", 51.44, 0.72, "UK LNG import terminal"], ["Fawley refinery", 50.83, -1.33, "UK's largest refinery"], ["Pembroke refinery", 51.68, -5.0, "UK refinery"],
     ["Hornsea / Dogger Bank wind farms", 54.0, 1.8, "UK offshore wind"], ["Le Havre", 49.48, 0.1, "France's main container port"], ["Hamburg", 53.55, 9.95, "Germany's main port"], ["Bilbao", 43.35, -3.05, "Biscay port"]];
-  const near = (la, lo, L, d) => L.filter(p => Math.abs(p[0] - la) < 3 && km(la, lo, p[0], p[1]) < d);
-
+  
   function cur(l) { const n = Date.now(); let b = l.pts[0]; for (const p of l.pts) if (tms(p[3]) <= n) b = p; return b }
-  function hits(l) {   // assets under the storm's strong-gust swath
-    const G = (EUS.gust || []).filter(g => g[2] >= 90), out = [];
-    ASSETS.forEach(a => { const g = near(a[1], a[2], G.map(c => [c[0], c[1], c[2], c[3]]), 170).sort((x, y) => y[2] - x[2])[0]; const tr = l.pts.some(p => km(a[1], a[2], p[1], p[0]) < 700);
-      if (g && tr) out.push({ n: a[0], w: a[3], g: g[2], t: g[3] }) });
+  function posAt(l, t) { let b = null, bd = 1e18; for (const p of l.pts) { const d = Math.abs(tms(p[3]) - t); if (d < bd) { bd = d; b = p } } return bd <= 6 * 36e5 ? b : null }
+  function owner(cell) {   // which storm is responsible for a gust cell: the nearest centre at the time of the peak gust
+    const t = tms(cell[3]); let best = null, bd = 1e9;
+    (EUS.lows || []).forEach(l => { const p = posAt(l, t); if (!p) return; const d = km(cell[0], cell[1], p[1], p[0]); if (d < bd) { bd = d; best = l } });
+    return bd < 1100 ? best : null;
+  }
+  function hits(l) {   // energy and shipping assets under this storm's strong-gust swath
+    const G = (EUS.gust || []).filter(g => g[2] >= 90 && owner(g) === l), out = [];
+    ASSETS.forEach(a => { const g = G.filter(c => Math.abs(c[0] - a[1]) < 3 && km(a[1], a[2], c[0], c[1]) < 170).sort((x, y) => y[2] - x[2])[0];
+      if (g) out.push({ n: a[0], w: a[3], g: g[2], t: g[3] }) });
     return out.sort((a, b) => b.g - a.g);
   }
   function title(l) { return l.name ? `Storm ${l.name}` : `Atlantic low` }
@@ -35,9 +40,9 @@ ${l.name ? `<div class="note" style="margin:-4px 0 6px">Named by the UK, Irish a
 <div><span class="note" style="margin:0">Strongest gusts</span><b>${l.gmax ? l.gmax : "—"}</b><small>km/h${l.gmax ? " · " + kmh2mph(l.gmax) + " mph" : ""}</small></div></div>
 ${l.bomb ? `<div class="row"><span>Deepening</span><b class="wrap dn">${l.fall24} hPa in 24 h: explosive cyclogenesis ("weather bomb")</b></div>` : l.fall24 ? `<div class="row"><span>Deepening</span><b>${l.fall24} hPa in 24 h</b></div>` : ""}
 ${H.length ? `<div class="kh">Energy and shipping in its strongest winds</div>${H.slice(0, 8).map(h => `<div class="row"><span>${esc(h.n)}<small class="dn2" style="display:block">${esc(h.w)}</small></span><b style="color:${GC(h.g)}">${h.g} km/h<small class="dn2" style="display:block;text-align:right">${ukT2(h.t)}</small></b></div>`).join("")}` : ""}
-${ukW || euW ? `<div class="kh">Official wind warnings</div>${ukW}${euW}` : ""}
+${ukW || euW ? `<div class="kh">Official wind warnings now (all storms)</div>${ukW}${euW}` : ""}
 ${every.length ? `<div class="kh">Forecast track</div><table class="ftb"><tr><th>Valid (UK)</th><th>Centre</th><th>Pressure</th></tr>${every.map(p => `<tr><td>${ukT2(p[3])}</td><td>${Math.abs(p[1]).toFixed(1)}°N ${Math.abs(p[0]).toFixed(1)}°${p[0] >= 0 ? "E" : "W"}</td><td>${p[2].toFixed(0)} hPa</td></tr>`).join("")}</table>` : ""}
-<div class="kh">Why it matters for markets</div><div class="note" style="margin-top:2px">Windstorms can shut North Sea platforms and Norwegian gas plants (Brent, UK and EU gas), close ports and the Channel, and swing UK and German power prices: lots of wind pushes prices down, unless gusts are strong enough to make turbines shut down for safety. Coloured squares show the strongest gusts forecast in the next 3 days (yellow 75+, orange 90+, red 110+, purple 130+ km/h). Model: Open-Meteo, on a 2° grid, so local gusts can be higher.</div>`);
+<div class="kh">Why it matters for markets</div><div class="note" style="margin-top:2px">Windstorms can shut North Sea platforms and Norwegian gas plants (Brent, UK and EU gas), close ports and the Channel, and swing UK and German power prices: lots of wind pushes prices down, unless gusts are strong enough to make turbines shut down for safety. The coloured haze shows the strongest gusts forecast in the next 3 days (orange 90+, red 110+, purple 130+ km/h); small triangles mark countries with amber (or red) wind warnings, with the count. Model: Open-Meteo, on a 2° grid, so local gusts can be higher.</div>`);
   }
   window.showEu = showEu;
 
@@ -47,7 +52,9 @@ ${every.length ? `<div class="kh">Forecast track</div><table class="ftb"><tr><th
     const OVs = document.getElementById("ov"); if (!OVs || !EUS) return;
     if (!g) { g = document.createElementNS(NS, "g"); g.setAttribute("class", "L-eust"); OVs.appendChild(g) }
     let h = "";
-    (EUS.gust || []).forEach(([la, lo, v]) => { h += `<rect x="${lo + 180 - 1}" y="${90 - la - 1}" width="2" height="2" fill="${GC(v)}" fill-opacity="${v >= 110 ? .42 : v >= 90 ? .32 : .2}"/>` });
+    h += `<defs><filter id="eublur" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="0.9"/></filter></defs><g filter="url(#eublur)" class="eusw">`;
+    (EUS.gust || []).filter(c => c[2] >= 90).forEach(([la, lo, v]) => { h += `<rect x="${lo + 180 - 1.1}" y="${90 - la - 1.1}" width="2.2" height="2.2" fill="${GC(v)}" fill-opacity="${v >= 130 ? .5 : v >= 110 ? .42 : .3}"/>` });
+    h += `</g>`;
     const now = Date.now();
     (EUS.lows || []).forEach(l => {
       const P = l.pts.map(p => [p[0], p[1], tms(p[3])]), past = P.filter(p => p[2] <= now), fut = P.filter(p => p[2] >= now);
@@ -58,7 +65,7 @@ ${every.length ? `<div class="kh">Forecast track</div><table class="ftb"><tr><th
       const c = cur(l), e = document.createElement("div");
       e.className = "mk L-eust" + (l.name ? " nm" : "");
       e.style.left = X(c[0]) / 3.6 + "%"; e.style.top = Y(c[1]) / 1.8 + "%";
-      e.innerHTML = `<span class="eul">L</span>${l.name ? `<span class="eutag">STORM ${esc(l.name.toUpperCase())} · ${c[2].toFixed(0)} hPa</span>` : ""}`;
+      e.innerHTML = `<b class="eul">L</b>${l.name ? `<b class="eutag">STORM ${esc(l.name.toUpperCase())} · ${c[2].toFixed(0)} hPa</b>` : ""}`;
       e.title = `${title(l)} · ${c[2].toFixed(0)} hPa now, deepest ${l.min.toFixed(0)} hPa${l.gmax ? " · gusts to " + l.gmax + " km/h" : ""}`;
       e.onclick = ev => { ev.stopPropagation(); showEu(l); e.classList.add("on") };
       map.appendChild(e);
@@ -67,7 +74,7 @@ ${every.length ? `<div class="kh">Forecast track</div><table class="ftb"><tr><th
     // countries with amber/red wind warnings
     Object.entries(EUS.warn || {}).forEach(([k, v]) => { if (!v.n.orange && !v.n.red) return;
       const e = document.createElement("div"); e.className = "mk L-eust euw " + (v.n.red ? "wr" : "wo"); e.style.left = X(v.lon) / 3.6 + "%"; e.style.top = Y(v.lat) / 1.8 + "%";
-      e.innerHTML = `<span>⚠ ${v.n.red ? v.n.red + " red" : v.n.orange + " amber"}</span>`; e.title = `${k}: wind warnings`;
+      e.innerHTML = `<b class="euwt">${v.n.red || v.n.orange}</b>`; e.title = `${k}: ${v.n.red ? v.n.red + " red" : v.n.orange + " amber"} wind warning${(v.n.red || v.n.orange) > 1 ? "s" : ""}`;
       e.onclick = ev => { ev.stopPropagation(); const l = (EUS.lows || []).find(x => x.name) || (EUS.lows || [])[0]; l ? showEu(l) : null }; map.appendChild(e) });
     layout();
   }

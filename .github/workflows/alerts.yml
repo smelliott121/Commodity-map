@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Get latest data from the data branches
         run: |
-          for b in prices storms chokes cot climate enso holidays news hazards supply state; do
+          for b in prices storms chokes cot climate enso holidays news hazards supply eustorms state; do
             if git fetch -q --depth 1 origin "$b" 2>/dev/null; then git checkout -q FETCH_HEAD -- . && echo "got $b"; else echo "no $b branch yet"; fi
           done
           ls -la *.json
@@ -393,13 +393,52 @@ jobs:
               if lines and once("sup:" + rel, 40):
                   alert(f"🌾 USDA revised {len(lines)} crop estimate{'s' if len(lines) > 1 else ''}", "\n".join("• " + x for x in lines[:8]) + "\nSee the Supply tab on the map.", "default", "ear_of_rice")
 
+          # ---------- European windstorms: named storms and red / amber wind warnings ----------
+          EU_ASSETS = [("North Sea oil fields", 58.9, 2.0), ("Troll gas field / Norwegian gas plants", 60.6, 4.2), ("Dover Strait / Channel", 51.0, 1.4), ("Rotterdam", 51.9, 4.1),
+                       ("UK LNG terminals (Milford Haven, Grain)", 51.6, -2.2), ("Felixstowe", 51.95, 1.33), ("UK offshore wind (Dogger Bank, Hornsea)", 54.0, 1.8)]
+          def eustorm():
+              E = load("eustorms.json") or {}
+              for l in E.get("lows", []):
+                  n = l.get("name")
+                  if not n or l.get("gmax", 0) < 90:
+                      continue
+                  if not any(p[3][:13] >= NOW.strftime("%Y-%m-%dT%H") for p in l["pts"]):
+                      continue
+                  def pos(s, t):
+                      best = min(s["pts"], key=lambda p: abs((dt.datetime.fromisoformat(p[3] + ":00+00:00") - t).total_seconds()))
+                      return best if abs((dt.datetime.fromisoformat(best[3] + ":00+00:00") - t).total_seconds()) <= 6 * 3600 else None
+                  def owner(c):   # the storm whose centre is nearest a gust cell at the time of its peak gust
+                      t = dt.datetime.fromisoformat(c[3] + ":00+00:00"); best, bd = None, 1e9
+                      for s in E.get("lows", []):
+                          p = pos(s, t)
+                          if p:
+                              d = km(c[0], c[1], p[1], p[0])
+                              if d < bd:
+                                  best, bd = s, d
+                      return best if bd < 1100 else None
+                  mine = [c for c in E.get("gust", []) if c[2] >= 100 and owner(c) is l]
+                  hits = []
+                  for an, la, lo in EU_ASSETS:
+                      g = max((c[2] for c in mine if km(la, lo, c[0], c[1]) < 170), default=0)
+                      if g:
+                          hits.append(f"{an} ~{g:.0f} km/h")
+                  lo_p = min(l["pts"], key=lambda p: p[2])
+                  when = dt.datetime.fromisoformat(lo_p[3] + ":00+00:00").astimezone(UK)
+                  if once(f"eus:{n}", 10):
+                      alert(f"🌬️ Storm {n}: {l['min']:.0f} hPa, gusts to {l['gmax']} km/h" + (" (weather bomb)" if l.get("bomb") else ""),
+                            f"Deepest around {when:%a %H:%M} UK." + ("\nStrongest winds near: " + "; ".join(hits[:5]) if hits else "") +
+                            "\nWatch: North Sea output and Norwegian gas flows (Brent, NBP/TTF), port and Channel closures, UK power prices (high wind lowers them).", "high", "dash")
+              for k, v in (E.get("warn") or {}).items():
+                  if v["n"].get("red") and once(f"eusred:{k}:{UKNOW:%Y-%m-%d}", 1):
+                      alert(f"🔴 Red wind warning: {k}", f"{v['n']['red']} red warning(s)" + (": " + ", ".join(v.get("areas", {}).get("red", [])[:4]) if v.get("areas", {}).get("red") else "") + ". Danger to life; expect transport and port closures.", "urgent", "rotating_light")
+
           # ---------- data health: stale sources and failed jobs ----------
           def health():
               wk = NOW.weekday() < 5
               checks = [("prices.json", "Prices", 3 if wk else 80, "Update prices"), ("storms.json", "Storms", 4, "Update storms"),
                         ("news.json", "News", 3, "Update news"), ("chokes.json", "Shipping", 48, "Update chokepoints"),
                         ("cot.json", "Positioning (CFTC)", 10 * 24, "Update COT positioning"), ("enso.json", "El Nino", 7 * 24, "Update ENSO"),
-                        ("holidays.json", "Market holidays", 40 * 24, "Update market holidays"), ("hazards.json", "Rivers, frost, fires", 9, "Update hazards"), ("supply.json", "Supply outlook (USDA)", 100, "Update supply outlook")]
+                        ("holidays.json", "Market holidays", 40 * 24, "Update market holidays"), ("hazards.json", "Rivers, frost, fires", 9, "Update hazards"), ("supply.json", "Supply outlook (USDA)", 100, "Update supply outlook"), ("eustorms.json", "European storms", 8, "Update European storms")]
               stale = []
               for f, name, lim, job in checks:
                   d = load(f)
@@ -545,6 +584,9 @@ jobs:
               for r in (load("hazards.json") or {}).get("rivers", []):
                   if r.get("v") and r.get("lv") and r["v"][-1] <= r["lv"][0][0]:
                       L.append(f"🚢 {r['n']}: {r['v'][-1]:.0f} {r['u']} (low water)" if r["u"] == "cm" else f"🚢 {r['n']}: {r['v'][-1]:.1f} {r['u']} (low water)")
+              for l in (load("eustorms.json") or {}).get("lows", []):
+                  if l.get("name"):
+                      L.append(f"🌬️ Storm {l['name']}: {l['min']:.0f} hPa, gusts to {l.get('gmax', 0)} km/h")
               E = load("enso.json") or {}
               if E.get("roni"):
                   L.append(f"🌊 ENSO: {E.get('status') or ''} · RONI {E['roni'][-1][2]:+.2f} ({sstr(E['roni'][-1][2])})")
@@ -623,7 +665,7 @@ jobs:
               if not TG_TOKEN and not NTFY:
                   print("No delivery set up (add TELEGRAM_TOKEN or NTFY_TOPIC secret). Stopping without saving.")
                   return
-              for f in (price_shocks, weather, storms, cot, enso, chokes, news, quakes, hazards, supply, health):
+              for f in (price_shocks, weather, storms, cot, enso, chokes, news, quakes, hazards, supply, eustorm, health):
                   try:
                       f()
                   except Exception as e:
@@ -631,7 +673,7 @@ jobs:
               if FIRST or MODE == "test":
                   OUT.clear()
                   cx = context_lines()
-                  alert("✅ Commodity alerts connected", "You'll get alerts for big price moves, unusual weather at critical crop stages, storms near markets, crowded fund positioning, shipping chokepoint disruptions, breaking market news, big earthquakes near mines and ports, low river levels, crop frost risk, record-dry soils, big USDA crop revisions and El Niño/La Niña changes, plus a 07:00 morning brief and a Sunday week-ahead." + ("\n\nRight now:\n" + "\n".join(cx) if cx else ""), "default", "white_check_mark")
+                  alert("✅ Commodity alerts connected", "You'll get alerts for big price moves, unusual weather at critical crop stages, storms near markets, crowded fund positioning, shipping chokepoint disruptions, breaking market news, big earthquakes near mines and ports, low river levels, crop frost risk, record-dry soils, big USDA crop revisions, named European windstorms and El Niño/La Niña changes, plus a 07:00 morning brief and a Sunday week-ahead." + ("\n\nRight now:\n" + "\n".join(cx) if cx else ""), "default", "white_check_mark")
               try:
                   digests()
               except Exception as e:

@@ -15,6 +15,7 @@ Personal use only. The free data sources it uses are licensed for personal, non-
 | Satellite | Previous day's true-colour imagery | NASA GIBS (VIIRS) |
 | Shipping | Sea lanes, pipelines, ports, 12 chokepoints coloured by 7-day traffic vs normal | IMF PortWatch |
 | Storms | Tropical storms with forecast cone and track | NHC, GDACS |
+| European windstorms | Atlantic lows tracked from model pressure (named UK/Irish/Dutch storms highlighted), 3-day gust haze, energy and shipping assets in the strongest winds, MeteoAlarm and Met Office wind warnings | Open-Meteo, MeteoAlarm, Met Office, Google News (names) |
 | Earthquakes | M4.5+ in the last week, plate boundaries, nearby mines/ports | USGS; Bird (2003) plate model |
 | Rivers | Rhine at Kaub and Mississippi (Memphis, St. Louis) levels vs barge thresholds, with forecast | PEGELONLINE (WSV); NOAA NWPS / USGS |
 | Frost | 10-day frost forecasts for coffee, citrus, wheat and corn regions in season (snow cover counted for winter wheat) | Open-Meteo |
@@ -36,7 +37,7 @@ Personal use only. The free data sources it uses are licensed for personal, non-
 
 The **Hazards** tab on the markets board gathers rivers, frost, soil, fires, rail and freight in one place.
 The **Supply** tab shows USDA crop outlooks next to what the map's weather says about them.
-Search codes include `SUPPLY`, `HAZ`, `RIVER`, `FROST`, `FIRE`, `SOIL`, `RAIL`, `FREIGHT`.
+Search codes include `WINDSTORM`, `SUPPLY`, `HAZ`, `RIVER`, `FROST`, `FIRE`, `SOIL`, `RAIL`, `FREIGHT`.
 
 Keyboard: `/` search, `L` layers, `M` markets, `+`/`-` zoom, `Esc` close.
 
@@ -68,6 +69,7 @@ Keyboard: `/` search, `L` layers, `M` markets, `+`/`-` zoom, `Esc` close.
 | Update ENSO | `enso/enso.json` | Tue, Fri 09:00 |
 | Update climate normals | `climate/climate.json` (rain normals + soil moisture) | daily 04:30 |
 | Update hazards | `hazards/hazards.json` (rivers, frost, fires) | every 3 h at :25 |
+| Update European storms | `eustorms/eustorms.json` | every 3 h at :50 |
 | Update supply outlook | `supply/supply.json` (USDA PSD + revision log) | weekdays 17:40 |
 | Update market holidays | `holidays/holidays.json` | Mon 06:15 |
 | Commodity alerts | reads all of the above, saves `state/alerts_state.json` | after data jobs + :05/:35 |
