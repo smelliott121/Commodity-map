@@ -144,18 +144,19 @@ jobs:
           # attach the newest name in use to the deepest low that reaches the British Isles / North Sea area
           # drop track fragments that end on a deeper track's points, keep the lows that matter (<= 985 hPa)
           keep = []
-          for l in out["lows"]:
-              pts = {(round(x, 1), round(y, 1), t) for x, y, p, t in l["pts"]}
-              if any(len(pts & {(round(x, 1), round(y, 1), t) for x, y, p, t in k["pts"]}) for k in keep):
-                  continue
-              keep.append(l)
+          for l in out["lows"]:   # sorted deepest first; drop fragments that run into a deeper storm's track
+              dup = any(km(y, x, y2, x2) < 300 for k in keep for x, y, p, t in l["pts"] for x2, y2, p2, t2 in k["pts"] if t == t2)
+              if not dup:
+                  keep.append(l)
           out["lows"] = [l for l in keep if l["min"] <= 985][:6]
-          # storm names go to the lows that reach the British Isles / Ireland / North Sea, in order of arrival (names are given in order)
+          # storm names go, in list order, to the lows reaching the British Isles / Ireland / North Sea in order of arrival
           if named and out["lows"]:
+              cut = (now - dt.timedelta(hours=36)).strftime("%Y-%m-%dT%H")
               def arrival(l):
                   return next((t for x, y, p, t in l["pts"] if -16 <= x <= 9 and 47 <= y <= 63), None)
-              cand = sorted([l for l in out["lows"] if arrival(l)], key=arrival)
-              for l, n in zip(cand[-len(named):] if len(cand) > len(named) else cand, named[-len(cand):] if len(named) > len(cand) else named):
+              cand = sorted([l for l in out["lows"] if arrival(l) and arrival(l)[:13] >= cut], key=arrival)
+              use = named[-len(cand):] if len(cand) < len(named) else named
+              for l, n in zip(cand, use):
                   l["name"] = n
           print("names in the news", {k: len(v) for k, v in seen.items()})
 
