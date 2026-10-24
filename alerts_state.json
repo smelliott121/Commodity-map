@@ -1,0 +1,143 @@
+{
+"choke": {
+"chokepoint1": "ok",
+"chokepoint11": "ok",
+"chokepoint15": "ok",
+"chokepoint2": "ok",
+"chokepoint28": "severe",
+"chokepoint3": "severe",
+"chokepoint4": "low",
+"chokepoint5": "ok",
+"chokepoint6": "severe",
+"chokepoint7": "ok",
+"chokepoint8": "ok",
+"chokepoint9": "ok"
+},
+"cot": {
+"Cocoa": null,
+"Coffee": null,
+"Copper": null,
+"Corn": null,
+"Cotton": "crowded long",
+"Crude oil": null,
+"Gold": null,
+"Lithium": null,
+"Lumber": "crowded short",
+"Nat gas": "crowded short",
+"Orange juice": null,
+"Palm oil": null,
+"Platinum": null,
+"Rice": "crowded long",
+"Silver": null,
+"Soybeans": "crowded long",
+"Sugar": "crowded long",
+"Wheat": null
+},
+"dig": "2026-10-23",
+"enso": {
+"status": "El Ni\u00f1o Advisory",
+"str": "strong"
+},
+"fr": {
+"Argentina wheat": 0,
+"Australia wheat (NSW)": 0,
+"Florida citrus belt": 0,
+"Kansas winter wheat": 0,
+"Southern Russia winter wheat": 0,
+"US Corn Belt": 0,
+"Ukraine winter wheat": 0
+},
+"last_run": "2026-10-24T19:58:23.044408+00:00",
+"news_sent": [],
+"rv": {
+"eadm7": "ok",
+"kaub": "sev",
+"memt1": "ok"
+},
+"seen": {
+"choke:chokepoint28:severe": 1792446434.945131,
+"choke:chokepoint3:low": 1792446434.945131,
+"choke:chokepoint3:severe": 1792532206.42839,
+"choke:chokepoint4:low": 1792532206.42839,
+"choke:chokepoint6:severe": 1792446434.945131,
+"cot:Cocoa:2026-10-13": 1792364030.019133,
+"cot:Cotton:2026-10-20": 1792790441.76665,
+"cot:Lumber:2026-10-13": 1792364030.019133,
+"cot:Nat gas:2026-10-13": 1792364030.019133,
+"cot:Rice:2026-10-20": 1792790441.76665,
+"cot:Soybeans:2026-10-13": 1792364030.019133,
+"cot:Sugar:2026-10-13": 1792364030.019133,
+"eus:Austen": 1792705932.120357,
+"eus:Boelo": 1792705932.120357,
+"eusred:Ireland:2026-10-24": 1792836664.683208,
+"health:run:39633844293": 1792607303.721702,
+"health:run:40115176465": 1792862263.356824,
+"px:NG=F:2026-10-23:up": 1792743071.152037,
+"px:NG=F:2026-10-24:up": 1792796505.687961,
+"px:ZR=F:2026-10-21:up": 1792571430.039923,
+"px:ZR=F:2026-10-22:up": 1792623726.707048,
+"px:ZR=F:2026-10-23:up": 1792717200.902427,
+"px:ZR=F:2026-10-24:up": 1792796505.687961,
+"quake:us6000u43g": 1792681877.529887,
+"rv:kaub:sev": 1792612504.782118,
+"rvfc:memt1:wat": 1792612504.782118,
+"wx:Cocoa:wet": 1792364030.019133,
+"wx:Coffee:wet": 1792364030.019133,
+"wx:Soybeans:dry": 1792713992.631056,
+"wx:Wheat:wet": 1792368020.818521
+},
+"storms": {
+"1001338": {
+"hits": [
+"Shanghai port (~300 km)",
+"Shanghai port (~350 km)",
+"Shanghai port (~400 km)",
+"Shanghai port (~450 km)",
+"Shanghai port (~500 km)"
+],
+"lvl": 3,
+"t": 1792821633.625496
+},
+"al102026": {
+"hits": [],
+"lvl": 1,
+"t": 1792731864.178556
+},
+"ep212026": {
+"hits": [
+"Silver (~600 km)",
+"Silver (~650 km)",
+"Silver (~700 km)"
+],
+"lvl": 2,
+"t": 1792493262.696072
+},
+"ep222026": {
+"hits": [
+"Silver (~550 km)",
+"Silver (~600 km)",
+"Silver (~650 km)",
+"Silver (~700 km)"
+],
+"lvl": 2,
+"t": 1792871903.044408
+}
+},
+"sup_rel": "2026-10",
+"tg_chat": 7063878210,
+"wk": "2026-10-18",
+"wx": {
+"wx:Cocoa": null,
+"wx:Coffee": null,
+"wx:Corn": null,
+"wx:Cotton": null,
+"wx:Lumber": null,
+"wx:Orange juice": null,
+"wx:Palm oil": "wet",
+"wx:Rice": null,
+"wx:Rubber": null,
+"wx:Soybeans": "dry",
+"wx:Sugar": null,
+"wx:Wheat": "wet"
+}
+}
