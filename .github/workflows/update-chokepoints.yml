@@ -25,11 +25,14 @@ jobs:
                   "outFields": "date,portid,portname,n_total,n_tanker,n_container,n_dry_bulk,capacity",
                   "orderByFields": "date,portid", "resultOffset": off, "resultRecordCount": 1000, "f": "json"})
               j = None
-              for a in range(3):
+              for a in range(5):   # PortWatch sometimes answers with an error page instead of data: back off and retry
                   try:
-                      j = json.load(urllib.request.urlopen(URL + "?" + q, timeout=90)); break
+                      j = json.load(urllib.request.urlopen(URL + "?" + q, timeout=90))
+                      if "features" not in j:
+                          raise ValueError(f"no features: {str(j.get('error') or j)[:160]}")
+                      break
                   except Exception as e:
-                      print("retry", off, e); time.sleep(10)
+                      j = None; print("retry", off, a + 1, e); time.sleep(15 * (a + 1))
               if not j or "features" not in j:
                   print("stopped at", off, (j or {}).get("error")); break
               f = [x["attributes"] for x in j["features"]]
@@ -55,7 +58,8 @@ jobs:
           PY
       - name: Publish to chokes branch
         run: |
-          [ -f chokes.json ] || { echo "no chokes.json built"; exit 1; }
+          # if PortWatch was unavailable, keep the previous data instead of failing (the alert engine flags it if it stays stale for 2 days)
+          [ -f chokes.json ] || { echo "::warning::PortWatch unavailable, keeping previous chokepoint data"; exit 0; }
           mkdir -p pub && cp chokes.json pub/ && cd pub
           git init -q && git checkout -q -b chokes
           git config user.name "chokepoint-bot"
