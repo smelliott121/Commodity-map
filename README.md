@@ -22,7 +22,7 @@ Personal use only. The free data sources it uses are licensed for personal, non-
 | Soil moisture | Root-zone soil water vs the 10-year normal for each crop region | ERA5 via Open-Meteo |
 | Wildfires | Satellite fire detections, last 24 h, binned to 0.5° | NASA FIRMS (VIIRS) |
 | Supply outlook | USDA world and country production, stocks-to-use vs 10-yr history, monthly revisions, and whether our weather data points below the estimate (season-aware) | USDA FAS PSD |
-| US midterms | Senate and governor races by state: forecasters' average rating before the vote, results and seat flips as races are called | Wikipedia race tables |
+| US midterms | Senate and governor races by state: forecasters' average rating and prediction-market odds (control of each chamber, every race), results and seat flips as races are called | Wikipedia race tables; Kalshi public market data |
 | Airport disruption | Drone incidents at airports worldwide since Jan 2026 (sightings vs wartime attacks), weekly frequency, live US delays and ground stops | News reports; FAA |
 | Naval activity | Reported Russian warship / spy ship / shadow-fleet activity near the UK and Europe by sea area; US carrier and amphibious group positions | News reports; USNI News |
 | Rail | 18 key commodity rail corridors; US crude-by-rail monthly volumes | Built in; US EIA |

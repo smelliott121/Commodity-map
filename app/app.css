@@ -340,7 +340,7 @@ body.saton #wx{opacity:.38}
 .L-elect .els:hover{stroke:#fff;stroke-opacity:1;stroke-width:1.4}.L-elect .elf{pointer-events:none}
 :root[data-theme="light"] .L-elect .els{stroke:#334}
 .mk.L-elect.elchip{width:auto;height:auto;border:none;background:none;z-index:6}
-.elct{display:flex;align-items:center;gap:7px;white-space:nowrap;font:600 11px/1 "Geist Mono",ui-monospace,monospace;background:color-mix(in srgb,var(--card) 88%,transparent);border:1px solid var(--line2);border-radius:8px;padding:6px 8px;box-shadow:0 2px 8px #0006;cursor:pointer}
+.elct{display:flex;flex-direction:column;align-items:flex-start;gap:5px;white-space:nowrap;font:600 11px/1 "Geist Mono",ui-monospace,monospace;background:color-mix(in srgb,var(--card) 88%,transparent);border:1px solid var(--line2);border-radius:8px;padding:6px 8px;box-shadow:0 2px 8px #0006;cursor:pointer}
 .elct em{font-style:normal}.elct i{font-style:normal;color:var(--mut);font-family:"Geist",system-ui}.elct small{color:var(--mut);font-weight:400}
 .elbar{position:relative;display:grid;grid-template-columns:repeat(50,1fr);gap:1.5px;margin:6px 0 10px}.elbar i{height:9px;border-radius:2px}.elbar em{position:absolute;left:50%;top:-4px;bottom:-4px;width:2px;background:var(--ink);opacity:.6}
 .elseg{display:flex;gap:4px;margin:6px 0}.elseg button{flex:1;height:30px;border-radius:8px;border:1px solid var(--line2);font-size:12.5px}.elseg button.on{background:var(--amb2);border-color:var(--amb);color:var(--ink)}
@@ -358,3 +358,5 @@ body.saton #wx{opacity:.38}
 .mk.L-navy .nvtag{display:none}#map.big .mk.L-navy .nvtag,.mk.L-navy.ru .nvtag,.mk.L-navy:hover .nvtag{display:block}
 @media (prefers-reduced-motion:reduce){.mk.L-air.hot i::after{animation:none}}
 .mk.L-air.home{z-index:8}
+.elodd{display:flex;height:8px;border-radius:4px;overflow:hidden;margin:2px 0 8px}.elodd i{display:block;height:100%}
+.elct .elr{display:flex;align-items:center;gap:6px;font:inherit}

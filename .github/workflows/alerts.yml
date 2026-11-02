@@ -442,6 +442,15 @@ jobs:
                   if r.get("flip") and r.get("win") and once(f"el:flip:{k}", 60):
                       w = next((c for c in r.get("c", []) if c.get("w")), None)
                       alert(f"🗳️ Senate seat changes party: {k}", f"{PN.get(r['win'], r['win'])} gain from {PN.get(r.get('ip'), r.get('ip'))}" + (f": {w['n']}" + (f" ({w['pct']:.1f}%)" if w.get("pct") else "") if w else "") + ".", "default", "ballot_box_with_ballot")
+              C = (E.get("mk") or {}).get("control") or {}
+              od = ST.setdefault("el_odds", {})
+              for ch, name in (("S", "Senate"), ("H", "House")):
+                  d = next((o.get("pct") for o in C.get(ch, []) if o.get("p") == "D"), None)
+                  if d is None:
+                      continue
+                  prev = od.get(ch); od[ch] = d
+                  if prev is not None and (prev - 50) * (d - 50) < 0 and abs(d - 50) >= 5 and once(f"el:odds:{ch}:{'D' if d > 50 else 'R'}", .5):
+                      alert(f"📈 Market favourite for the {name} flips", f"Kalshi now gives {'Democrats' if d > 50 else 'Republicans'} a {max(d, 100 - d):.0f}% chance of controlling the {name} (was {max(prev, 100 - prev):.0f}% the other way).", "high", "ballot_box_with_ballot")
               N, W = E.get("notup", {}), E.get("sen_won", {})
               d, rr = N.get("D", 0) + N.get("I", 0) + W.get("D", 0) + W.get("I", 0), N.get("R", 0) + W.get("R", 0)
               for p, n in (("Democrats and allied independents", d), ("Republicans", rr)):

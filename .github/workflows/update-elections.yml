@@ -97,7 +97,7 @@ jobs:
               if win is None:
                   w = [c for c in cs if c["w"]]
                   if w and re.search(r"(elected|gain|hold|winner|won)", s): win = w[0]["p"]
-              runoff = "runoff" in s and win is None
+              runoff = "runoff" in s and win is None and not re.search(r"renominat|nomination|primary", s)   # "lost renomination in runoff" is about the primary
               return win, runoff
           SC = {"safe": 3, "solid": 3, "likely": 2, "lean": 1, "tilt": .5, "tossup": 0, "toss-up": 0}
           def ratings(w, title="Predictions"):
