@@ -402,7 +402,10 @@ tsChart(ub,{t:[...Array(53)].map((_,w)=>Date.UTC(2001,0,1+w*7)),h:140,band:{lo,h
 later(async()=>{for(const u of rawUrls("refining","refining.json")){try{const r=await fetch(u);if(r.ok){RF=await r.json();break}}catch(e){}}},2000);
 /* ---- futures curves & seasonal patterns ---- */
 let CV=null,SN=null,snP=null;
-later(async()=>{for(const u of rawUrls("curves","curves.json")){try{const r=await fetch(u);if(r.ok){CV=await r.json();break}}catch(e){}}},1500);
+later(async()=>{for(const u of rawUrls("curves","curves.json")){try{const r=await fetch(u);if(r.ok){CV=await r.json();break}}catch(e){}}markRolls()},1500);
+/* Contract roll: when the front future expires, Yahoo's continuous symbol jumps to the next contract and the "day change" compares two different contracts. Detect it from the curve (yesterday's close = the expired contract's last trade) and drop the bogus change. */
+function isRoll(sym){const q=PX&&PX[sym],C=CV&&CV.c&&CV.c[cvRoot(sym)];if(!q||!q.prev||!C||C.length<2)return false;const last=C.reduce((m,x)=>x.d>m?x.d:m,"");return C[0].d<last&&Math.abs(C[0].p/q.prev-1)<.005&&Math.abs(q.price/q.prev-1)>.01}
+function markRolls(){if(!CV||!PX)return;Object.keys(PX).forEach(sym=>{if(isRoll(sym))PX[sym].roll=1});R.forEach((r,i)=>{if(r.sym&&PX[r.sym]&&PX[r.sym].roll){r.ch=null;r.roll=1;paint(i)}});if(typeof mkBoard=="function")mkBoard()}
 function snLoad(){if(!snP)snP=(async()=>{for(const u of rawUrls("seasonal","seasonal.json")){try{const r=await fetch(u);if(r.ok){SN=await r.json();break}}catch(e){}}return SN})();return snP}
 const cvRoot=sym=>sym&&sym.endsWith("=F")?sym.slice(0,-2):null;
 function cvHTML(sym){const k=cvRoot(sym);if(!k||!CV||!CV.c[k])return"";return`<div class="kh">Futures curve</div><div class="cvs" id="cvs"></div><div class="ukl"><span><i style="background:var(--amb)"></i>Today</span><span><i style="background:var(--mut)"></i>1 week ago</span><span><i style="background:var(--mut);opacity:.5"></i>1 month ago</span></div><div class="ukc2" id="cvc"></div>`}
@@ -514,7 +517,7 @@ const MKG=[["Energy",[["BZ=F","Brent crude","$/bbl"],["CL=F","WTI crude","$/bbl"
 let MKS=null,MKSEL=null;
 function mkRow(s){const q=s[0]=="CRACK"?crackNow():PX[s[0]];if(!q||q.price==null)return null;const c=(q.c||[]).slice(),y=s[3]=="y",n=c.length,p=q.price;
 const ch=(ref)=>ref==null||!ref?null:y?(p-ref)*100:(p/ref-1)*100;
-const o={sym:s[0],n:s[1],u:s[2],y,p,d1:ch(q.prev),w1:n>=6?ch(c[n-6]):null,m1:n>=20?ch(c[0]):null,c};
+const o={sym:s[0],n:s[1],u:s[2],y,p,d1:q.roll?null:ch(q.prev),w1:n>=6?ch(c[n-6]):null,m1:n>=20?ch(c[0]):null,c};
 if(!y&&o.d1!=null&&Math.abs(o.d1)>25)o.d1=null;return o}
 function spark(o){const v=o.c.slice();if(!v.length)return"";v[v.length-1]=o.p;const lo=Math.min(...v),hi=Math.max(...v),W=64,H=20,x=i=>i/(v.length-1||1)*W,yy=t=>H-2-(hi>lo?(t-lo)/(hi-lo):.5)*(H-4);
 const up=v[v.length-1]>=v[0];return`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="${v.map((t,i)=>(i?"L":"M")+x(i).toFixed(1)+" "+yy(t).toFixed(1)).join("")}" fill="none" stroke="var(--${up?"up":"dn"})" stroke-width="1.4" vector-effect="non-scaling-stroke"/></svg>`}
@@ -832,7 +835,7 @@ if(w.past<n*.5&&-d>15)return["dry","Dry: "+(pc!=null?pc+"% vs normal":"well belo
 return["","Close to normal for the season"]}
 function show(i){const r=R[i],w=r.w,flag=sig(r)[1];
 info(`<h2>${r.n} · ${r.loc}</h2>
-<div class="row"><span>Price ${r.live?"(delayed)":"(SAMPLE)"}</span><b>${f(r.p,r.p<20?2:0)} ${r.u}</b></div>${r.gl?'<div class="note">⚠ The feed jumped more than 25% from the previous close, which usually means a contract roll or a data error. Treat this price with caution.</div>':""}${nwHTML(r.n,3)}${evFor(r)}${chartHTML(r)}${cvHTML(r.sym)}${r.sym?snHTML(r.sym):""}${typeof supHTML=="function"?supHTML(r):""}${cotHTML(r)}
+<div class="row"><span>Price ${r.live?"(delayed)":"(SAMPLE)"}</span><b>${f(r.p,r.p<20?2:0)} ${r.u}</b></div>${r.roll?'<div class="note">↻ Contract roll today: the front-month future expired and the price now follows the next contract, so there is no like-for-like daily change.</div>':r.gl?'<div class="note">⚠ The feed jumped more than 25% from the previous close, which usually means a contract roll or a data error. Treat this price with caution.</div>':""}${nwHTML(r.n,3)}${evFor(r)}${chartHTML(r)}${cvHTML(r.sym)}${r.sym?snHTML(r.sym):""}${typeof supHTML=="function"?supHTML(r):""}${cotHTML(r)}
 ${r.nw?"":`<div class="row"><span>Rain, last 7 days</span><b>${w?f(w.past)+" mm":"—"}${r.cn!=null?" (normal "+f(r.cn)+")":""}</b></div>
 <div class="row"><span>Rain, next 7 days</span><b>${w?f(w.next)+" mm":"—"}${r.cx!=null?" (normal "+f(r.cx)+")":""}</b></div>
 `}${r.nw&&r.n!="Nat gas"?"":`<div class="row"><span>Temp, next 7 days avg</span><b>${w&&w.tn!=null?f(w.tn)+"°C":"—"}${r.ct!=null?" (normal "+f(r.ct)+")":""}</b></div>
@@ -848,7 +851,7 @@ const tt=(d.daily.temperature_2m_mean||[]).slice(7,14).filter(v=>v!=null);R[i].w
 R.forEach((r,i)=>{const k=P.names.indexOf(r.n);const d=A[k];if(!d)return;const s=d.daily.precipitation_sum,sum=x=>x.reduce((m,v)=>m+(v||0),0),tt=(d.daily.temperature_2m_mean||[]).slice(7,14).filter(v=>v!=null);
 r.w={tn:tt.length?tt.reduce((a,b)=>a+b,0)/tt.length:null,past:sum(s.slice(0,7)),next:sum(s.slice(7,14)),t:d.current.temperature_2m,cl:d.current.cloud_cover};paint(i)});wOK="gh";break}}catch(e2){}}}
 let pT=0;
-async function prices(){try{const j=await(await getData("prices","prices.json")).json();pT=j.updated;PX=j.prices;R.forEach((r,i)=>{const m=r.sym&&j.prices[r.sym];if(!m)return;r.p=m.price;r.ch=(m.price/m.prev-1)*100;r.live=1;r.gl=Math.abs(r.ch)>25;if(r.gl)r.ch=null;pOK++;paint(i)})}catch(e){}}
+async function prices(){try{const j=await(await getData("prices","prices.json")).json();pT=j.updated;PX=j.prices;R.forEach((r,i)=>{const m=r.sym&&j.prices[r.sym];if(!m)return;r.p=m.price;r.ch=(m.price/m.prev-1)*100;r.live=1;r.gl=Math.abs(r.ch)>25;if(r.gl)r.ch=null;pOK++;paint(i)});markRolls()}catch(e){}}
 async function climate(){try{const j=await(await getData("climate","climate.json")).json();R.forEach(r=>{const c=j.regions[r.n];if(c){r.cn=c.past;r.cx=c.next;r.ct=c.tnext}r.soil=j.soil&&j.soil[r.n]||null})}catch(e){}}
 Promise.all([weather(),prices(),climate()]).then(()=>{R.forEach((r,i)=>paint(i));layout();(typeof renderHealth=="function"&&renderHealth())});
 let BW=1800;const WIDE=()=>innerWidth>=1000;

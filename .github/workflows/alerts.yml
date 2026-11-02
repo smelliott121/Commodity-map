@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Get latest data from the data branches
         run: |
-          for b in prices storms chokes cot climate enso holidays news hazards supply eustorms elections airports navy state; do
+          for b in prices storms chokes cot climate enso holidays news hazards supply eustorms elections airports navy curves state; do
             if git fetch -q --depth 1 origin "$b" 2>/dev/null; then git checkout -q FETCH_HEAD -- . && echo "got $b"; else echo "no $b branch yet"; fi
           done
           ls -la *.json
@@ -121,6 +121,11 @@ jobs:
                   mu = sum(rets) / len(rets)
                   sd = math.sqrt(sum((x - mu) ** 2 for x in rets) / (len(rets) - 1))
                   ret = math.log(m["price"] / m["prev"])
+                  # contract roll: yesterday's close was the expiring front month's last trade, today's price is the next contract
+                  Cv = ((load("curves.json") or {}).get("c") or {}).get(s[:-2] if s.endswith("=F") else "")
+                  if Cv and len(Cv) > 1 and Cv[0].get("d", "") < max(x.get("d", "") for x in Cv) and Cv[0].get("p") and abs(Cv[0]["p"] / m["prev"] - 1) < 0.005:
+                      print("skipping contract roll:", s, m["prev"], "->", m["price"])
+                      continue
                   if abs(ret) > 0.25:
                       print("skipping implausible move (likely contract roll or data glitch):", s, m)
                       continue
