@@ -2,6 +2,7 @@ name: Update US midterms
 on:
   schedule:
     - cron: "*/20 * 3-6 11 *"     # election night and the days after: every 20 minutes
+    - cron: "0 * 2 11 *"          # the day before: hourly
     - cron: "15 */6 * * *"        # otherwise every 6 hours
   workflow_dispatch:
 permissions:
@@ -153,6 +154,75 @@ jobs:
           tally = lambda d: {p: sum(1 for v in d.values() if v["win"] == p) for p in "DRI"}
           out = {"updated": int(time.time()), "src": "Wikipedia race tables (updated by editors as AP and networks call races)",
                  "senate": sen, "gov": gov, "notup": notup, "sen_won": tally(sen), "gov_won": tally(gov)}
+          # ---------- prediction-market odds (Kalshi public market data, no account needed) ----------
+          K = "https://api.elections.kalshi.com/trade-api/v2/"
+          def kget(path):
+              for a in range(3):
+                  try:
+                      return json.load(urllib.request.urlopen(urllib.request.Request(K + path, headers=UA), timeout=40))
+                  except Exception as e:
+                      if "404" in str(e): return None
+                      time.sleep(3)
+              return None
+          def num(v, dollars=False):
+              try:
+                  v = float(v)
+              except (TypeError, ValueError):
+                  return None
+              return v * 100 if dollars or v <= 1.0 and isinstance(v, float) and v != int(v) else v
+          def price(m):   # chance in % : last trade, else bid/ask midpoint (handles cents or dollar fields)
+              for k in ("last_price", "last_price_dollars"):
+                  v = num(m.get(k), k.endswith("dollars"))
+                  if v: return round(v, 1)
+              b, a = None, None
+              for k in ("yes_bid", "yes_bid_dollars"):
+                  b = b if b is not None else num(m.get(k), k.endswith("dollars"))
+              for k in ("yes_ask", "yes_ask_dollars"):
+                  a = a if a is not None else num(m.get(k), k.endswith("dollars"))
+              if b is not None and a is not None and a > 0: return round((a + b) / 2, 1)
+              return None
+          def event_for(series, want="-26"):
+              j = kget("events?" + urllib.parse.urlencode({"series_ticker": series, "with_nested_markets": "true", "limit": 50}))
+              ev = [e for e in (j or {}).get("events", []) if want in e.get("event_ticker", "") or "2026" in e.get("event_ticker", "")]
+              return ev[0] if ev else None
+          def outcomes(e, race=None):
+              L = []
+              for m in e.get("markets", []):
+                  n = (m.get("yes_sub_title") or m.get("subtitle") or m.get("title") or "").strip()
+                  p = pcode(n) if re.search(r"democrat|republican|independent", n, re.I) else None
+                  if p is None and race:
+                      ln = n.split()[-1].lower() if n else ""
+                      p = next((c["p"] for c in race["c"] if ln and c["n"].lower().split()[-1] == ln), "O")
+                  L.append({"n": n, "p": p or "O", "pct": price(m), "vol": m.get("volume") or m.get("volume_fp"), "res": m.get("result") or None})
+              return sorted(L, key=lambda x: -(x["pct"] or 0))
+          mk = {"senate": {}, "gov": {}, "control": {}, "src": "Kalshi"}
+          ABBR = {"Alabama": "AL", "Alaska": "AK", "Arizona": "AZ", "Arkansas": "AR", "California": "CA", "Colorado": "CO", "Connecticut": "CT", "Delaware": "DE", "Florida": "FL", "Georgia": "GA", "Hawaii": "HI", "Idaho": "ID", "Illinois": "IL", "Indiana": "IN", "Iowa": "IA", "Kansas": "KS", "Kentucky": "KY", "Louisiana": "LA", "Maine": "ME", "Maryland": "MD", "Massachusetts": "MA", "Michigan": "MI", "Minnesota": "MN", "Mississippi": "MS", "Missouri": "MO", "Montana": "MT", "Nebraska": "NE", "Nevada": "NV", "New Hampshire": "NH", "New Jersey": "NJ", "New Mexico": "NM", "New York": "NY", "North Carolina": "NC", "North Dakota": "ND", "Ohio": "OH", "Oklahoma": "OK", "Oregon": "OR", "Pennsylvania": "PA", "Rhode Island": "RI", "South Carolina": "SC", "South Dakota": "SD", "Tennessee": "TN", "Texas": "TX", "Utah": "UT", "Vermont": "VT", "Virginia": "VA", "Washington": "WA", "West Virginia": "WV", "Wisconsin": "WI", "Wyoming": "WY"}
+          sample = None
+          for key, race in sen.items():
+              st = key.replace(" (special)", ""); ab = ABBR.get(st)
+              if not ab: continue
+              e = None
+              for series in (f"SENATE{ab}", f"KXSENATE{ab}"):
+                  e = event_for(series)
+                  if e and st.lower() in (e.get("title") or "").lower() and "nominee" not in (e.get("title") or "").lower(): break
+                  e = None
+              if e:
+                  if sample is None and e.get("markets"): sample = sorted(e["markets"][0].keys())
+                  mk["senate"][key] = {"t": e.get("event_ticker"), "o": outcomes(e, race)}
+              time.sleep(.15)
+          for key, race in gov.items():
+              ab = ABBR.get(key)
+              if not ab: continue
+              e = event_for(f"GOVPARTY{ab}")
+              if e and key.lower() in (e.get("title") or "").lower():
+                  mk["gov"][key] = {"t": e.get("event_ticker"), "o": outcomes(e, race)}
+              time.sleep(.15)
+          for k, series, want in (("S", "CONTROLS", "2026"), ("H", "CONTROLH", "2026"), ("combo", "KXBALANCEPOWERCOMBO", "27FEB")):
+              e = event_for(series, want)
+              if e: mk["control"][k] = outcomes(e)
+          mk["keys"] = sample
+          out["mk"] = mk
+          print("kalshi senate", len(mk["senate"]), "gov", len(mk["gov"]), "control", {k: [(o["n"], o["pct"]) for o in v] for k, v in mk["control"].items()}, "| market fields", sample)
           print("senate races", len(sen), "rated", sum(1 for v in sen.values() if "rate" in v), "called", out["sen_won"], "| gov races", len(gov), "rated", sum(1 for v in gov.values() if "rate" in v), "called", out["gov_won"], "| not up", notup)
           print({k: (v["ip"], v["inc"], v.get("rate", {}).get("lab"), len(v["c"])) for k, v in list(sen.items())[:6]})
           if len(sen) >= 30 and len(gov) >= 30:
