@@ -1,0 +1,36 @@
+name: Probe sources
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch samples
+        run: |
+          mkdir -p out
+          python3 - <<'PY'
+          import json, urllib.request, urllib.parse
+          UA = {"User-Agent": "commodity-map personal project (github actions; contact via github smelliott121)"}
+          def g(u, f, t=60):
+              try:
+                  b = urllib.request.urlopen(urllib.request.Request(u, headers=UA), timeout=t).read()
+                  open("out/" + f, "wb").write(b); print("ok", f, len(b))
+              except Exception as e:
+                  open("out/" + f + ".err", "w").write(str(e)); print("fail", f, e)
+          W = "https://en.wikipedia.org/w/api.php?"
+          for name, page in [("senate", "2026 United States Senate elections"), ("gov", "2026 United States gubernatorial elections"), ("house", "2026 United States House of Representatives elections")]:
+              g(W + urllib.parse.urlencode({"action": "parse", "page": page, "prop": "wikitext", "format": "json", "formatversion": 2}), f"wiki_{name}.json")
+          g("https://nasstatus.faa.gov/api/airport-status-information", "faa.xml")
+          g("https://news.usni.org/category/fleet-tracker/feed", "usni.xml")
+          g("https://www.royalnavy.mod.uk/rss/news", "rn.xml")
+          def gn(q, f):
+              g("https://news.google.com/rss/search?" + urllib.parse.urlencode({"q": q, "hl": "en-GB", "gl": "GB", "ceid": "GB:en"}), f)
+          gn('(drone OR drones) (airport OR airspace) (closed OR suspended OR halted OR diverted OR sighting) when:30d', "gn_drone.xml")
+          gn('"Royal Navy" (shadow OR shadowed OR shadows OR escorted OR monitored) Russian when:60d', "gn_rn.xml")
+          g("https://raw.githubusercontent.com/datasets/airport-codes/main/data/airport-codes.csv", "airports.csv")
+          PY
+      - name: Publish
+        run: |
+          cd out && git init -q && git checkout -q -b probe && git config user.name probe && git config user.email probe@users.noreply.github.com && git add -A && git commit -q -m probe && git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" probe
