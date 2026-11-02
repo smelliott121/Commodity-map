@@ -29,7 +29,7 @@ jobs:
                       print("retry", u[:80], e); time.sleep(4)
               return None
           # sea areas (approximate centre points; reports rarely give exact positions)
-          AREA = [("english channel", "English Channel", 50.2, -1.5), ("dover", "Dover Strait", 51.0, 1.4), ("channel", "English Channel", 50.2, -1.5), ("north sea", "North Sea", 56.0, 3.0),
+          AREA = [("english channel", "English Channel", 50.15, -0.3), ("dover", "Dover Strait", 51.0, 1.4), ("channel", "English Channel", 50.15, -0.3), ("north sea", "North Sea", 56.0, 3.0),
                   ("irish sea", "Irish Sea", 53.8, -5.0), ("shetland", "off Shetland", 60.6, -1.0), ("orkney", "off Orkney", 59.2, -2.5), ("moray firth", "Moray Firth", 57.9, -3.0),
                   ("scotland", "off Scotland", 58.0, -6.5), ("faroe", "Faroe Islands", 62.0, -7.0), ("iceland", "off Iceland", 64.5, -16.0), ("high north", "High North / Norwegian Sea", 68.0, 6.0),
                   ("norwegian sea", "Norwegian Sea", 68.0, 6.0), ("barents", "Barents Sea", 72.0, 35.0), ("baltic", "Baltic Sea", 57.0, 19.0), ("gulf of finland", "Gulf of Finland", 59.9, 26.0),

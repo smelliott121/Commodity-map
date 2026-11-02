@@ -104,6 +104,7 @@
     if (typeof hzWatch == "function") L.push(...hzWatch());
     if (typeof euWatch == "function") L.push(...euWatch());
     if (typeof elWatch == "function") L.push(...elWatch());
+    if (typeof anWatch == "function") L.push(...anWatch());
     if (typeof supWatch == "function") L.push(...supWatch());
     if (typeof enPhase == "function" && enPhase()) L.push({ t: `${enPhase() > 0 ? "El Niño" : "La Niña"} conditions (${enStr(EN.roni.at(-1)[2])})`, run: showEnso, sev: 1 });
     return L.sort((a, b) => b.sev - a.sev);

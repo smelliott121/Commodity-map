@@ -9,7 +9,7 @@ Personal project for Sam (UK, Jersey). Commodity weather map on GitHub Pages. Se
 - Commit straight to `main` (that's how the site deploys). Bump the `?v=` cache-busting number on every script/style tag in `index.html` whenever `app/` changes.
 
 ## Code layout
-- `index.html`: shell only. Scripts load with `defer` in order: geo → app → windgl → cmd → brief → sat → hazards → supply → eustorm → pins → health. They share globals (classic scripts), so later files call `show()`, `R`, `MK`, `PX`, `info()` etc. from `app.js`.
+- `index.html`: shell only. Scripts load with `defer` in order: geo → app → windgl → cmd → brief → sat → hazards → supply → eustorm → election → airnav → pins → health. They share globals (classic scripts), so later files call `show()`, `R`, `MK`, `PX`, `info()` etc. from `app.js`.
 - `app/app.js`: everything core (map, pins/labels `layout()`, weather canvas, lanes, storms, ENSO, calendar/ticker, panels, markets board, news, UK energy, curves/seasonal, refining, quakes). Top-level `const`/`let` names must not clash across files (e.g. `SM`, `ukT` already caused bugs).
 - Zoom gestures (pinch, wheel) only CSS-scale `#map` (`zg` state); the real resize, `layout()` and weather redraw run once in `zCommit()` when the gesture pauses. Don't resize the map per gesture event again.
 - Weather draws into a viewport-sized sticky layer (`#wxl`) using cached geometry (`GEO`); don't make canvases map-sized again.
@@ -18,6 +18,7 @@ Personal project for Sam (UK, Jersey). Commodity weather map on GitHub Pages. Se
 - `hazards.js`: rivers/frost/fires/soil/rail. Adds its own layer switches, commodity-panel rows via `hzCrop(r)`, risk inputs via `hzFrostFor()`, brief items via `hzWatch()`, and search entries via `window.CMD_FN` / `window.CMD_ITEMS` (read by `cmd.js`).
 - `supply.js`: USDA outlook (`SUP`), panel section via `supHTML/supDraw`, Supply tab `renderSup`, brief items `supWatch()`. `TGT` maps each crop + month to the market year today's weather affects; keep weather wording qualitative (direction, not a number).
 - `eustorm.js`: European windstorms (`EUS`). Uses its own `.L-eust` classes (not `.L-storms`, which `storms()` wipes on reload) but obeys the Storms layer switch. Gust cells are attributed to the storm whose centre is nearest at the time of the peak gust (`owner()`); the alert engine does the same.
+- `election.js`: US midterms (`ELX`), state shapes from `usstates.json` (us-atlas, ISC), drawn into `#ov` as `.L-elect`; neutral, factual wording only. `airnav.js`: airport disruption (`APT`, home airport JER) and naval activity (`NAV`). Marker labels inside `.mk` must not be `<span>` (the generic `.mk span` rule hides them until zoomed); use `<b>`/`<em>`.
 - `pins.js` wraps `show`, `mkShow`, `showChoke`, `showUK`, `showRef` to add the pin button.
 
 ## Data

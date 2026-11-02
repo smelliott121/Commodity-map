@@ -42,7 +42,7 @@
     // summary chip over the middle of the US
     if (!chip) { chip = document.createElement("div"); chip.className = "mk L-elect elchip"; chip.style.left = X(-98) / 3.6 + "%"; chip.style.top = Y(47.5) / 1.8 + "%"; chip.onclick = e => { e.stopPropagation(); openElect() }; map.appendChild(chip) }
     const s = senateTotals();
-    chip.innerHTML = `<b class="elct"><i>Senate</i><span style="color:${PC.D}">D ${s.D + s.I}</span><span style="color:${PC.R}">R ${s.R}</span><small>${s.called}/${s.races} called</small></b>`;
+    chip.innerHTML = `<b class="elct"><i>Senate</i><em style="color:${PC.D}">D ${s.D + s.I}</em><em style="color:${PC.R}">R ${s.R}</em><small>${s.called}/${s.races} called</small></b>`;
     chip.title = "US midterms: tap for the full picture";
     layout();
   }
