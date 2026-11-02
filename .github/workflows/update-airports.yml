@@ -1,0 +1,152 @@
+name: Update airport disruptions
+on:
+  schedule:
+    - cron: "35 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: airports
+  cancel-in-progress: false
+jobs:
+  airports:
+    runs-on: ubuntu-latest
+    steps:
+      - name: FAA status and drone incidents
+        run: |
+          mkdir -p out
+          curl -sf "https://raw.githubusercontent.com/${{ github.repository }}/airports/airports.json" -o prev.json || echo "no previous file"
+          curl -sf "https://raw.githubusercontent.com/datasets/airport-codes/main/data/airport-codes.csv" -o codes.csv
+          curl -sf "https://nasstatus.faa.gov/api/airport-status-information" -o faa.xml || echo "FAA feed unavailable"
+          python3 - <<'PY'
+          import csv, json, re, time, html, unicodedata, datetime as dt, email.utils, urllib.request, urllib.parse
+          import xml.etree.ElementTree as ET
+          UA = {"User-Agent": "Mozilla/5.0 (commodity-map personal project)"}
+          now = dt.datetime.now(dt.timezone.utc)
+          def norm(s):
+              return unicodedata.normalize("NFD", s).encode("ascii", "ignore").decode().lower()
+          # ---------- airport gazetteer (OurAirports via datasets/airport-codes) ----------
+          A, KEY = {}, {}
+          GENERIC = set("international airport airfield aerodrome regional national municipal city county air base station field intl the of de del la le el do da di and terminal metropolitan jet port new saint st".split())
+          rank = {"large_airport": 3, "medium_airport": 2}
+          for r in csv.DictReader(open("codes.csv", encoding="utf-8")):
+              if r["type"] not in rank or not r["iata_code"] or "closed" in r["name"].lower() or re.search(r"air (force )?base|afb|heliport|military", r["name"], re.I):
+                  continue
+              try:
+                  la, lo = [float(x) for x in r["coordinates"].split(",")]
+              except Exception:
+                  continue
+              code = r["iata_code"]
+              A[code] = {"n": r["name"], "c": r["iso_country"], "lat": round(la, 3), "lon": round(lo, 3), "m": r["municipality"], "r": rank[r["type"]]}
+              keys = set()
+              if r["municipality"] and r["type"] == "large_airport" or (r["municipality"] and len(r["municipality"]) > 4):
+                  keys.add(norm(r["municipality"]))
+              core = re.sub(r"\s+", " ", norm(re.sub(r"\b(International|Airport|Regional|Intl\.?)\b", "", r["name"]))).strip(" -")
+              if len(core) >= 5 and (" " in core or "-" in core or r["type"] == "large_airport"):
+                  keys.add(core)
+              for k in keys:
+                  if k not in KEY or A[KEY[k]]["r"] < A[code]["r"]:
+                      KEY[k] = code
+          # well-known names that the gazetteer can't infer
+          ALIAS = {"jersey airport": "JER", "jersey": "JER", "guernsey": "GCI", "moscow": "SVO", "sheremetyevo": "SVO", "vnukovo": "VKO", "domodedovo": "DME", "zhukovsky": "ZIA",
+                   "st petersburg": "LED", "st. petersburg": "LED", "pulkovo": "LED", "gatwick": "LGW", "heathrow": "LHR", "stansted": "STN", "luton": "LTN", "london city": "LCY",
+                   "copenhagen": "CPH", "oslo": "OSL", "munich": "MUC", "berlin": "BER", "brandenburg": "BER", "frankfurt": "FRA", "brussels": "BRU", "liege": "LGG", "findel": "LUX", "luxembourg": "LUX",
+                   "aalborg": "AAL", "billund": "BLL", "riga": "RIX", "vilnius": "VNO", "kaunas": "KUN", "warsaw": "WAW", "rzeszow": "RZE", "lublin": "LUZ", "medellin": "MDE", "jose maria cordova": "MDE",
+                   "riyadh": "RUH", "newark": "EWR", "dubai": "DXB", "amritsar": "ATQ", "nuremberg": "NUE", "bremen": "BRE", "hanover": "HAJ", "hamburg": "HAM", "dublin": "DUB", "eindhoven": "EIN", "schiphol": "AMS"}
+          for k, v in ALIAS.items():
+              if v in A:
+                  KEY[k] = v
+          BAD = {"major", "alert", "eastern", "western", "northern", "southern", "plant", "force", "president", "trump", "donald", "russian", "european", "severe", "chaos", "second", "gulf", "central", "capital", "royal", "airspace", "airport", "flights", "drone", "drones", "sighting", "police", "russia", "ukraine", "germany", "europe", "london", "paris", "march", "april", "union", "victoria", "georgia", "jordan", "chad", "nice", "split", "male", "bari", "como", "page", "mobile", "eagle", "ilha", "santa"}
+          keys = sorted((k for k in KEY if k not in BAD and len(k) >= 4), key=len, reverse=True)
+          rx = re.compile(r"(?<![a-z])(" + "|".join(re.escape(k) for k in keys) + r")(?![a-z])")
+          def where(title):
+              t = norm(title)
+              t = re.sub(r"new jersey", " ", t)
+              m = rx.findall(t)
+              return KEY[m[0]] if m else None
+          CONFLICT = re.compile(r"\b(attack|attacks|strike|strikes|struck|barrage|raid|ukrainian|missile|houthi|shot down|downed|intercept|war)\b", re.I)
+          DRONE = re.compile(r"\bdrones?\b|\buav\b|unmanned", re.I)
+          DISRUPT = re.compile(r"(clos|suspend|halt|divert|ground|shut|disrupt|sighting|restrict|cancel|evacuat|paralys|paralyz|stopp|reopen)", re.I)
+          def items(q):
+              u = "https://news.google.com/rss/search?" + urllib.parse.urlencode({"q": q, "hl": "en-GB", "gl": "GB", "ceid": "GB:en"})
+              for a in range(3):
+                  try:
+                      return list(ET.fromstring(urllib.request.urlopen(urllib.request.Request(u, headers=UA), timeout=40).read()).iter("item"))
+                  except Exception as e:
+                      print("retry", e); time.sleep(4)
+              return []
+          try:
+              prev = json.load(open("prev.json"))
+          except Exception:
+              prev = {}
+          inc = {(i["a"], i["d"], i["k"]): i for i in prev.get("inc", [])}
+          Q = ['(drone OR drones) (airport OR runway OR airspace) (closed OR suspended OR halted OR diverted OR grounded OR shut OR disrupted OR sighting)',
+               '(drone OR drones) "flights" (diverted OR cancelled OR suspended) airport']
+          windows = []
+          if not prev.get("backfilled"):
+              d0 = dt.date(2026, 1, 1)
+              while d0 < now.date() - dt.timedelta(days=6):
+                  windows.append(f" after:{d0.isoformat()} before:{(d0 + dt.timedelta(days=7)).isoformat()}"); d0 += dt.timedelta(days=7)
+          windows.append(" when:3d")
+          seen = 0
+          for w in windows:
+              for q in Q:
+                  for it in items(q + w):
+                      t = html.unescape(it.findtext("title") or ""); src = (it.find("source").text if it.find("source") is not None else "") or ""
+                      if src and t.endswith(" - " + src):
+                          t = t[: -len(src) - 3]
+                      if not DRONE.search(t) or not DISRUPT.search(t):
+                          continue
+                      a = where(t)
+                      if not a:
+                          continue
+                      try:
+                          d = email.utils.parsedate_to_datetime(it.findtext("pubDate")).astimezone(dt.timezone.utc)
+                      except Exception:
+                          continue
+                      k = "conflict" if CONFLICT.search(t) or A[a]["c"] in ("RU", "UA") else "sighting"   # wartime drone attacks vs sightings near civilian airports
+                      key = (a, d.date().isoformat(), k)
+                      seen += 1
+                      if key not in inc:
+                          inc[key] = {"a": a, "d": key[1], "k": k, "t": t[:160], "u": it.findtext("link") or "", "s": src[:40], "n": 1}
+                      else:
+                          inc[key]["n"] = min(99, inc[key].get("n", 1) + 1)
+                  time.sleep(1.2)
+          cut = (now - dt.timedelta(days=400)).date().isoformat()
+          L = sorted((v for v in inc.values() if v["d"] >= cut), key=lambda v: v["d"], reverse=True)
+          used = {i["a"] for i in L}
+          # ---------- FAA live status (US): ground stops, delay programmes, delays; skip routine GA-only closures ----------
+          faa = []
+          try:
+              root = ET.parse("faa.xml").getroot()
+              for dtp in root.iter("Delay_type"):
+                  kind = dtp.findtext("Name") or ""
+                  for ap in dtp.iter():
+                      code = ap.findtext("ARPT")
+                      if not code or ap.tag in ("Delay_type",):
+                          continue
+                      reason = ap.findtext("Reason") or ap.findtext("Arrival_Departure/Reason") or ""
+                      if "Closure" in kind and re.search(r"NON SKED|TRANSIENT|GA ACFT|PPR", reason):
+                          continue
+                      x = {"a": code, "kind": kind, "why": re.sub(r"\s+", " ", reason)[:120]}
+                      for f in ("Avg", "Max", "Min", "End_Time", "Start", "Reopen"):
+                          v = ap.findtext(f) or ap.findtext("Arrival_Departure/" + f)
+                          if v: x[f.lower()] = v[:40]
+                      if not any(y["a"] == code and y["kind"] == kind for y in faa):
+                          faa.append(x); used.add(code)
+          except Exception as e:
+              print("faa parse", e)
+          out = {"updated": int(time.time()), "backfilled": True, "inc": L, "faa": faa, "ap": {c: {k: A[c][k] for k in ("n", "c", "lat", "lon")} for c in used if c in A}}
+          print("matched items", seen, "| incidents", len(L), "| sightings", sum(1 for i in L if i["k"] == "sighting"), "| conflict", sum(1 for i in L if i["k"] == "conflict"), "| faa", len(faa))
+          print("recent", [(i["d"], i["a"], i["k"]) for i in L[:12]])
+          json.dump(out, open("out/airports.json", "w"), separators=(",", ":"), ensure_ascii=False)
+          PY
+      - name: Publish to airports branch
+        run: |
+          [ -f out/airports.json ] || { echo "::warning::nothing built"; exit 0; }
+          cd out
+          git init -q && git checkout -q -b airports
+          git config user.name "airport-bot"
+          git config user.email "airport-bot@users.noreply.github.com"
+          git add -A && git commit -q -m "Airports"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" airports
