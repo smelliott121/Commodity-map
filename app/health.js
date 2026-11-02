@@ -6,6 +6,7 @@
     ["News", () => typeof NW != "undefined" && NW && NW.updated, 1.5],
     ["Storms", () => window.STU, 3],
     ["European storms", () => window.EUS && EUS.updated, 5],
+    ["US midterms", () => window.ELX && ELX.updated, 7],
     ["UK power", () => typeof UK != "undefined" && UK && UK.updated, 2],
     ["Futures curves", () => typeof CV != "undefined" && CV && CV.updated, 30, true],
     ["Shipping", () => typeof CK != "undefined" && CK && CK.updated, 30],

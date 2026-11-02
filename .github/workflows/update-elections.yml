@@ -1,0 +1,169 @@
+name: Update US midterms
+on:
+  schedule:
+    - cron: "*/20 * 3-6 11 *"     # election night and the days after: every 20 minutes
+    - cron: "15 */6 * * *"        # otherwise every 6 hours
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: elections
+  cancel-in-progress: false
+jobs:
+  elections:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build Senate and governor races by state
+        run: |
+          mkdir -p out
+          python3 - <<'PY'
+          # Source: Wikipedia race tables (CC BY-SA), which editors update as races are called. Neutral data only.
+          import json, re, time, urllib.request, urllib.parse
+          UA = {"User-Agent": "commodity-map personal project (github actions; github.com/smelliott121)"}
+          def wiki(page):
+              u = "https://en.wikipedia.org/w/api.php?" + urllib.parse.urlencode({"action": "parse", "page": page, "prop": "wikitext", "format": "json", "formatversion": 2})
+              for a in range(3):
+                  try:
+                      return json.load(urllib.request.urlopen(urllib.request.Request(u, headers=UA), timeout=60))["parse"]["wikitext"]
+                  except Exception as e:
+                      print("retry", page, e); time.sleep(8)
+              return ""
+          def clean(t):
+              t = re.sub(r"<!--.*?-->", "", t, flags=re.S)
+              t = re.sub(r"<ref[^>]*/>", "", t); t = re.sub(r"<ref[^>]*>.*?</ref>", "", t, flags=re.S)
+              t = re.sub(r"\{\{sortname\|([^|}]*)\|([^|}]*)[^}]*\}\}", r"\1 \2", t, flags=re.I)
+              t = re.sub(r"\{\{(?:small|nowrap|abbr)\|([^}|]*)[^}]*\}\}", r"\1", t, flags=re.I)
+              for _ in range(3):
+                  t = re.sub(r"\{\{[^{}]*\}\}", "", t)
+              t = re.sub(r"\[\[[^\]|]*\|([^\]]*)\]\]", r"\1", t); t = re.sub(r"\[\[([^\]]*)\]\]", r"\1", t)
+              t = re.sub(r"<br\s*/?>", " ", t); t = re.sub(r"<[^>]+>", "", t); t = t.replace("'''", "").replace("''", "")
+              return re.sub(r"\s+", " ", t).strip()
+          def content(cell):   # drop "attributes |" prefix, ignoring pipes inside templates/links
+              d = 0
+              for i, ch in enumerate(cell):
+                  if cell[i:i + 2] in ("{{", "[["): d += 1
+                  elif cell[i:i + 2] in ("}}", "]]"): d -= 1
+                  elif ch == "|" and d == 0 and cell[i:i + 2] != "||":
+                      return cell[i + 1:]
+              return cell
+          def rows(table):
+              out = []
+              for r in re.split(r"\n\|-[^\n]*", table)[1:]:
+                  cells, cur = [], None
+                  for line in r.split("\n"):
+                      if line.startswith(("|}", "|+")):
+                          continue
+                      if line[:1] in ("!", "|") and not line.startswith("|-"):
+                          if cur is not None: cells.append(cur)
+                          cur = line[1:]
+                      elif cur is not None:
+                          cur += "\n" + line
+                  if cur is not None: cells.append(cur)
+                  out.append([content(c) for c in cells])
+              return out
+          def section(w, title):
+              m = re.search(r"^==+\s*" + re.escape(title) + r"\s*==+\s*$", w, re.M)
+              if not m: return ""
+              rest = w[m.end():]; n = re.search(r"^==+[^=]", rest, re.M)
+              return rest[: n.start()] if n else rest
+          def tables(txt):
+              return re.findall(r"\{\|.*?\n\|\}", txt, re.S)
+          PARTY = {"republican": "R", "democratic": "D", "independent": "I"}
+          def pcode(t):
+              t = t.lower()
+              for k, v in PARTY.items():
+                  if k in t: return v
+              return "O"
+          def cands(cell):
+              L = []
+              for line in cell.split("\n"):
+                  if not line.strip().startswith("*"): continue
+                  won = bool(re.search(r"\{\{\s*(aye|ya|yes check|tick)\b", line, re.I)) or "'''" in line
+                  c = clean(line.lstrip("* "))
+                  m = re.match(r"(.*?)\s*\(([^)]+)\)\s*(.*)$", c)
+                  name, party, tail = (m.group(1), m.group(2), m.group(3)) if m else (c, "", "")
+                  pct = re.search(r"(\d{1,2}(?:\.\d+)?)\s*%", tail or c)
+                  if name:
+                      L.append({"n": name.strip(" *"), "p": pcode(party), "pl": party, "pct": float(pct.group(1)) if pct else None, "w": won})
+              return L
+          def result(status, inc_p, cs):
+              s = status.lower(); win = None
+              m = re.search(r"(republican|democratic|independent)\s+(gain|hold)", s)
+              if m: win = PARTY[m.group(1)]
+              elif re.search(r"re-?elected", s): win = inc_p
+              elif re.search(r"\belected\b", s) and not re.search(r"(advanc|renominat|retir|running|nominee|primary)", s):
+                  w = [c for c in cs if c["w"]]; win = w[0]["p"] if w else None
+              if win is None:
+                  w = [c for c in cs if c["w"]]
+                  if w and re.search(r"(elected|gain|hold|winner|won)", s): win = w[0]["p"]
+              runoff = "runoff" in s and win is None
+              return win, runoff
+          SC = {"safe": 3, "solid": 3, "likely": 2, "lean": 1, "tilt": .5, "tossup": 0, "toss-up": 0}
+          def ratings(w, title="Predictions"):
+              R = {}
+              for tb in tables(section(w, title)):
+                  for r in rows(tb):
+                      if not r: continue
+                      st = clean(r[0]).split(" (")[0].strip()
+                      raw = " ".join(r)
+                      rs = re.findall(r"\{\{USRaceRating\|([^|}]+)\|?([DRI]?)", raw)
+                      if not st or not rs: continue
+                      vals = []
+                      for lab, p in rs:
+                          v = SC.get(lab.strip().lower())
+                          if v is None: continue
+                          vals.append(v * (1 if p == "R" else -1 if p in ("D", "I") else 0))
+                      if vals:
+                          a = sum(vals) / len(vals); b = abs(a)
+                          lab = "Safe" if b >= 2.5 else "Likely" if b >= 1.5 else "Lean" if b >= .75 else "Tilt" if b > .25 else "Tossup"
+                          key = st + (" (special)" if "special" in raw.lower() and st in ("Florida", "Ohio") else "")
+                          R.setdefault(key, {"lab": lab, "p": "" if lab == "Tossup" else ("R" if a > 0 else "D"), "avg": round(a, 2), "n": len(vals)})
+              return R
+          def races(w, sect):
+              out = {}
+              for tb in tables(section(w, sect)):
+                  hdr = tb[:600].lower()
+                  special = "special" in sect.lower()
+                  for r in rows(tb):
+                      if len(r) < 5 or "{{Party stripe" not in r[-1] and "*" not in r[-1]: continue
+                      st = clean(r[0]); st = re.sub(r"\s*\(Class \d\)", "", st).strip()
+                      if not st or len(st) > 40: continue
+                      inc_cells = [clean(c) for c in r[1:-2]]
+                      inc_p = next((pcode(c) for c in inc_cells if re.search(r"^(Republican|Democratic|Independent)\b", c)), None)
+                      inc_n = next((c for c in inc_cells if c and not re.search(r"^(Republican|Democratic|Independent|\d|R\+|D\+|EVEN)", c) and not re.match(r"^[\d.]+% ", c)), "")
+                      status = clean(r[-2]); cs = cands(r[-1])
+                      win, runoff = result(status, inc_p, cs)
+                      key = st + (" (special)" if special or (st in ("Florida", "Ohio") and "class 3" in r[0].lower()) else "")
+                      out[key] = {"inc": inc_n, "ip": inc_p, "status": status[:140], "c": cs, "win": win, "flip": bool(win and inc_p and win != inc_p), "runoff": runoff}
+              return out
+          S = wiki("2026 United States Senate elections")
+          G = wiki("2026 United States gubernatorial elections")
+          sen = {}
+          sen.update(races(S, "Special elections during the preceding Congress"))
+          sen.update(races(S, "Elections leading to the next Congress"))
+          gov = races(G, "States")
+          for k, v in ratings(S).items():
+              if k in sen: sen[k]["rate"] = v
+              elif k + " (special)" in sen: sen[k + " (special)"]["rate"] = v
+          for k, v in ratings(G).items():
+              if k in gov: gov[k]["rate"] = v
+          notup = {"D": 32, "I": 2, "R": 31}
+          m = re.search(r"Not up\s*\n\|[^\n]*?(\d+)\s*\n\|[^\n]*?(\d+)\s*\n\|[^\n]*?(\d+)", S)
+          if m: notup = {"D": int(m.group(1)), "I": int(m.group(2)), "R": int(m.group(3))}
+          tally = lambda d: {p: sum(1 for v in d.values() if v["win"] == p) for p in "DRI"}
+          out = {"updated": int(time.time()), "src": "Wikipedia race tables (updated by editors as AP and networks call races)",
+                 "senate": sen, "gov": gov, "notup": notup, "sen_won": tally(sen), "gov_won": tally(gov)}
+          print("senate races", len(sen), "rated", sum(1 for v in sen.values() if "rate" in v), "called", out["sen_won"], "| gov races", len(gov), "rated", sum(1 for v in gov.values() if "rate" in v), "called", out["gov_won"], "| not up", notup)
+          print({k: (v["ip"], v["inc"], v.get("rate", {}).get("lab"), len(v["c"])) for k, v in list(sen.items())[:6]})
+          if len(sen) >= 30 and len(gov) >= 30:
+              json.dump(out, open("out/elections.json", "w"), separators=(",", ":"), ensure_ascii=False)
+          PY
+      - name: Publish to elections branch
+        run: |
+          [ -f out/elections.json ] || { echo "::warning::could not parse the race tables, keeping previous data"; exit 0; }
+          cd out
+          git init -q && git checkout -q -b elections
+          git config user.name "election-bot"
+          git config user.email "election-bot@users.noreply.github.com"
+          git add -A && git commit -q -m "US midterms"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" elections

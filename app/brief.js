@@ -103,6 +103,7 @@
     if (typeof crackNow == "function") { const c = crackNow(); if (c && c.c.length > 15) { const v = c.c, avg = v.reduce((a, b) => a + b, 0) / v.length; if (Math.abs(c.price - avg) / avg > .15) L.push({ t: `Refining margin $${c.price.toFixed(1)}/bbl, ${c.price > avg ? "well above" : "well below"} its month average`, run: () => showRef(), sev: 1 }) } }
     if (typeof hzWatch == "function") L.push(...hzWatch());
     if (typeof euWatch == "function") L.push(...euWatch());
+    if (typeof elWatch == "function") L.push(...elWatch());
     if (typeof supWatch == "function") L.push(...supWatch());
     if (typeof enPhase == "function" && enPhase()) L.push({ t: `${enPhase() > 0 ? "El Niño" : "La Niña"} conditions (${enStr(EN.roni.at(-1)[2])})`, run: showEnso, sev: 1 });
     return L.sort((a, b) => b.sev - a.sev);
