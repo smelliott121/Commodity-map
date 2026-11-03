@@ -513,6 +513,7 @@ const MKG=[["Energy",[["BZ=F","Brent crude","$/bbl"],["CL=F","WTI crude","$/bbl"
 ["Equity indices",[["ES=F","S&P 500 future","pts"],["NQ=F","Nasdaq 100 future","pts"],["YM=F","Dow future","pts"],["RTY=F","Russell 2000 future","pts"],["^FTSE","FTSE 100","index"],["^GDAXI","DAX","index"],["^STOXX50E","Euro Stoxx 50","index"],["^N225","Nikkei 225","index"],["^HSI","Hang Seng","index"],["000001.SS","Shanghai Composite","index"]]],
 ["Refining",[["CRACK","3-2-1 crack (WTI)","$/bbl"]]],
 ["Freight",[["BDRY","Dry bulk freight (Breakwave ETF)","$/share"],["BWET","Tanker freight (Breakwave ETF)","$/share"]]],
+["Tankers",[["FRO","Frontline (VLCC, Suezmax)","$/share"],["DHT","DHT Holdings (VLCC)","$/share"],["INSW","International Seaways (crude and product)","$/share"],["TNK","Teekay Tankers (Suezmax, Aframax)","$/share"],["STNG","Scorpio Tankers (product, LR2/MR)","$/share"]]],
 ["FX and volatility",[["DX-Y.NYB","US dollar index","index"],["EURUSD=X","EUR/USD","rate"],["GBPUSD=X","GBP/USD","rate"],["JPY=X","USD/JPY","rate"],["CNY=X","USD/CNY","rate"],["BRL=X","USD/BRL","rate"],["^VIX","VIX","index"]]]];
 let MKS=null,MKSEL=null;
 function mkRow(s){const q=s[0]=="CRACK"?crackNow():PX[s[0]];if(!q||q.price==null)return null;const c=(q.c||[]).slice(),y=s[3]=="y",n=c.length,p=q.price;

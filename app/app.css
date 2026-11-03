@@ -360,3 +360,4 @@ body.saton #wx{opacity:.38}
 .mk.L-air.home{z-index:8}
 .elodd{display:flex;height:8px;border-radius:4px;overflow:hidden;margin:2px 0 8px}.elodd i{display:block;height:100%}
 .elct .elr{display:flex;align-items:center;gap:6px;font:inherit}
+.tkdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:1px}

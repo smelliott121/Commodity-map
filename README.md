@@ -25,6 +25,7 @@ Personal use only. The free data sources it uses are licensed for personal, non-
 | US midterms | Senate and governor races by state: forecasters' average rating and prediction-market odds (control of each chamber, every race), results and seat flips as races are called | Wikipedia race tables; Kalshi public market data |
 | Airport disruption | Drone incidents at airports worldwide since Jan 2026 (sightings vs wartime attacks), weekly frequency, live US delays and ground stops | News reports; FAA |
 | Naval activity | Reported Russian warship / spy ship / shadow-fleet activity near the UK and Europe by sea area; US carrier and amphibious group positions | News reports; USNI News |
+| Tanker rates | $/day charter rates by ship class (VLCC, Suezmax, Aframax/LR2, product) quoted in shipping news since Jan 2026; BWET and tanker owners' shares live | Shipping news headlines; Yahoo Finance |
 | Rail | 18 key commodity rail corridors; US crude-by-rail monthly volumes | Built in; US EIA |
 | Freight | Dry bulk and tanker freight ETFs (BDRY, BWET) on the markets board | Yahoo Finance |
 | Markets board | 54 futures, rates, indices and FX with day/week/month moves | Yahoo Finance |
@@ -40,7 +41,7 @@ Personal use only. The free data sources it uses are licensed for personal, non-
 
 The **Hazards** tab on the markets board gathers rivers, frost, soil, fires, rail and freight in one place.
 The **Supply** tab shows USDA crop outlooks next to what the map's weather says about them.
-Search codes include `ELECT`, `AIR`, `NAVY`, `WINDSTORM`, `SUPPLY`, `HAZ`, `RIVER`, `FROST`, `FIRE`, `SOIL`, `RAIL`, `FREIGHT`.
+Search codes include `TANKER`, `ELECT`, `AIR`, `NAVY`, `WINDSTORM`, `SUPPLY`, `HAZ`, `RIVER`, `FROST`, `FIRE`, `SOIL`, `RAIL`, `FREIGHT`.
 
 Keyboard: `/` search, `L` layers, `M` markets, `+`/`-` zoom, `Esc` close.
 
@@ -76,6 +77,7 @@ Keyboard: `/` search, `L` layers, `M` markets, `+`/`-` zoom, `Esc` close.
 | Update US midterms | `elections/elections.json` | 6-hourly; every 20 min 3–6 Nov |
 | Update airport disruptions | `airports/airports.json` | hourly at :35 |
 | Update naval activity | `navy/navy.json` | every 4 h |
+| Update tanker rates | `tankers/tankers.json` | 07:20, 13:20, 19:20 |
 | Update supply outlook | `supply/supply.json` (USDA PSD + revision log) | weekdays 17:40 |
 | Update market holidays | `holidays/holidays.json` | Mon 06:15 |
 | Commodity alerts | reads all of the above, saves `state/alerts_state.json` | after data jobs + :05/:35 |

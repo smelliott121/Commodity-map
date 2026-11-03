@@ -216,6 +216,7 @@ ${k.length ? k.map(x => { const s = rf[x], y = yo(s); return `<div class="row"><
     const rf = typeof RF != "undefined" && RF && RF.rail, px = s => typeof PX != "undefined" && PX && PX[s];
     h += `<div class="mkg">Rail and freight <button class="hzm" data-ly="rail">Map</button></div>`;
     if (rf && rf.total) h += row('data-go="RAIL"', "US crude by rail", "EIA · " + new Date(rf.total.d.at(-1) + "-15").toLocaleDateString("en-GB", { month: "short", year: "numeric" }), rf.total.v.at(-1).toFixed(0) + " kb/d", "", "›");
+    h += row('data-tk="1"', "Tanker charter rates", "VLCC, Suezmax, Aframax, product · $/day", "", "", "›");
     [["BDRY", "Dry bulk freight", "Breakwave ETF"], ["BWET", "Tanker freight", "Breakwave ETF"]].forEach(([k, n, sub]) => { const q = px(k); if (q && q.price != null) { const d = (q.price / q.prev - 1) * 100; h += row(`data-mk="${k}"`, n, sub, "$" + q.price.toFixed(2), "", `<span style="color:var(--${d >= 0 ? "up" : "dn"})">${sg(d)}%</span>`) } });
     el.innerHTML = `${mkHead("haz")}<div class="mkt">${h}</div><div class="mkf">Physical risks to supply and transport. Tap a row for detail and charts; "Map" switches that layer on. Rivers and frost update every 3 hours, soil daily, rail monthly.</div>`;
     $("#mkx").onclick = () => mkOpen(false);
@@ -226,6 +227,7 @@ ${k.length ? k.map(x => { const s = rf[x], y = yo(s); return `<div class="row"><
     el.querySelectorAll("[data-ri]").forEach(d => d.onclick = () => { const i = +d.dataset.ri; go(R[i].lon, R[i].lat); show(i); sel(d) });
     el.querySelectorAll("[data-go]").forEach(d => d.onclick = () => { FN[d.dataset.go](); sel(d) });
     el.querySelectorAll("[data-mk]").forEach(d => d.onclick = () => { mkShow(d.dataset.mk); sel(d) });
+    el.querySelectorAll("[data-tk]").forEach(d => d.onclick = () => { typeof showTankers == "function" && showTankers(); sel(d) });
     el.querySelectorAll(".hzm").forEach(b => { const k = b.dataset.ly, on = () => !map.classList.contains("off-" + k); b.classList.toggle("on", on());
       b.onclick = e => { e.stopPropagation(); document.querySelector(`#tg button[data-k="${k}"]`)?.click(); b.classList.toggle("on", on()) } });
   }
