@@ -41,9 +41,10 @@ jobs:
           pts = {(p["c"], p["d"], p["v"]): p for p in prev.get("pts", [])}
           news = {n["t"]: n for n in prev.get("news", [])}
           Q = ['(VLCC OR supertanker OR Suezmax OR Aframax) (rates OR "per day" OR "a day" OR "/day" OR earnings)',
-               '("MR tanker" OR "product tanker" OR LR2 OR LR1 OR "clean tanker") (rates OR "per day" OR "a day" OR earnings)']
+               '("MR tanker" OR "product tanker" OR LR2 OR LR1 OR "clean tanker") (rates OR "per day" OR "a day" OR earnings)',
+               'Suezmax (rates OR earnings OR "a day" OR "per day")', '(Aframax OR LR2) (rates OR earnings OR "a day" OR "per day")', '(MR OR "medium range") tanker (rates OR earnings OR "a day")']
           wins = []
-          if not prev.get("backfilled"):
+          if prev.get("bf") != 2:   # bump to re-run the backfill after adding queries
               d0 = dt.date(2026, 1, 1)
               while d0 < now.date() - dt.timedelta(days=6):
                   wins.append(f" after:{d0.isoformat()} before:{(d0 + dt.timedelta(days=10)).isoformat()}"); d0 += dt.timedelta(days=10)
@@ -81,7 +82,7 @@ jobs:
           cut = (now - dt.timedelta(days=500)).date().isoformat()
           P = sorted((p for p in pts.values() if p["d"] >= cut), key=lambda p: p["d"])
           N = sorted((n for n in news.values() if n["d"] >= (now - dt.timedelta(days=45)).date().isoformat()), key=lambda n: n["d"], reverse=True)[:40]
-          out = {"updated": int(time.time()), "backfilled": True, "pts": P, "news": N}
+          out = {"updated": int(time.time()), "backfilled": True, "bf": 2, "pts": P, "news": N}
           print("rate points", len(P), {c: sum(1 for p in P if p["c"] == c) for c, _ in CLS}, "| latest", [(p["c"], p["d"], p["v"]) for p in P[-8:]])
           json.dump(out, open("out/tankers.json", "w"), separators=(",", ":"), ensure_ascii=False)
           PY
