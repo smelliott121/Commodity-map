@@ -1,0 +1,25 @@
+name: Probe sources
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Tanker rate headlines
+        run: |
+          mkdir -p out
+          python3 - <<'PY'
+          import urllib.request, urllib.parse, time
+          def gn(q, f):
+              u = "https://news.google.com/rss/search?" + urllib.parse.urlencode({"q": q, "hl": "en-GB", "gl": "GB", "ceid": "GB:en"})
+              open("out/" + f, "wb").write(urllib.request.urlopen(urllib.request.Request(u, headers={"User-Agent": "Mozilla/5.0"}), timeout=40).read()); time.sleep(1)
+          gn('(VLCC OR Suezmax OR Aframax) (rates OR "per day" OR "/day" OR earnings) when:30d', "t1.xml")
+          gn('("MR tanker" OR "product tanker" OR LR2 OR LR1) (rates OR "per day" OR earnings) when:30d', "t2.xml")
+          gn('"Baltic Dirty Tanker Index" OR "Baltic Clean Tanker Index" OR BDTI OR BCTI when:60d', "t3.xml")
+          gn('VLCC rates after:2026-03-01 before:2026-03-15', "t4.xml")
+          PY
+      - name: Publish
+        run: |
+          cd out && git init -q && git checkout -q -b probe && git config user.name probe && git config user.email probe@users.noreply.github.com && git add -A && git commit -q -m probe && git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" probe
