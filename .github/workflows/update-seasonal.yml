@@ -75,4 +75,4 @@ jobs:
           git config user.name "seasonal-bot"
           git config user.email "seasonal-bot@users.noreply.github.com"
           git add -A && git commit -q -m "Seasonal patterns"
-          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" seasonal
+          n=0; until git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" seasonal; do n=$((n+1)); [ $n -ge 4 ] && exit 1; echo "push failed, retrying"; sleep $((15 * n)); done

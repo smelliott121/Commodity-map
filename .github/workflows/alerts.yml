@@ -492,20 +492,27 @@ jobs:
               if not tok:
                   return
               try:
-                  runs = json.loads(http(f"https://api.github.com/repos/{REPO}/actions/runs?status=failure&per_page=20",
+                  runs = json.loads(http(f"https://api.github.com/repos/{REPO}/actions/runs?status=completed&per_page=100",
                                          headers={"Authorization": f"Bearer {tok}", "Accept": "application/vnd.github+json", "User-Agent": "commodity-alerts"}))
               except Exception as e:
                   print("could not read job runs", e); return
-              bad = []
-              for r in runs.get("workflow_runs", []):
-                  try:
-                      t = dt.datetime.fromisoformat(r["updated_at"].replace("Z", "+00:00"))
-                  except Exception:
+              # only flag a job when its last two runs both failed: single blips (e.g. a brief GitHub outage) fix themselves on the next run
+              by = {}
+              for r in runs.get("workflow_runs", []):   # newest first
+                  if r.get("name") in ("Commodity alerts", "Probe sources"):
                       continue
-                  if (NOW - t).total_seconds() < 12 * 3600 and r.get("name") != "Commodity alerts" and once("health:run:" + str(r["id"]), 30):
-                      bad.append(f"{r['name']} failed at {t.astimezone(UK):%H:%M} UK")
+                  by.setdefault(r.get("name"), []).append(r)
+              bad = []
+              for name, L in by.items():
+                  if len(L) >= 2 and L[0].get("conclusion") == "failure" and L[1].get("conclusion") == "failure":
+                      try:
+                          t = dt.datetime.fromisoformat(L[0]["updated_at"].replace("Z", "+00:00"))
+                      except Exception:
+                          continue
+                      if (NOW - t).total_seconds() < 12 * 3600 and once("health:run:" + str(L[0]["id"]), 30):
+                          bad.append(f"{name} has failed twice in a row (last at {t.astimezone(UK):%H:%M} UK)")
               if bad:
-                  alert("🛠️ A data job failed", "\n".join("• " + x for x in bad[:5]) + "\nIt will retry on its next schedule; tell Claude if it keeps failing.", "default", "hammer_and_wrench")
+                  alert("🛠️ A data job keeps failing", "\n".join("• " + x for x in bad[:5]) + "\nTell Claude so it can be fixed.", "default", "hammer_and_wrench")
 
           # ---------- ENSO ----------
           def enso():
@@ -766,4 +773,4 @@ jobs:
           git config user.name "alert-bot"
           git config user.email "alert-bot@users.noreply.github.com"
           git add -A && git commit -q -m "Alert state"
-          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" state
+          n=0; until git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" state; do n=$((n+1)); [ $n -ge 4 ] && exit 1; echo "push failed, retrying"; sleep $((15 * n)); done

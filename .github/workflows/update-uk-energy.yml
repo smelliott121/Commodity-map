@@ -151,4 +151,4 @@ jobs:
           git config user.name "uk-energy-bot"
           git config user.email "uk-energy-bot@users.noreply.github.com"
           git add -A && git commit -q -m "UK energy"
-          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" uk
+          n=0; until git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" uk; do n=$((n+1)); [ $n -ge 4 ] && exit 1; echo "push failed, retrying"; sleep $((15 * n)); done

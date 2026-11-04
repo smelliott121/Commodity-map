@@ -169,4 +169,4 @@ jobs:
           git config user.name "hazard-bot"
           git config user.email "hazard-bot@users.noreply.github.com"
           git add -A && git commit -q -m "Hazards"
-          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" hazards
+          n=0; until git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" hazards; do n=$((n+1)); [ $n -ge 4 ] && exit 1; echo "push failed, retrying"; sleep $((15 * n)); done

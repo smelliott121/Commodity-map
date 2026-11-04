@@ -153,4 +153,4 @@ jobs:
           git config user.name "news-bot"
           git config user.email "news-bot@users.noreply.github.com"
           git add -A && git commit -q -m "News"
-          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" news
+          n=0; until git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" news; do n=$((n+1)); [ $n -ge 4 ] && exit 1; echo "push failed, retrying"; sleep $((15 * n)); done
