@@ -70,11 +70,13 @@ ${r.status ? `<div class="note" style="margin-top:2px">${esc(r.status)}</div>` :
   }
   function showState(st) {
     const S = Object.entries(ELX.senate).filter(([k]) => stateOf(k) == st), G = Object.entries(ELX.gov).filter(([k]) => stateOf(k) == st);
-    info(`<h2>${esc(st)} · 2026 midterms</h2>${S.length || G.length ? S.map(([k, r]) => raceHTML(k, r, "Senate")).join("") + G.map(([k, r]) => raceHTML(k, r, "Governor")).join("") : '<div class="note">No Senate or governor race here this year (every state elects House members).</div>'}
+    const hs = ELX.house && ELX.house.states && ELX.house.states[st];
+    const hh = hs ? `<div class="kh">House · ${hs.n} seat${hs.n > 1 ? "s" : ""}</div><div class="row"><span>Result</span><b>${hs.done ? `<span style="color:${PC.D}">D ${hs.D}</span> · <span style="color:${PC.R}">R ${hs.R}</span>` : "Still counting"}</b></div>` : "";
+    info(`<h2>${esc(st)} · 2026 midterms</h2>${S.length || G.length ? S.map(([k, r]) => raceHTML(k, r, "Senate")).join("") + G.map(([k, r]) => raceHTML(k, r, "Governor")).join("") : '<div class="note">No Senate or governor race here this year.</div>'}${hh}
 <div class="note">${foot()}</div>`);
   }
   window.showElectState = showState;
-  const foot = () => `Results from Wikipedia's race tables, which editors update as AP and the networks call races, so they can lag TV by up to an hour. Forecasters = average of the published race ratings (Cook, Inside Elections, Sabato and others). Market odds: Kalshi. Updated ${ELX ? new Date(ELX.updated * 1000).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Europe/London" }) + " UK" : ""}. House races aren't shown.`;
+  const foot = () => `Results from Wikipedia's race tables, which editors update as AP and the networks call races, so they can lag TV by up to an hour. Forecasters = average of the published race ratings (Cook, Inside Elections, Sabato and others). Market odds: Kalshi. Updated ${ELX ? new Date(ELX.updated * 1000).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Europe/London" }) + " UK" : ""}. House seats are shown per state once every seat in that state has been called.`;
   function openElect() {
     if (!ELX) return;
     const s = senateTotals(), seats = [];
@@ -96,6 +98,7 @@ ${r.status ? `<div class="note" style="margin-top:2px">${esc(r.status)}</div>` :
 <div class="kh">Senate (51 for control; the Vice President breaks 50–50 ties)</div>
 <div class="elbar">${seats.map(c => `<i style="background:${c}"></i>`).join("")}<em></em></div>
 <div class="tgrid"><div><span class="note" style="margin:0">Democratic + Ind.</span><b style="color:${PC.D}">${s.D + s.I}</b><small>incl. seats not up</small></div><div><span class="note" style="margin:0">Republican</span><b style="color:${PC.R}">${s.R}</b><small>incl. seats not up</small></div><div><span class="note" style="margin:0">Still to call</span><b>${s.left}</b><small>of ${s.races} races</small></div></div>
+${ELX.house && ELX.house.states_done ? `<div class="kh">House (218 for control)</div><div class="row"><span>Seats from fully counted states</span><b><span style="color:${PC.D}">D ${ELX.house.D}</span> · <span style="color:${PC.R}">R ${ELX.house.R}</span>${ELX.house.O ? ` · other ${ELX.house.O}` : ""}</b></div><div class="note" style="margin-top:0">${ELX.house.states_done} of 50 states complete (${ELX.house.seats_done} of 435 seats). States still counting aren't included, so this isn't the overall tally yet.</div>` : ""}
 <div class="kh">Governors</div><div class="row"><span>Called</span><b><span style="color:${PC.D}">D ${gw.D}</span> · <span style="color:${PC.R}">R ${gw.R}</span>${gw.I ? ` · <span style="color:${PC.I}">I ${gw.I}</span>` : ""} of ${gl}</b></div>
 ${mkt}
 <div class="kh">Close races and flips</div>${close(ELX.senate, "Senate") + close(ELX.gov, "Governor") || '<div class="note">None flagged.</div>'}
