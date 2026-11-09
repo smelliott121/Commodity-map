@@ -1,0 +1,82 @@
+name: Update fertiliser prices
+on:
+  schedule:
+    - cron: "30 6 * * 1,4"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: fertiliser
+  cancel-in-progress: false
+jobs:
+  fertiliser:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: World Bank Pink Sheet (monthly)
+        run: |
+          mkdir -p out
+          pip install --break-system-packages -q openpyxl
+          python3 - <<'PY'
+          import io, json, re, time, urllib.request
+          import openpyxl
+          UA = {"User-Agent": "Mozilla/5.0 (commodity-map personal project)"}
+          def get(u, t=120):
+              for a in range(3):
+                  try:
+                      return urllib.request.urlopen(urllib.request.Request(u, headers=UA), timeout=t).read()
+                  except Exception as e:
+                      print("retry", u[:90], e); time.sleep(6)
+              return None
+          # the file's address changes with each monthly release, so find it on the World Bank's commodity page
+          urls = []
+          page = get("https://www.worldbank.org/en/research/commodity-markets", 60)
+          if page:
+              urls += re.findall(r'https?://[^"\']+CMO-Historical-Data-Monthly\.xlsx', page.decode("utf-8", "ignore"))
+          urls += ["https://thedocs.worldbank.org/en/doc/18675f1d1639c7a34d463f59263ba0a2-0050012025/related/CMO-Historical-Data-Monthly.xlsx"]
+          wb = None
+          for u in dict.fromkeys(urls):
+              b = get(u)
+              if b:
+                  try:
+                      wb = openpyxl.load_workbook(io.BytesIO(b), read_only=True, data_only=True); print("using", u); break
+                  except Exception as e:
+                      print("bad file", u, e)
+          if not wb:
+              raise SystemExit("no Pink Sheet file")
+          sh = wb["Monthly Prices"]
+          R = list(sh.iter_rows(values_only=True))
+          hi = next(i for i, r in enumerate(R) if r and any(str(c or "").strip().startswith("Crude oil, average") for c in r))
+          names = [str(c or "").replace("*", "").strip() for c in R[hi]]; units = [str(c or "").strip() for c in R[hi + 1]]
+          upd = next((str(r[0]) for r in R[:hi] if r and r[0] and "Updated" in str(r[0])), "")
+          WANT = {"Urea": "urea", "DAP": "dap", "TSP": "tsp", "Potassium chloride": "potash", "Phosphate rock": "rock",
+                  "Natural gas, Europe": "gas_eu", "Natural gas, US": "gas_us", "Maize": "maize", "Wheat, US HRW": "wheat", "Soybeans": "soy"}
+          col = {}
+          for i, n in enumerate(names):
+              for k, v in WANT.items():
+                  if n.startswith(k) and v not in col:
+                      col[v] = i
+          d, S = [], {v: [] for v in col}
+          for r in R[hi + 2:]:
+              m = str(r[0] or "")
+              if not re.match(r"^\d{4}M\d{2}$", m) or int(m[:4]) < 2010:
+                  continue
+              d.append(m[:4] + "-" + m[5:])
+              for v, i in col.items():
+                  try:
+                      S[v].append(round(float(r[i]), 3))
+                  except (TypeError, ValueError):
+                      S[v].append(None)
+          out = {"updated": int(time.time()), "src": "World Bank Pink Sheet", "note": upd, "d": d, "s": S, "u": {v: units[i] for v, i in col.items()}}
+          print("months", len(d), d[-1] if d else None, {v: S[v][-1] for v in S}, upd)
+          if len(d) > 24 and "urea" in S:
+              json.dump(out, open("out/fertiliser.json", "w"), separators=(",", ":"))
+          PY
+      - name: Publish to fertiliser branch
+        run: |
+          [ -f out/fertiliser.json ] || { echo "::warning::nothing built"; exit 0; }
+          cd out
+          git init -q && git checkout -q -b fertiliser
+          git config user.name "fertiliser-bot"
+          git config user.email "fertiliser-bot@users.noreply.github.com"
+          git add -A && git commit -q -m "Fertiliser"
+          n=0; until git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" fertiliser; do n=$((n+1)); [ $n -ge 4 ] && exit 1; echo "push failed, retrying"; sleep $((15 * n)); done

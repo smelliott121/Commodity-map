@@ -5,7 +5,7 @@
   const HOME = { Coffee: "Brazil", Wheat: "Ukraine", "Palm oil": "Indonesia", Sugar: "India", Corn: "United States", Cotton: "United States", Soybeans: "Brazil", "Orange juice": "United States", Rice: "India" };
   const myL = m => `${m}/${String((m + 1) % 100).padStart(2, "0")}`;
   const sfx = u => /60 KG/i.test(u) ? "M bags" : /bales/i.test(u) ? "M bales" : /MT/i.test(u) ? " Mt" : "";
-  const qty = (v, u) => v == null ? "—" : (v / 1000).toFixed(v >= 1e5 ? 0 : 1) + sfx(u);
+  const qty = (v, u) => v == null ? "—" : /^\(?MT\)?$/i.test((u || "").trim()) ? (v / 1e6).toFixed(v >= 1e7 ? 0 : 2) + " Mt" : (v / 1000).toFixed(v >= 1e5 ? 0 : 1) + sfx(u);   // most PSD units are thousands; orange juice is plain tonnes
   const relL = r => r ? new Date(r + "-15").toLocaleDateString("en-GB", { month: "short", year: "numeric" }) : "";
   const pct = (a, b) => a != null && b ? (a / b - 1) * 100 : null;
 
@@ -19,6 +19,13 @@
     const yrs = s.filter(x => x != null).length;
     const txt = kind == "low" ? (since ? `lowest since ${myL(since)}` : `lowest in ${yrs} years`) : kind == "high" ? (since ? `highest since ${myL(since)}` : `highest in ${yrs} years`) : "";
     return { cur, avg, d: avg != null ? cur - avg : null, txt, kind };
+  }
+  /* 10-season range bar: track = lowest to highest of the last 10 seasons (and this one), tick = 10-yr average, dot = this season */
+  function rng(o) { const s = o.w.stu, past = s.slice(-11, -1).filter(x => x != null), cur = s.at(-1), all = past.concat(cur != null ? [cur] : []); return { lo: Math.min(...all), hi: Math.max(...all), past } }
+  function rbar(o, st) {
+    const { lo, hi } = rng(o), w = hi - lo || 1, pos = (st.cur - lo) / w * 100, ap = st.avg != null ? (st.avg - lo) / w * 100 : null;
+    const col = pos <= 20 ? "var(--dn)" : pos >= 80 ? "var(--up)" : "var(--ink)";
+    return `<i class="srb"><i class="srt"></i>${ap != null ? `<i class="sra" style="left:${ap.toFixed(1)}%"></i>` : ""}<i class="srd" style="left:${pos.toFixed(1)}%;background:${col}"></i></i>`;
   }
   function revOf(o, label) {
     const L = o.rev && o.rev[`${label}|${o.my.at(-1)}`];
@@ -35,7 +42,8 @@
     Cotton: (m, y) => m >= 5 && m <= 8 ? y : null,
     Sugar: (m, y) => m >= 6 && m <= 9 ? y : null,                        // India: monsoon grows the cane
     Rice: (m, y) => m >= 6 && m <= 9 ? y : null,                         // India kharif rice
-    "Palm oil": (m, y) => y + 1,                                         // dry spells cut output 6-24 months later
+    "Palm oil": (m, y) => y + 1,
+    "Orange juice": (m, y) => m >= 10 ? y : m <= 6 ? y - 1 : null,       // Florida/Brazil: fruit sizes and is picked Oct-Jun                                         // dry spells cut output 6-24 months later
   };
   function target(r) { const f = TGT[r.n], d = new Date(); return f ? f(d.getMonth() + 1, d.getFullYear()) : null }
   /* what the map's weather data says about the official estimate, in words */
@@ -88,11 +96,11 @@ ${ctryRows ? `<div class="kh">Main producers, ${myL(cur)} vs ${myL(cur - 1)}</di
       const n = o.my.length, p = pct(o.w.prod[n - 1], o.w.prod[n - 2]), st = stuCtx(o), ln = lean(r), rv = revOf(o, "World production");
       return `<div class="mkr spr" data-ri="${i}"><span>${esc(r.n)}<small>${myL(o.my[n - 1])}${rv ? ` · rev ${sg(rv.p)}%` : ""}</small></span>
 <span class="cg" style="color:var(--${p == null ? "mut" : p >= 0 ? "up" : "dn"})">${p == null ? "—" : sg(p) + "%"}</span>
-<span class="spst ${st && st.kind == "low" ? "dn" : st && st.kind == "high" ? "up" : ""}" title="${esc(st && st.txt || "")}">${st ? st.cur.toFixed(0) + "%" : "—"}<small>${st && st.d != null ? sg(st.d, 0) : ""}</small></span>
+<span class="spst ${st && st.kind == "low" ? "dn" : st && st.kind == "high" ? "up" : ""}" title="${esc(st ? `This season ${st.cur.toFixed(1)}%, 10-yr range ${rng(o).lo.toFixed(0)}–${rng(o).hi.toFixed(0)}%, average ${st.avg != null ? st.avg.toFixed(1) : "—"}%${st.txt ? "; " + st.txt : ""}` : "")}">${st ? st.cur.toFixed(0) + "%" : "—"}${st ? rbar(o, st) : ""}</span>
 <span class="spl ${ln.dir < 0 ? "dn" : ""}" title="${esc(ln.txt + (ln.why.length ? ": " + ln.why.join("; ") : ""))}">${ln.off ? "off-season" : (ln.dir < 0 ? (ln.strong ? "▼▼" : "▼") : ln.why.length ? "wet" : "ok") + (ln.next ? " " + String(ln.ty % 100).padStart(2, "0") + "/" + String((ln.ty + 1) % 100).padStart(2, "0") : "")}</span></div>` }).join("");
-    el.innerHTML = `${mkHead("sup")}<div class="mkt"><div class="mkr spr mkhd"><span>Crop · season</span><span style="text-align:right" title="World production vs last season">Output</span><span style="text-align:right" title="World stocks-to-use, and points vs 10-yr average">Stocks/use</span><span style="text-align:right" title="What our weather data says about the estimate">Weather</span></div>
+    el.innerHTML = `${mkHead("sup")}<div class="mkt"><div class="mkr spr mkhd"><span>Crop · season</span><span style="text-align:right" title="World production vs last season">Output</span><span style="text-align:right" title="World stocks-to-use, and where it sits in its 10-season range">Stocks/use<small class="srlg">tight ··· ample</small></span><span style="text-align:right" title="What our weather data says about the estimate">Weather</span></div>
 ${rows || '<div class="note" style="padding:16px">Loads after the Update supply outlook job runs.</div>'}</div>
-<div class="mkf"><b>How to read it.</b> Output: USDA's world production forecast vs last season. Stocks/use: how much is left at season end compared with a year's use, with the gap to the 10-year average below it; red means unusually tight (prices more sensitive to bad news), green unusually comfortable. Weather: ▼ means our soil, rain or frost data points to a smaller crop than USDA expects; ▼▼ when the signal is strong at a critical crop stage. A season label (e.g. 27/28) means today's weather is shaping next season's crop, which USDA hasn't forecast yet; "off-season" means weather matters little right now. "rev" is how much USDA changed its world estimate at the last monthly report. Tap a crop for the full outlook. ${SUP ? "USDA " + relL(SUP.release) + " report." : ""} No cocoa: USDA doesn't cover it.</div>`;
+<div class="mkf"><b>How to read it.</b> Output: USDA's world production forecast vs last season. Stocks/use: how much is left at season end compared with a year's use. The bar under it spans the lowest to highest of the last 10 seasons (tight on the left, ample on the right); the small tick is the 10-year average and the dot is this season, red when it's in the tightest fifth of that range (prices more sensitive to bad news), green in the most comfortable fifth. Weather: ▼ means our soil, rain or frost data points to a smaller crop than USDA expects; ▼▼ when the signal is strong at a critical crop stage. A season label (e.g. 27/28) means today's weather is shaping next season's crop, which USDA hasn't forecast yet; "off-season" means weather matters little right now. "rev" is how much USDA changed its world estimate at the last monthly report. Tap a crop for the full outlook. ${SUP ? "USDA " + relL(SUP.release) + " report." : ""} No cocoa: USDA doesn't cover it.</div>`;
     $("#mkx").onclick = () => mkOpen(false);
     el.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { window.MKTAB = b.dataset.tab; mkBoard() });
     el.querySelectorAll("[data-ri]").forEach(d => d.onclick = () => { const i = +d.dataset.ri; show(i); typeof panTo == "function" && panTo(R[i].lon, R[i].lat); el.querySelectorAll("[data-ri]").forEach(x => x.classList.toggle("sel", x == d)); setTimeout(() => { const p = $("#panel"), s = document.querySelector("#panel #sup"); if (s) p.scrollTo({ top: s.offsetTop - 50, behavior: "smooth" }) }, 250) });
