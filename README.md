@@ -22,7 +22,6 @@ Personal use only. The free data sources it uses are licensed for personal, non-
 | Soil moisture | Root-zone soil water vs the 10-year normal for each crop region | ERA5 via Open-Meteo |
 | Wildfires | Satellite fire detections, last 24 h, binned to 0.5° | NASA FIRMS (VIIRS) |
 | Supply outlook | USDA world and country production, stocks-to-use vs 10-yr history, monthly revisions, and whether our weather data points below the estimate (season-aware) | USDA FAS PSD |
-| US midterms | Senate and governor races by state: forecasters' average rating and prediction-market odds (control of each chamber, every race), results and seat flips as races are called | Wikipedia race tables; Kalshi public market data |
 | Airport disruption | Drone incidents at airports worldwide since Jan 2026 (sightings vs wartime attacks), weekly frequency, live US delays and ground stops | News reports; FAA |
 | Naval activity | Reported Russian warship / spy ship / shadow-fleet activity near the UK and Europe by sea area; US carrier and amphibious group positions | News reports; USNI News |
 | Tanker rates | $/day charter rates by ship class (VLCC, Suezmax, Aframax/LR2, product) quoted in shipping news since Jan 2026; BWET and tanker owners' shares live | Shipping news headlines; Yahoo Finance |
@@ -41,7 +40,7 @@ Personal use only. The free data sources it uses are licensed for personal, non-
 
 The **Hazards** tab on the markets board gathers rivers, frost, soil, fires, rail and freight in one place.
 The **Supply** tab shows USDA crop outlooks next to what the map's weather says about them.
-Search codes include `TANKER`, `ELECT`, `AIR`, `NAVY`, `WINDSTORM`, `SUPPLY`, `HAZ`, `RIVER`, `FROST`, `FIRE`, `SOIL`, `RAIL`, `FREIGHT`.
+Search codes include `TANKER`, `AIR`, `NAVY`, `WINDSTORM`, `SUPPLY`, `HAZ`, `RIVER`, `FROST`, `FIRE`, `SOIL`, `RAIL`, `FREIGHT`.
 
 Keyboard: `/` search, `L` layers, `M` markets, `+`/`-` zoom, `Esc` close.
 
@@ -74,7 +73,6 @@ Keyboard: `/` search, `L` layers, `M` markets, `+`/`-` zoom, `Esc` close.
 | Update climate normals | `climate/climate.json` (rain normals + soil moisture) | daily 04:30 |
 | Update hazards | `hazards/hazards.json` (rivers, frost, fires) | every 3 h at :25 |
 | Update European storms | `eustorms/eustorms.json` | every 3 h at :50 |
-| Update US midterms | `elections/elections.json` | 6-hourly; every 20 min 3–6 Nov |
 | Update airport disruptions | `airports/airports.json` | hourly at :35 |
 | Update naval activity | `navy/navy.json` | every 4 h |
 | Update tanker rates | `tankers/tankers.json` | 07:20, 13:20, 19:20 |

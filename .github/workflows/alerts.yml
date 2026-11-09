@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Get latest data from the data branches
         run: |
-          for b in prices storms chokes cot climate enso holidays news hazards supply eustorms elections airports navy curves state; do
+          for b in prices storms chokes cot climate enso holidays news hazards supply eustorms airports navy curves state; do
             if git fetch -q --depth 1 origin "$b" 2>/dev/null; then git checkout -q FETCH_HEAD -- . && echo "got $b"; else echo "no $b branch yet"; fi
           done
           ls -la *.json
@@ -437,31 +437,6 @@ jobs:
                   if v["n"].get("red") and once(f"eusred:{k}:{UKNOW:%Y-%m-%d}", 1):
                       alert(f"🔴 Red wind warning: {k}", f"{v['n']['red']} red warning(s)" + (": " + ", ".join(v.get("areas", {}).get("red", [])[:4]) if v.get("areas", {}).get("red") else "") + ". Danger to life; expect transport and port closures.", "urgent", "rotating_light")
 
-          # ---------- US midterms: Senate seats changing party, and control decided (neutral, factual) ----------
-          def elect():
-              E = load("elections.json") or {}
-              if not E.get("senate"):
-                  return
-              PN = {"D": "Democratic", "R": "Republican", "I": "Independent"}
-              for k, r in E["senate"].items():
-                  if r.get("flip") and r.get("win") and once(f"el:flip:{k}", 60):
-                      w = next((c for c in r.get("c", []) if c.get("w")), None)
-                      alert(f"🗳️ Senate seat changes party: {k}", f"{PN.get(r['win'], r['win'])} gain from {PN.get(r.get('ip'), r.get('ip'))}" + (f": {w['n']}" + (f" ({w['pct']:.1f}%)" if w.get("pct") else "") if w else "") + ".", "default", "ballot_box_with_ballot")
-              C = (E.get("mk") or {}).get("control") or {}
-              od = ST.setdefault("el_odds", {})
-              for ch, name in (("S", "Senate"), ("H", "House")):
-                  d = next((o.get("pct") for o in C.get(ch, []) if o.get("p") == "D"), None)
-                  if d is None:
-                      continue
-                  prev = od.get(ch); od[ch] = d
-                  if prev is not None and (prev - 50) * (d - 50) < 0 and abs(d - 50) >= 5 and once(f"el:odds:{ch}:{'D' if d > 50 else 'R'}", .5):
-                      alert(f"📈 Market favourite for the {name} flips", f"Kalshi now gives {'Democrats' if d > 50 else 'Republicans'} a {max(d, 100 - d):.0f}% chance of controlling the {name} (was {max(prev, 100 - prev):.0f}% the other way).", "high", "ballot_box_with_ballot")
-              N, W = E.get("notup", {}), E.get("sen_won", {})
-              d, rr = N.get("D", 0) + N.get("I", 0) + W.get("D", 0) + W.get("I", 0), N.get("R", 0) + W.get("R", 0)
-              for p, n in (("Democrats and allied independents", d), ("Republicans", rr)):
-                  if n >= 51 and once(f"el:control:{p}", 60):
-                      alert(f"🏛️ US Senate control: {p} reach {n} seats", f"Senate now D+I {d}, R {rr}, with {len(E['senate']) - sum(W.values())} races still to call.", "high", "classical_building")
-
           # ---------- drones disrupting Jersey Airport ----------
           def jersey_drones():
               A = load("airports.json") or {}
@@ -711,7 +686,7 @@ jobs:
               if not TG_TOKEN and not NTFY:
                   print("No delivery set up (add TELEGRAM_TOKEN or NTFY_TOPIC secret). Stopping without saving.")
                   return
-              for f in (price_shocks, weather, storms, cot, enso, chokes, news, quakes, hazards, supply, eustorm, elect, jersey_drones, health):
+              for f in (price_shocks, weather, storms, cot, enso, chokes, news, quakes, hazards, supply, eustorm, jersey_drones, health):
                   try:
                       f()
                   except Exception as e:
