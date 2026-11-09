@@ -21,7 +21,9 @@ jobs:
           import csv, io, json, time, zipfile, urllib.request, datetime as dt
           UA = {"User-Agent": "commodity-map personal project (github actions)"}
           BASE = "https://apps.fas.usda.gov/psdonline/downloads/"
-          FILES = ["psd_grains_pulses_csv.zip", "psd_oilseeds_csv.zip", "psd_coffee_csv.zip", "psd_sugar_csv.zip", "psd_cotton_csv.zip", "psd_fruits_vegetables_csv.zip"]
+          # the all-data file is the only one that includes orange juice; fall back to the per-commodity files if it fails
+          FILES = ["psd_alldata_csv.zip"]
+          FALLBACK = ["psd_grains_pulses_csv.zip", "psd_oilseeds_csv.zip", "psd_coffee_csv.zip", "psd_sugar_csv.zip", "psd_cotton_csv.zip"]
           def fetch(name):
               for a in range(3):
                   try:
@@ -38,7 +40,7 @@ jobs:
               "Corn": ("Corn", ["United States", "Brazil", "Ukraine", "Argentina"]),
               "Cotton": ("Cotton", ["United States", "India", "Brazil", "China"]),
               "Soybeans": ("Oilseed, Soybean", ["Brazil", "United States", "Argentina"]),
-              "Orange juice": ("Orange Juice", ["Brazil", "United States"]),
+              "Orange juice": ("Orange Juice", ["Brazil", "United States", "Mexico", "European Union"]),
               "Rice": ("Rice, Milled", ["India", "Thailand", "Vietnam", "China"]),
           }
           want = {v[0] for v in C.values()}
@@ -47,7 +49,9 @@ jobs:
           rows = {}  # (commodity, country, attr, my) -> value
           units, seen_attrs, release = {}, {}, (0, 0)
           got = 0
-          for f in FILES:
+          for f in FILES + FALLBACK:
+              if got and f in FALLBACK:
+                  break
               raw = fetch(f)
               if not raw:
                   continue
@@ -75,7 +79,7 @@ jobs:
                       except Exception:
                           pass
           print("files ok", got, "rows", len(rows), "release", release)
-          if got < 3 or not rows:
+          if not got or not rows:
               raise SystemExit("PSD download failed")
           try:
               prev = json.load(open("prev.json"))
