@@ -352,3 +352,11 @@ body.saton #wx{opacity:.38}
 .srb{position:relative;display:block;height:10px;margin-top:3px}.srb .srt{position:absolute;left:0;right:0;top:4px;height:2px;border-radius:1px;background:linear-gradient(90deg,color-mix(in srgb,var(--dn) 55%,transparent),color-mix(in srgb,var(--ink) 18%,transparent) 50%,color-mix(in srgb,var(--up) 55%,transparent))}
 .srb .sra{position:absolute;top:1px;width:1.5px;height:8px;margin-left:-.75px;background:var(--mut)}.srb .srd{position:absolute;top:1px;width:8px;height:8px;margin-left:-4px;border-radius:50%;box-shadow:0 0 0 2px var(--card)}
 .srlg{display:block;font-size:9.5px;color:var(--mut);font-weight:400;letter-spacing:.02em}
+
+/* live tankers */
+#map.off-ais .L-ais{display:none}
+.mk.L-ais{border:none;background:none;width:0;height:0;z-index:3}
+.mk.L-ais .aisv{position:absolute;left:-4px;top:-6px;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:11px solid #ff8a3d;filter:drop-shadow(0 0 1.5px #000c)}
+.mk.L-ais .aisa{position:absolute;left:-3px;top:-3px;width:6px;height:6px;border-radius:50%;box-shadow:0 0 0 1px #000a}
+.mk.L-ais.aisc{width:auto;height:auto;z-index:4}.mk.L-ais.aisc b{display:block;white-space:nowrap;font:600 10px/1 "Geist Mono",ui-monospace,monospace;color:var(--ink);background:color-mix(in srgb,var(--card) 85%,transparent);border:1px solid var(--line);border-left:3px solid #ff8a3d;padding:3px 5px;border-radius:4px;cursor:pointer}
+#sinb.hot::after{content:"";position:absolute;top:6px;right:6px;width:7px;height:7px;border-radius:50%;background:var(--amb)}#sinb{position:relative}

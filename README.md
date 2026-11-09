@@ -21,10 +21,12 @@ Personal use only. The free data sources it uses are licensed for personal, non-
 | Frost | 10-day frost forecasts for coffee, citrus, wheat and corn regions in season (snow cover counted for winter wheat) | Open-Meteo |
 | Soil moisture | Root-zone soil water vs the 10-year normal for each crop region | ERA5 via Open-Meteo |
 | Wildfires | Satellite fire detections, last 24 h, binned to 0.5° | NASA FIRMS (VIIRS) |
-| Supply outlook | USDA world and country production, stocks-to-use vs 10-yr history, monthly revisions, and whether our weather data points below the estimate (season-aware) | USDA FAS PSD |
+| Supply outlook | USDA world and country production (incl. orange juice), stocks-to-use on a 10-season range bar, monthly revisions, and whether our weather data points below the estimate (season-aware) | USDA FAS PSD |
 | Airport disruption | Drone incidents at airports worldwide since Jan 2026 (sightings vs wartime attacks), weekly frequency, live US delays and ground stops | News reports; FAA |
 | Naval activity | Reported Russian warship / spy ship / shadow-fleet activity near the UK and Europe by sea area; US carrier and amphibious group positions | News reports; USNI News |
 | Tanker rates | $/day charter rates by ship class (VLCC, Suezmax, Aframax/LR2, product) quoted in shipping news since Jan 2026; BWET and tanker owners' shares live | Shipping news headlines; Yahoo Finance |
+| Live tankers | Tanker positions around the Gulf, Hormuz, the Red Sea and Suez by size class, sampled every 2 h, with large-vs-small mix history | aisstream.io (AIS, free key) |
+| Fertiliser | Monthly urea, DAP, potash, TSP, phosphate rock; urea/corn affordability; EU gas | World Bank Pink Sheet |
 | Rail | 18 key commodity rail corridors; US crude-by-rail monthly volumes | Built in; US EIA |
 | Freight | Dry bulk and tanker freight ETFs (BDRY, BWET) on the markets board | Yahoo Finance |
 | Markets board | 54 futures, rates, indices and FX with day/week/month moves | Yahoo Finance |
@@ -36,11 +38,12 @@ Personal use only. The free data sources it uses are licensed for personal, non-
 | ENSO | El Niño / La Niña status and typical regional effects | NOAA CPC |
 | News | Headlines per market and chokepoint, breaking-news flags | Google News RSS |
 | Calendar | Reports (WASDE, EIA, COT…), central banks, exchange holidays in UK time | Built in + `holidays` package |
+| Since you last looked | What changed on this device since your last visit: vol-scaled price moves, new storms, rivers, USDA release, chokepoints, breaking news | Computed on the page |
 | Brief | Daily ranked "what stands out" across all of the above | Computed on the page |
 
 The **Hazards** tab on the markets board gathers rivers, frost, soil, fires, rail and freight in one place.
 The **Supply** tab shows USDA crop outlooks next to what the map's weather says about them.
-Search codes include `TANKER`, `AIR`, `NAVY`, `WINDSTORM`, `SUPPLY`, `HAZ`, `RIVER`, `FROST`, `FIRE`, `SOIL`, `RAIL`, `FREIGHT`.
+Search codes include `TANKER`, `SHIPS`, `FERT`, `SINCE`, `AIR`, `NAVY`, `WINDSTORM`, `SUPPLY`, `HAZ`, `RIVER`, `FROST`, `FIRE`, `SOIL`, `RAIL`, `FREIGHT`.
 
 Keyboard: `/` search, `L` layers, `M` markets, `+`/`-` zoom, `Esc` close.
 
@@ -76,6 +79,8 @@ Keyboard: `/` search, `L` layers, `M` markets, `+`/`-` zoom, `Esc` close.
 | Update airport disruptions | `airports/airports.json` | hourly at :35 |
 | Update naval activity | `navy/navy.json` | every 4 h |
 | Update tanker rates | `tankers/tankers.json` | 07:20, 13:20, 19:20 |
+| Update live tankers | `ais/ais.json` (needs `AISSTREAM_KEY` secret) | every 2 h at :10 |
+| Update fertiliser prices | `fertiliser/fertiliser.json` | Mon, Thu 06:30 |
 | Update supply outlook | `supply/supply.json` (USDA PSD + revision log) | weekdays 17:40 |
 | Update market holidays | `holidays/holidays.json` | Mon 06:15 |
 | Commodity alerts | reads all of the above, saves `state/alerts_state.json` | after data jobs + :05/:35 |

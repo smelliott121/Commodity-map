@@ -9,6 +9,8 @@
     ["Airports", () => window.APT && APT.updated, 3],
     ["Naval activity", () => window.NAV && NAV.updated, 9],
     ["Tanker rates", () => window.TNK && TNK.updated, 10],
+    ["Live tankers", () => window.AIS && AIS.updated, 5],
+    ["Fertiliser", () => window.FERT && FERT.updated, 24 * 6],
     ["UK power", () => typeof UK != "undefined" && UK && UK.updated, 2],
     ["Futures curves", () => typeof CV != "undefined" && CV && CV.updated, 30, true],
     ["Shipping", () => typeof CK != "undefined" && CK && CK.updated, 30],

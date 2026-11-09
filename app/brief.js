@@ -68,7 +68,7 @@
     return out;
   }
   const rLvl = s => s == null ? ["", "—"] : s >= 6 ? ["sev", "Severe"] : s >= 4 ? ["ele", "Elevated"] : s >= 2 ? ["wat", "Watch"] : ["cal", "Calm"];
-  window.wxRisk = wxRisk;
+  window.wxRisk = wxRisk; window.dailyVol = dailyVol;
 
   /* ---------- stories ---------- */
   function stories() {

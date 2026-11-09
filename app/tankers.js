@@ -30,11 +30,13 @@ ${CL.map(([c, col, w]) => { const l = latest(c); return `<div class="row"${l ? `
 ${P.length ? `<div class="kh">Rates quoted in the news, 2026 (log scale)</div><div class="ukl">${CL.map(([c, col]) => `<span><i style="background:${col}"></i>${esc(c)}</span>`).join("")}<span><i style="border:1px solid var(--mut);background:none;height:6px;width:6px;border-radius:50%"></i>forecast</span></div>${scatter(P)}` : ""}
 <div class="kh">Tanker freight and owners (live)</div>${SH.map(shareRow).join("") || '<div class="note">Loads once the prices job has the tanker shares.</div>'}
 <div class="kh">What drives it</div>
+<div class="row" style="cursor:pointer" data-live="1"><span>Live tankers near Hormuz and the Red Sea, by size</span><b>›</b></div>
 <div class="row" style="cursor:pointer" data-ck="Strait of Hormuz"><span>Strait of Hormuz traffic vs normal</span><b>${ck("Strait of Hormuz")} ›</b></div>
 <div class="row" style="cursor:pointer" data-ck="Bab el-Mandeb"><span>Red Sea (Bab el-Mandeb) traffic vs normal</span><b>${ck("Bab el-Mandeb")} ›</b></div>
 ${(TNK && TNK.news || []).length ? `<div class="kh">Latest tanker market news</div>${TNK.news.slice(0, 8).map(n => `<a class="bsn" href="${esc(safeU(n.u))}" target="_blank" rel="noopener"><span>${fmtD(n.d)}</span> ${esc(n.t)} <small>${esc(n.s)}</small></a>`).join("")}` : ""}
 <div class="note">The official daily rates (Baltic Exchange routes such as TD3C, Middle East → China) are subscription-only, so this collects the $/day figures quoted in shipping headlines: a guide to the level, not an index. Hollow dots are forecasts. BWET holds tanker freight futures, the closest free live proxy; owners' shares track charter rates closely. Attacks or closures at Hormuz and the Red Sea tie up ships on longer routes, which is what drives spikes.</div>`);
     document.querySelectorAll("#panel [data-mk]").forEach(el => el.onclick = () => mkShow(el.dataset.mk));
+    document.querySelectorAll("#panel [data-live]").forEach(el => el.onclick = () => { typeof panTo == "function" && panTo(50, 22); typeof aisOverview == "function" && aisOverview() });
     document.querySelectorAll("#panel [data-u]").forEach(el => el.onclick = () => open(el.dataset.u, "_blank", "noopener"));
     document.querySelectorAll("#panel [data-ck]").forEach(el => el.onclick = () => { const m = MK.find(x => x.n == el.dataset.ck); if (m && typeof showChoke == "function") { typeof panTo == "function" && panTo(m.lon, m.lat); showChoke(m) } });
   }

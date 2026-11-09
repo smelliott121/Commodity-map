@@ -1,0 +1,112 @@
+name: Update live tankers
+on:
+  schedule:
+    - cron: "10 */2 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: ais
+  cancel-in-progress: false
+jobs:
+  ais:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Sample tanker positions (aisstream.io)
+        env:
+          AISSTREAM_KEY: ${{ secrets.AISSTREAM_KEY }}
+        run: |
+          mkdir -p out
+          if [ -z "$AISSTREAM_KEY" ]; then echo "::warning::AISSTREAM_KEY secret not set yet, skipping"; exit 0; fi
+          pip install --break-system-packages -q websockets
+          curl -sf "https://raw.githubusercontent.com/${{ github.repository }}/ais/ais.json" -o prev.json || echo "no previous file"
+          python3 - <<'PY'
+          # Listens to the free aisstream.io feed for ~8 minutes over the Gulf, Hormuz, the Red Sea and Suez, and keeps tankers only.
+          import asyncio, json, os, time, datetime as dt
+          import websockets
+          KEY = os.environ["AISSTREAM_KEY"]
+          AREAS = {   # name: [[lat_min, lon_min], [lat_max, lon_max]]
+              "Persian Gulf": [[24.0, 48.0], [30.5, 54.6]],
+              "Strait of Hormuz / Gulf of Oman": [[22.5, 54.6], [27.6, 60.5]],
+              "Bab el-Mandeb / southern Red Sea": [[11.0, 41.0], [17.0, 45.8]],
+              "Red Sea (Yanbu, Jeddah)": [[19.5, 36.5], [25.5, 40.0]],
+              "Suez Canal / Gulf of Suez": [[27.4, 32.2], [31.6, 34.0]],
+          }
+          def area(la, lo):
+              for n, ((a, b), (c, d)) in AREAS.items():
+                  if a <= la <= c and b <= lo <= d:
+                      return n
+              return None
+          try:
+              prev = json.load(open("prev.json"))
+          except Exception:
+              prev = {}
+          reg = prev.get("reg", {})          # MMSI -> static info, kept between runs (static messages only come every ~6 min)
+          pos = {}
+          RUN = 480
+          async def main():
+              sub = {"APIKey": KEY, "BoundingBoxes": [v for v in AREAS.values()], "FilterMessageTypes": ["PositionReport", "ShipStaticData"]}
+              t0 = time.time(); n = 0
+              while time.time() - t0 < RUN:
+                  try:
+                      async with websockets.connect("wss://stream.aisstream.io/v0/stream", open_timeout=30, ping_interval=20) as ws:
+                          await ws.send(json.dumps(sub))
+                          while time.time() - t0 < RUN:
+                              try:
+                                  raw = await asyncio.wait_for(ws.recv(), timeout=30)
+                              except asyncio.TimeoutError:
+                                  continue
+                              m = json.loads(raw); n += 1
+                              md = m.get("MetaData") or {}; mm = str(md.get("MMSI") or "")
+                              if not mm:
+                                  continue
+                              if m.get("MessageType") == "ShipStaticData":
+                                  s = m["Message"]["ShipStaticData"]; dm = s.get("Dimension") or {}
+                                  reg[mm] = {"type": s.get("Type"), "len": (dm.get("A") or 0) + (dm.get("B") or 0), "beam": (dm.get("C") or 0) + (dm.get("D") or 0),
+                                             "name": (s.get("Name") or md.get("ShipName") or "").strip(), "dest": (s.get("Destination") or "").strip()[:30],
+                                             "dr": s.get("MaximumStaticDraught"), "seen": int(time.time())}
+                              elif m.get("MessageType") == "PositionReport":
+                                  p = m["Message"]["PositionReport"]
+                                  pos[mm] = {"lat": round(md.get("latitude"), 4), "lon": round(md.get("longitude"), 4), "sog": p.get("Sog"), "cog": p.get("Cog"),
+                                             "st": p.get("NavigationalStatus"), "t": md.get("time_utc", "")[:19], "name": (md.get("ShipName") or "").strip()}
+                  except Exception as e:
+                      print("socket", e); await asyncio.sleep(5)
+              print("messages", n)
+          asyncio.run(main())
+          def cls(L):
+              if not L: return "Unknown size"
+              return "VLCC" if L >= 300 else "Suezmax" if L >= 250 else "Aframax/LR2" if L >= 220 else "MR/LR1" if L >= 170 else "Small tanker"
+          ships = []
+          for mm, p in pos.items():
+              r = reg.get(mm)
+              if not r or not (80 <= (r.get("type") or 0) <= 89):
+                  continue
+              a = area(p["lat"], p["lon"])
+              if not a:
+                  continue
+              ships.append({"m": mm, "n": r.get("name") or p["name"], "lat": p["lat"], "lon": p["lon"], "sog": p["sog"], "cog": p["cog"], "st": p["st"],
+                            "len": r.get("len"), "c": cls(r.get("len")), "dest": r.get("dest"), "dr": r.get("dr"), "a": a, "t": p["t"]})
+          # untyped ships we haven't had static data for yet: count them so coverage is visible
+          unknown = sum(1 for mm in pos if mm not in reg)
+          cut = time.time() - 45 * 86400
+          reg = {k: v for k, v in reg.items() if v.get("seen", 0) > cut}
+          CL = ["VLCC", "Suezmax", "Aframax/LR2", "MR/LR1", "Small tanker", "Unknown size"]
+          counts = {a: {c: sum(1 for s in ships if s["a"] == a and s["c"] == c) for c in CL} for a in AREAS}
+          moving = {a: sum(1 for s in ships if s["a"] == a and (s["sog"] or 0) >= 3) for a in AREAS}
+          today = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H")
+          hist = [h for h in prev.get("hist", []) if h["t"] >= (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=60)).strftime("%Y-%m-%dT%H")]
+          hist.append({"t": today, "c": counts, "mv": moving})
+          out = {"updated": int(time.time()), "ships": ships, "counts": counts, "moving": moving, "unknown": unknown, "seen": len(pos), "areas": AREAS, "hist": hist, "reg": reg}
+          print("vessels seen", len(pos), "| tankers", len(ships), "| by area", {a: sum(v.values()) for a, v in counts.items()}, "| no static yet", unknown)
+          json.dump(out, open("out/ais.json", "w"), separators=(",", ":"))
+          PY
+      - name: Publish to ais branch
+        run: |
+          [ -f out/ais.json ] || { echo "nothing built"; exit 0; }
+          cd out
+          git init -q && git checkout -q -b ais
+          git config user.name "ais-bot"
+          git config user.email "ais-bot@users.noreply.github.com"
+          git add -A && git commit -q -m "Live tankers"
+          n=0; until git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ais; do n=$((n+1)); [ $n -ge 4 ] && exit 1; echo "push failed, retrying"; sleep $((15 * n)); done
