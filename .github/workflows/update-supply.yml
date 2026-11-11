@@ -112,6 +112,11 @@ jobs:
               o = {"psd": psd, "my": mys, "unit": units.get((psd, "Production"), ""), "yunit": units.get((psd, "Yield"), ""),
                    "use": use_attr, "w": {"prod": [wp.get(m) for m in mys], "end": [we.get(m) for m in mys], "use": [wu.get(m) for m in mys], "stu": [stu.get(m) for m in mys]},
                    "ctry": ctry}
+              # October 2026 WASDE (US, 2026/27) converted to PSD units: corn 1,849m bu, soybeans 315m bu, wheat 740m bu ending stocks; corn yield 181.2 bu/ac, soybeans 53.1; exports corn 3,300m bu, soybeans 1,695m bu
+              SEED = {("Corn", "United States ending stocks", 2026): round(1849 / 39.368 * 1000), ("Soybeans", "United States ending stocks", 2026): round(315 / 36.744 * 1000),
+                      ("Wheat", "United States ending stocks", 2026): round(740 / 36.744 * 1000), ("Corn", "United States yield", 2026): round(181.2 * 0.0627668, 2),
+                      ("Soybeans", "United States yield", 2026): round(53.1 * 0.0672526, 2),
+                      ("Corn", "United States exports", 2026): round(3300 / 39.368 * 1000), ("Soybeans", "United States exports", 2026): round(1695 / 36.744 * 1000)}
               # revision tracking: keep a log of each release's estimate for the newest two market years
               po = (prev.get("c") or {}).get(key) or {}
               rev = po.get("rev") or {}
@@ -131,6 +136,10 @@ jobs:
                   track("World ending stocks", we.get(my), my)
                   for c in focus:
                       track(f"{c} production", rows.get((psd, c, "Production", my)), my)
+                  for a, lab in (("Ending Stocks", "United States ending stocks"), ("Yield", "United States yield"), ("Exports", "United States exports")):
+                      if ("United States" in focus) and (f"{lab}|{my}" not in rev) and (key, lab, my) in SEED:
+                          rev[f"{lab}|{my}"] = [["2026-10", SEED[(key, lab, my)]]]   # October 2026 figures, from published WASDE coverage, so the first recap has a comparison
+                      track(lab, rows.get((psd, "United States", a, my)), my)
               rev = {k: v for k, v in rev.items() if int(k.rsplit("|", 1)[1]) >= mys[-2]}
               o["rev"] = rev
               out["c"][key] = o

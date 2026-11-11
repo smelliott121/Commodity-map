@@ -38,12 +38,13 @@ Personal use only. The free data sources it uses are licensed for personal, non-
 | ENSO | El Niño / La Niña status and typical regional effects | NOAA CPC |
 | News | Headlines per market and chokepoint, breaking-news flags | Google News RSS |
 | Calendar | Reports (WASDE, EIA, COT…), central banks, exchange holidays in UK time | Built in + `holidays` package |
+| Report recaps | After WASDE, CPI, Fed, OPEC+ and EIA reports: each market's close vs the day before (scaled by its normal day), what USDA changed (US and world), headlines; also sent to Telegram | Computed by the alert engine from prices, history, USDA PSD and news |
 | Since you last looked | What changed on this device since your last visit: vol-scaled price moves, new storms, rivers, USDA release, chokepoints, breaking news | Computed on the page |
 | Brief | Daily ranked "what stands out" across all of the above | Computed on the page |
 
 The **Hazards** tab on the markets board gathers rivers, frost, soil, fires, rail and freight in one place.
 The **Supply** tab shows USDA crop outlooks next to what the map's weather says about them.
-Search codes include `TANKER`, `SHIPS`, `FERT`, `SINCE`, `AIR`, `NAVY`, `WINDSTORM`, `SUPPLY`, `HAZ`, `RIVER`, `FROST`, `FIRE`, `SOIL`, `RAIL`, `FREIGHT`.
+Search codes include `RECAP`, `TANKER`, `SHIPS`, `FERT`, `SINCE`, `AIR`, `NAVY`, `WINDSTORM`, `SUPPLY`, `HAZ`, `RIVER`, `FROST`, `FIRE`, `SOIL`, `RAIL`, `FREIGHT`.
 
 Keyboard: `/` search, `L` layers, `M` markets, `+`/`-` zoom, `Esc` close.
 
@@ -83,7 +84,7 @@ Keyboard: `/` search, `L` layers, `M` markets, `+`/`-` zoom, `Esc` close.
 | Update fertiliser prices | `fertiliser/fertiliser.json` | Mon, Thu 06:30 |
 | Update supply outlook | `supply/supply.json` (USDA PSD + revision log) | weekdays 17:40 |
 | Update market holidays | `holidays/holidays.json` | Mon 06:15 |
-| Commodity alerts | reads all of the above, saves `state/alerts_state.json` | after data jobs + :05/:35 |
+| Commodity alerts | reads all of the above, saves `state/alerts_state.json` and `state/recaps.json` | after data jobs + :05/:35 |
 | Site check | opens the site at phone and desktop size, fails on page errors | every code push |
 
 Optional secret: `GIE_API_KEY` (free, agsi.gie.eu) for LNG and EU gas storage.

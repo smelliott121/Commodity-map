@@ -34,6 +34,7 @@
     if (typeof NW != "undefined" && NW && NW.items) out.news = NW.items.filter(i => i.sc >= 6 && i.d * 1000 > prev.t).sort((a, b) => b.sc - a.sc).slice(0, 5);
     if (window.SUP && prev.sup && SUP.release != prev.sup) out.other.push({ t: `New USDA supply report (${SUP.release})`, run: () => typeof openSup == "function" && openSup() });
     (typeof MK != "undefined" ? MK : []).forEach(m => { const o = (prev.ck || []).find(x => x[0] == m.n); if (o && m.cs && m.cs.tot && Math.abs(m.cs.tot.p - o[1]) >= .25) out.other.push({ t: `${m.n}: traffic now ${(m.cs.tot.p * 100).toFixed(0)}% vs normal (was ${(o[1] * 100).toFixed(0)}%)`, run: () => typeof showChoke == "function" && showChoke(m) }) });
+    (window.RCP && RCP.r || []).filter(r => r.built * 1000 > prev.t).forEach(r => out.other.push({ t: `${r.n} recap (${new Date(r.t * 1000).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" })}): ${r.sum.split(". ")[0]}`, run: () => showRecap(r) }));
     if (window.APT) { const j = (APT.inc || []).filter(i => i.a == "JER" && Date.parse(i.d + "T23:59Z") > prev.t); if (j.length) out.other.push({ t: `Drones disrupted Jersey Airport on ${j.length} day${j.length > 1 ? "s" : ""}`, run: () => typeof showApt == "function" && showApt("JER") }) }
     return out;
   }

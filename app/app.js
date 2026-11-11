@@ -841,7 +841,7 @@ ${r.nw?"":`<div class="row"><span>Rain, last 7 days</span><b>${w?f(w.past)+" mm"
 <div class="row"><span>Rain, next 7 days</span><b>${w?f(w.next)+" mm":"—"}${r.cx!=null?" (normal "+f(r.cx)+")":""}</b></div>
 `}${r.nw&&r.n!="Nat gas"?"":`<div class="row"><span>Temp, next 7 days avg</span><b>${w&&w.tn!=null?f(w.tn)+"°C":"—"}${r.ct!=null?" (normal "+f(r.ct)+")":""}</b></div>
 <div class="row"><span>Now</span><b>${w?f(w.t)+"°C · cloud "+f(w.cl,0)+"%":"—"}</b></div>
-`}${typeof hzCrop=="function"?hzCrop(r):""}${r.st?`<div class="row" style="cursor:pointer" onclick="showStorm(STM[${r.st.si}])"><span>🌀 Storm nearby</span><b class="wrap">${r.st.n} (${r.st.c}), ~${Math.round(r.st.d/50)*50} km from its path ›</b></div>`:""}<div class="row"><span>Signal</span><b class="wrap">${flag}</b></div>${typeof enNote=="function"?enNote(r):""}${cal(r)}
+`}${typeof hzCrop=="function"?hzCrop(r):""}${typeof rcCrop=="function"?rcCrop(r):""}${r.st?`<div class="row" style="cursor:pointer" onclick="showStorm(STM[${r.st.si}])"><span>🌀 Storm nearby</span><b class="wrap">${r.st.n} (${r.st.c}), ~${Math.round(r.st.d/50)*50} km from its path ›</b></div>`:""}<div class="row"><span>Signal</span><b class="wrap">${flag}</b></div>${typeof enNote=="function"?enNote(r):""}${cal(r)}
 ${drv(r)}<div class="note">These are leading indicators, not guarantees: markets already price in forecasts.</div>`);setTimeout(()=>{drawChart(r);drawCot(r);cvDraw(r.sym);if(r.sym)snDraw(r.sym);typeof supDraw=="function"&&supDraw(r)},0)}
 R.forEach((r,i)=>paint(i));
 let wOK=false,pOK=0;

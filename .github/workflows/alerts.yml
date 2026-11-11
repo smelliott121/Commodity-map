@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Get latest data from the data branches
         run: |
-          for b in prices storms chokes cot climate enso holidays news hazards supply eustorms airports navy curves state; do
+          for b in prices hist storms chokes cot climate enso holidays news hazards supply eustorms airports navy curves state; do
             if git fetch -q --depth 1 origin "$b" 2>/dev/null; then git checkout -q FETCH_HEAD -- . && echo "got $b"; else echo "no $b branch yet"; fi
           done
           ls -la *.json
@@ -643,6 +643,188 @@ jobs:
                       body.append("Plus the usual weekly EIA, USDA and COT releases.")
                   alert("🗓️ Week ahead", "\n".join(body), "default", "calendar")
 
+          # ---------- report recaps: what a scheduled report said and how markets reacted (saved to recaps.json for the map, one Telegram summary each) ----------
+          RC_NAMES = {r["sym"]: r["n"] for r in R if r.get("sym")}
+          RC_NAMES.update({"ZM=F": "Soymeal", "ZL=F": "Soyoil", "KE=F": "KC wheat", "BZ=F": "Brent crude", "CL=F": "WTI crude", "RB=F": "Gasoline", "HO=F": "Diesel (heating oil)",
+                           "DX-Y.NYB": "US dollar index", "^TNX": "US 10-yr yield", "ES=F": "S&P 500 futures", "NG=F": "US nat gas"})
+          RC_EV = {   # event name -> (short name, symbols, headline keywords, always alert)
+              "USDA WASDE": ("WASDE", ["ZS=F", "ZC=F", "ZW=F", "KE=F", "ZM=F", "ZL=F", "CT=F", "ZR=F", "SB=F"], r"WASDE|USDA (report|cut|raise|trim|lower|surpris|sees|estimate)|USDA'?s? .*(stocks|yield|crop)", True),
+              "US CPI": ("US CPI", ["GC=F", "SI=F", "DX-Y.NYB", "^TNX", "ES=F", "HG=F"], r"\bCPI\b|consumer price|inflation", True),
+              "Fed rate decision": ("Fed decision", ["GC=F", "SI=F", "DX-Y.NYB", "^TNX", "ES=F", "HG=F"], r"\bFed\b|FOMC|Powell|rate (cut|hike|decision)", True),
+              "OPEC+ meeting (time TBC)": ("OPEC+ meeting", ["BZ=F", "CL=F", "RB=F", "HO=F"], r"OPEC", True),
+              "EIA crude inventories": ("EIA crude stocks", ["CL=F", "BZ=F", "RB=F", "HO=F"], r"\bEIA\b|crude (inventor|stocks|stockpile)|stockpile|inventories", False),
+              "EIA nat gas storage": ("EIA gas storage", ["NG=F"], r"storage|\bEIA\b|injection|withdrawal", False),
+          }
+          BU = {"Corn": 39.368, "Soybeans": 36.744, "Wheat": 36.744}
+          _HC = {}
+          def hist_all():
+              if "h" not in _HC:
+                  try:
+                      _HC["h"] = json.loads(http(f"https://raw.githubusercontent.com/{REPO}/hist/history.json"))
+                  except Exception:
+                      _HC["h"] = load("history.json")
+              return _HC["h"]
+
+          def rc_moves(syms, rday):
+              P = (load("prices.json") or {}).get("prices", {}); H = (hist_all() or {}).get("s", {})
+              dn = (rday - dt.date(1970, 1, 1)).days
+              out, final = [], True
+              for s in syms:
+                  h = H.get(s)
+                  if not h or not h.get("t"):
+                      continue
+                  T, C = h["t"], h["c"]
+                  prev_i = max((i for i, t in enumerate(T) if t < dn), default=None)
+                  if prev_i is None:
+                      continue
+                  p0 = C[prev_i]
+                  if dn in T:
+                      p1 = C[T.index(dn)]
+                  elif s in P and NOW.astimezone(NY).date() == rday:
+                      p1 = P[s]["price"]; final = False
+                  else:
+                      final = False; continue
+                  c = C[max(0, prev_i - 60):prev_i + 1]
+                  rets = [(c[i] / c[i - 1] - 1) * 100 for i in range(1, len(c)) if c[i - 1]]
+                  sd = math.sqrt(sum(x * x for x in rets) / len(rets)) if len(rets) > 10 else None
+                  if s == "^TNX":   # yields: change in basis points
+                      ch = (p1 - p0) * 100; sdb = math.sqrt(sum(((c[i] - c[i - 1]) * 100) ** 2 for i in range(1, len(c))) / max(1, len(c) - 1))
+                      out.append({"s": s, "n": RC_NAMES.get(s, s), "p0": p0, "p1": p1, "bp": round(ch, 1), "z": round(abs(ch) / sdb, 1) if sdb else None})
+                      continue
+                  ch = (p1 / p0 - 1) * 100
+                  if abs(ch) > 20:
+                      continue
+                  out.append({"s": s, "n": RC_NAMES.get(s, s), "p0": p0, "p1": p1, "ch": round(ch, 2), "z": round(abs(ch) / sd, 1) if sd else None})
+              out.sort(key=lambda m: -(m["z"] or 0))
+              return out, final
+
+          def rc_usda(ym):
+              S = load("supply.json") or {}
+              if S.get("release") != ym:
+                  return []
+              L = []
+              for crop, o in (S.get("c") or {}).items():
+                  if crop not in ("Corn", "Soybeans", "Wheat", "Cotton", "Rice", "Sugar"):   # the WASDE crops
+                      continue
+                  my = o["my"][-1]; unit = o.get("unit", "")
+                  for lab in ("United States ending stocks", "United States yield", "United States production", "United States exports", "World ending stocks", "World production"):
+                      v = (o.get("rev") or {}).get(f"{lab}|{my}") or []
+                      if len(v) < 2 or v[-1][0] != ym or not v[-2][1]:
+                          continue
+                      a, b = v[-2][1], v[-1][1]; pc = (b / a - 1) * 100
+                      if abs(pc) < (0.3 if lab.startswith("World") else 0.5):
+                          continue
+                      us = lab.startswith("United States")
+                      if "yield" in lab:
+                          f = {"Corn": 1 / 0.0627668, "Soybeans": 1 / 0.0672526, "Wheat": 1 / 0.0672526}.get(crop)
+                          txt = f"{b * f:.1f} bu/acre (was {a * f:.1f})" if f else f"{b:.2f} t/ha (was {a:.2f})"
+                      elif us and crop in BU:
+                          k = BU[crop] / 1000; txt = f"{b * k:,.0f}m bu ({(b - a) * k:+,.0f}m)"
+                      elif "Bales" in unit or "bales" in unit:
+                          txt = f"{b / 1000:.1f}m bales ({(b - a) / 1000:+.1f}m)"
+                      elif unit.strip("() ").upper() == "MT":
+                          txt = f"{b / 1e6:.2f} Mt"
+                      elif "1000 MT" in unit:
+                          txt = f"{b / 1000:,.1f} Mt ({(b - a) / 1000:+,.1f})"
+                      else:
+                          txt = f"{b:,.0f} {unit.strip('()').lower()}"
+                      pre, rest = ("US", lab[14:]) if us else ("World", lab[6:])
+                      cn = {"Soybeans": "soybean"}.get(crop, crop.lower())
+                      L.append({"crop": crop, "what": lab.replace("United States", "US"), "lab": f"{pre} {cn} {rest}", "txt": txt, "pc": round(pc, 1), "my": f"{my}/{(my + 1) % 100:02d}"})
+              L.sort(key=lambda x: (not x["what"].startswith("US"), -abs(x["pc"])))
+              return L
+
+          def rc_news(rx, t0):
+              import re
+              N = (load("news.json") or {}).get("items", [])
+              a, b = t0.timestamp() - 3 * 3600, t0.timestamp() + 30 * 3600
+              hits = [i for i in N if a <= i["d"] <= b and re.search(rx, i["t"], re.I)]
+              hits.sort(key=lambda i: (-i.get("sc", 0), -i.get("n", 1), i["d"]))
+              out, seen = [], []
+              for i in hits:
+                  w = nwords(i["t"])
+                  if any(len(w & s) / max(1, len(w | s)) >= 0.45 for s in seen):
+                      continue
+                  seen.append(w); out.append({"t": i["t"], "s": i.get("s", ""), "u": i.get("u", ""), "d": i["d"]})
+                  if len(out) >= 6:
+                      break
+              return out
+
+          def rc_fmt(m):
+              if "bp" in m:
+                  return f"{m['n']} {m['bp']:+.0f} bp"
+              return f"{m['n']} {m['ch']:+.1f}%"
+
+          def rc_summary(short, mv, us):
+              big = [m for m in mv if (m["z"] or 0) >= 1.5]; mid = [m for m in mv if 1 <= (m["z"] or 0) < 1.5]
+              if not mv:
+                  return "No price data for the reaction yet."
+              if big:
+                  s = "Big reaction: " + ", ".join(f"{rc_fmt(m)} ({m['z']:.1f}× a normal day)" for m in big[:3]) + "."
+              elif mid:
+                  s = "Noticeable reaction: " + ", ".join(rc_fmt(m) for m in mid[:3]) + ", a bit more than a normal day."
+              else:
+                  s = "Muted reaction: nothing moved more than on a normal day."
+              calm = [m for m in mv if (m["z"] or 0) < 0.7][:3]
+              if big and calm:
+                  s += " Little change in " + ", ".join(m["n"].lower() if not m["n"].startswith(("US", "S&P", "KC", "WTI")) else m["n"] for m in calm) + "."
+              if us:
+                  cut = [u for u in us if "ending stocks" in u["what"] and u["pc"] < 0]; up = [u for u in us if "ending stocks" in u["what"] and u["pc"] > 0]
+                  bits = []
+                  if cut:
+                      bits.append("cut " + ", ".join(u["lab"].replace(" ending stocks", "").replace("US ", "US ").replace("World ", "world ") for u in cut[:3]) + " stocks")
+                  if up:
+                      bits.append("raised " + ", ".join(u["lab"].replace(" ending stocks", "").replace("World ", "world ") for u in up[:3]) + " stocks")
+                  if bits:
+                      s += " USDA " + " and ".join(bits) + "."
+              return s
+
+          def recaps():
+              have = {r["id"]: r for r in ST.get("recaps", [])}
+              for back in range(0, 4):
+                  day = (UKNOW - dt.timedelta(days=back)).date()
+                  for t, n in events_on(day):
+                      if n not in RC_EV:
+                          continue
+                      short, syms, rx, always = RC_EV[n]
+                      tn = t.astimezone(NY)
+                      rday = tn.date()
+                      if rday.weekday() >= 5 or tn.hour * 60 + tn.minute >= 14 * 60 + 30:   # weekend or after the close: reaction is the next trading day
+                          rday += dt.timedelta(days=1)
+                          while rday.weekday() >= 5:
+                              rday += dt.timedelta(days=1)
+                      ready = dt.datetime.combine(rday, dt.time(14, 45), NY)          # after grains, metals and energy have settled
+                      if NOW < ready:
+                          continue
+                      rid = f"{short}|{t:%Y-%m-%d}"
+                      old = have.get(rid)
+                      if old and old.get("final"):
+                          continue
+                      mv, final = rc_moves(syms, rday)
+                      if not mv:
+                          continue
+                      us = rc_usda(f"{t.astimezone(NY):%Y-%m}") if short == "WASDE" else []
+                      hl = rc_news(rx, t)
+                      if old:   # keep headlines collected on earlier runs (the news file only holds the last few days)
+                          urls = {h["u"] for h in hl}
+                          hl = (hl + [h for h in old.get("news", []) if h["u"] not in urls])[:6]
+                      rec = {"id": rid, "ev": n, "n": short, "t": int(t.timestamp()), "rday": str(rday), "mv": mv, "usda": us, "news": hl,
+                             "sum": rc_summary(short, mv, us), "final": final or NOW - ready > dt.timedelta(hours=36), "built": int(NOW.timestamp())}
+                      have[rid] = rec
+                      if not old or not old.get("sent"):
+                          top = max((m["z"] or 0) for m in mv)
+                          if always or top >= 1.5:
+                              if once("recap:" + rid, 30):
+                                  body = [rec["sum"], "", "Close vs the day before:"] + [f"• {rc_fmt(m)}" + (f" ({m['z']:.1f}× normal)" if (m['z'] or 0) >= 1 else "") for m in mv[:6]]
+                                  if us:
+                                      body += ["", "What USDA changed:"] + [f"• {u['lab']} {u['my']}: {u['txt']}" for u in us[:6]]
+                                  if hl:
+                                      body += ["", "Headlines:"] + [f"• {h['t']} ({h['s']})" for h in hl[:3]]
+                                  alert(f"📋 {short} recap ({t:%a %d %b})", "\n".join(body), "default", "clipboard")
+                          rec["sent"] = True
+              ST["recaps"] = sorted([r for r in have.values() if NOW.timestamp() - r["t"] < 60 * 86400], key=lambda r: -r["t"])[:40]
+              json.dump({"updated": int(NOW.timestamp()), "r": ST["recaps"]}, open("recaps.json", "w"), separators=(",", ":"))
+
           # ---------- send ----------
           def tg_chat():
               global TG_CHAT
@@ -686,7 +868,7 @@ jobs:
               if not TG_TOKEN and not NTFY:
                   print("No delivery set up (add TELEGRAM_TOKEN or NTFY_TOPIC secret). Stopping without saving.")
                   return
-              for f in (price_shocks, weather, storms, cot, enso, chokes, news, quakes, hazards, supply, eustorm, jersey_drones, health):
+              for f in (price_shocks, weather, storms, cot, enso, chokes, news, quakes, hazards, supply, eustorm, jersey_drones, recaps, health):
                   try:
                       f()
                   except Exception as e:
@@ -738,12 +920,11 @@ jobs:
               open(".state_changed", "w").write("1")
 
           main()
-
           PY
       - name: Save alert memory to the state branch
         run: |
           [ -f .state_changed ] || { echo "nothing new to save"; exit 0; }
-          mkdir -p pub && cp alerts_state.json pub/ && cd pub
+          mkdir -p pub && cp alerts_state.json pub/ && { [ -f recaps.json ] && cp recaps.json pub/ || true; } && cd pub
           git init -q && git checkout -q -b state
           git config user.name "alert-bot"
           git config user.email "alert-bot@users.noreply.github.com"

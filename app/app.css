@@ -360,3 +360,5 @@ body.saton #wx{opacity:.38}
 .mk.L-ais .aisa{position:absolute;left:-3px;top:-3px;width:6px;height:6px;border-radius:50%;box-shadow:0 0 0 1px #000a}
 .mk.L-ais.aisc{width:auto;height:auto;z-index:4}.mk.L-ais.aisc b{display:block;white-space:nowrap;font:600 10px/1 "Geist Mono",ui-monospace,monospace;color:var(--ink);background:color-mix(in srgb,var(--card) 85%,transparent);border:1px solid var(--line);border-left:3px solid #ff8a3d;padding:3px 5px;border-radius:4px;cursor:pointer}
 #sinb.hot::after{content:"";position:absolute;top:6px;right:6px;width:7px;height:7px;border-radius:50%;background:var(--amb)}#sinb{position:relative}
+
+.rcb{margin-bottom:6px}.rcr{cursor:pointer}.rcr::before{background:#eb6834!important}.rcr small{color:var(--ink)!important;opacity:.8}

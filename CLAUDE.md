@@ -9,7 +9,7 @@ Personal project for Sam (UK, Jersey). Commodity weather map on GitHub Pages. Se
 - Commit straight to `main` (that's how the site deploys). Bump the `?v=` cache-busting number on every script/style tag in `index.html` whenever `app/` changes.
 
 ## Code layout
-- `index.html`: shell only. Scripts load with `defer` in order: geo → app → windgl → cmd → brief → sat → hazards → supply → eustorm → airnav → tankers → fert → ais → since → pins → health. They share globals (classic scripts), so later files call `show()`, `R`, `MK`, `PX`, `info()` etc. from `app.js`.
+- `index.html`: shell only. Scripts load with `defer` in order: geo → app → windgl → cmd → brief → sat → hazards → supply → eustorm → airnav → tankers → fert → ais → recap → since → pins → health. They share globals (classic scripts), so later files call `show()`, `R`, `MK`, `PX`, `info()` etc. from `app.js`.
 - `app/app.js`: everything core (map, pins/labels `layout()`, weather canvas, lanes, storms, ENSO, calendar/ticker, panels, markets board, news, UK energy, curves/seasonal, refining, quakes). Top-level `const`/`let` names must not clash across files (e.g. `SM`, `ukT` already caused bugs).
 - Zoom gestures (pinch, wheel) only CSS-scale `#map` (`zg` state); the real resize, `layout()` and weather redraw run once in `zCommit()` when the gesture pauses. Don't resize the map per gesture event again.
 - Weather draws into a viewport-sized sticky layer (`#wxl`) using cached geometry (`GEO`); don't make canvases map-sized again.
@@ -21,6 +21,7 @@ Personal project for Sam (UK, Jersey). Commodity weather map on GitHub Pages. Se
 - `airnav.js`: airport disruption (`APT`, home airport JER) and naval activity (`NAV`). Marker labels inside `.mk` must not be `<span>` (the generic `.mk span` rule hides them until zoomed); use `<b>`/`<em>`.
 - `fert.js`: World Bank fertiliser prices (`FERT`), `showFert()`, Supply-tab rows via `fertRows()`.
 - `ais.js`: live tanker positions (`AIS`, `.L-ais` markers, `off-ais` layer switch), `aisOverview()`. The AIS job skips quietly if the `AISSTREAM_KEY` secret is missing.
+- `recap.js`: report recaps (`RCP`, from `state/recaps.json` built by `recaps()` in the alert engine). Wraps `calBody` to add a "Recent reports" block; `rcCrop(r)` row in commodity panels; `rcWatch()` for the brief. Recap events/symbols live in `RC_EV` in alerts.yml.
 - `since.js`: "Since you last looked" snapshot in localStorage `cm_since` (saved on hide/pagehide/10 min); uses `window.dailyVol` from `brief.js`.
 - `pins.js` wraps `show`, `mkShow`, `showChoke`, `showUK`, `showRef` to add the pin button.
 

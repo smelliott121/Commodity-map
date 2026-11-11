@@ -105,6 +105,7 @@
     if (typeof euWatch == "function") L.push(...euWatch());
     if (typeof anWatch == "function") L.push(...anWatch());
     if (typeof supWatch == "function") L.push(...supWatch());
+    if (typeof rcWatch == "function") L.push(...rcWatch());
     if (typeof enPhase == "function" && enPhase()) L.push({ t: `${enPhase() > 0 ? "El Niño" : "La Niña"} conditions (${enStr(EN.roni.at(-1)[2])})`, run: showEnso, sev: 1 });
     return L.sort((a, b) => b.sev - a.sev);
   }
