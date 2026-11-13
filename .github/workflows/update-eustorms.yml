@@ -10,13 +10,13 @@ concurrency:
   cancel-in-progress: false
 jobs:
   eustorms:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Track Atlantic/European windstorms, gust swaths and wind warnings
         run: |
           mkdir -p out
           python3 - <<'PY'
-          import json, time, math, re, html, urllib.request, urllib.parse, datetime as dt
+          import json, os, time, math, re, html, urllib.request, urllib.parse, datetime as dt
           import xml.etree.ElementTree as ET
           UA = {"User-Agent": "commodity-map personal project (github actions)"}
           def get(url, raw=False, timeout=90):
@@ -139,8 +139,22 @@ jobs:
                           seen.setdefault(n, []).append(t[:140])
           except Exception as e:
               out["dbg"].append(f"news {e}")
-          named = [n for n in NAMES if len(seen.get(n, [])) >= 2]
-          out["named"] = [{"n": n, "hits": len(seen[n]), "eg": seen[n][:3]} for n in named]
+          # A name stays in the news for weeks after the storm (damage, repairs, compensation), so remember when each name
+          # first appeared and only treat it as a live storm for 5 days after that. Seeded with the names already used this season.
+          try:
+              prev = json.loads(urllib.request.urlopen(urllib.request.Request("https://raw.githubusercontent.com/" + os.environ["GITHUB_REPOSITORY"] + "/eustorms/eustorms.json", headers=UA), timeout=30).read())
+          except Exception as e:
+              prev = {}; out["dbg"].append(f"prev {e}")
+          first = {"Austen": "2026-10-20", "Boelo": "2026-10-22"}
+          first.update(prev.get("first") or {})
+          for n in NAMES:
+              if len(seen.get(n, [])) >= 2 and n not in first:
+                  first[n] = now.strftime("%Y-%m-%d")
+          out["first"] = first
+          live = lambda n: n in first and (now - dt.datetime.fromisoformat(first[n] + "T00:00+00:00")).days <= 5
+          named = [n for n in NAMES if len(seen.get(n, [])) >= 2 and live(n)]
+          out["named"] = [{"n": n, "hits": len(seen[n]), "eg": seen[n][:3], "first": first[n]} for n in named]
+          out["past"] = [{"n": n, "first": d} for n, d in sorted(first.items(), key=lambda x: x[1]) if not live(n)]
           # attach the newest name in use to the deepest low that reaches the British Isles / North Sea area
           # drop track fragments that end on a deeper track's points, keep the lows that matter (<= 985 hPa)
           keep = []
