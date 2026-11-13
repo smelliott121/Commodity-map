@@ -404,7 +404,7 @@ later(async()=>{for(const u of rawUrls("refining","refining.json")){try{const r=
 let CV=null,SN=null,snP=null;
 later(async()=>{for(const u of rawUrls("curves","curves.json")){try{const r=await fetch(u);if(r.ok){CV=await r.json();break}}catch(e){}}markRolls()},1500);
 /* Contract roll: when the front future expires, Yahoo's continuous symbol jumps to the next contract and the "day change" compares two different contracts. Detect it from the curve (yesterday's close = the expired contract's last trade) and drop the bogus change. */
-function isRoll(sym){const q=PX&&PX[sym],C=CV&&CV.c&&CV.c[cvRoot(sym)];if(!q||!q.prev||!C||C.length<2)return false;const last=C.reduce((m,x)=>x.d>m?x.d:m,"");return C[0].d<last&&Math.abs(C[0].p/q.prev-1)<.005&&Math.abs(q.price/q.prev-1)>.01}
+function isRoll(sym){const q=PX&&PX[sym],C=CV&&CV.c&&CV.c[cvRoot(sym)];if(!q||!q.prev||!C||C.length<2)return false;const last=C.reduce((m,x)=>x.d>m?x.d:m,"");const mv=Math.abs(Math.log(q.price/q.prev));return Math.abs(C[0].p/q.prev-1)<.005&&mv>.01&&(C[0].d<last||(C[1].p&&Math.abs(Math.log(q.price/C[1].p))<mv/2))}
 function markRolls(){if(!CV||!PX)return;Object.keys(PX).forEach(sym=>{if(isRoll(sym))PX[sym].roll=1});R.forEach((r,i)=>{if(r.sym&&PX[r.sym]&&PX[r.sym].roll){r.ch=null;r.roll=1;paint(i)}});if(typeof mkBoard=="function")mkBoard()}
 function snLoad(){if(!snP)snP=(async()=>{for(const u of rawUrls("seasonal","seasonal.json")){try{const r=await fetch(u);if(r.ok){SN=await r.json();break}}catch(e){}}return SN})();return snP}
 const cvRoot=sym=>sym&&sym.endsWith("=F")?sym.slice(0,-2):null;

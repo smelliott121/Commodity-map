@@ -126,6 +126,12 @@ jobs:
                   if Cv and len(Cv) > 1 and Cv[0].get("d", "") < max(x.get("d", "") for x in Cv) and Cv[0].get("p") and abs(Cv[0]["p"] / m["prev"] - 1) < 0.005:
                       print("skipping contract roll:", s, m["prev"], "->", m["price"])
                       continue
+                  # early roll: Yahoo's continuous symbol switched to the next contract before the front expired (yesterday's close matches
+                  # the front month, today's price sits next to the second month). Measure the move against the second month instead.
+                  if Cv and len(Cv) > 1 and Cv[0].get("p") and Cv[1].get("p") and abs(Cv[0]["p"] / m["prev"] - 1) < 0.005 and abs(ret) > 0.01 \
+                          and abs(math.log(m["price"] / Cv[1]["p"])) < abs(ret) / 2:
+                      print("early contract roll:", s, m["prev"], "->", m["price"], "vs next contract", Cv[1]["p"])
+                      ret = math.log(m["price"] / Cv[1]["p"])
                   if abs(ret) > 0.25:
                       print("skipping implausible move (likely contract roll or data glitch):", s, m)
                       continue
