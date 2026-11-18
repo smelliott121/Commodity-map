@@ -84,6 +84,7 @@ Keyboard: `/` search, `L` layers, `M` markets, `+`/`-` zoom, `Esc` close.
 | Update fertiliser prices | `fertiliser/fertiliser.json` | Mon, Thu 06:30 |
 | Update supply outlook | `supply/supply.json` (USDA PSD + revision log) | weekdays 17:40 |
 | Update market holidays | `holidays/holidays.json` | Mon 06:15 |
+| Keep jobs on schedule (`keeper.yml`) | none: starts any job that missed a cron slot, since GitHub's scheduler drops runs | runs continuously, restarts itself |
 | Commodity alerts | reads all of the above, saves `state/alerts_state.json` and `state/recaps.json` | after data jobs + :05/:35 |
 | Site check | opens the site at phone and desktop size, fails on page errors | every code push |
 

@@ -27,6 +27,7 @@ Personal project for Sam (UK, Jersey). Commodity weather map on GitHub Pages. Se
 
 ## Data
 - Each workflow publishes one source to its own branch with a force-pushed single commit (see README). Don't commit data to `main`.
+- `keeper.yml` restarts itself every ~50 min and dispatches any workflow that missed one of its own cron slots (GitHub's cron drops runs under load). New data workflows need `workflow_dispatch` to be covered.
 - `alerts.yml` embeds the Python alert engine; it fetches all data branches with git, then saves state to the `state` branch. When editing alert logic, keep it valid YAML and compile-check the embedded Python.
 
 - `sw.js` cache names must start with `cm-` and the activate handler only deletes old `cm-` caches: other apps on smelliott121.github.io (e.g. round-the-rock-planner, `rtr-`) share the same cache storage. Bump `V` to roll out service-worker changes.

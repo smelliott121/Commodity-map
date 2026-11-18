@@ -1,0 +1,72 @@
+name: Keep jobs on schedule
+# GitHub's cron trigger is best effort and sometimes drops runs for hours. This job checks every data workflow against its
+# own cron times and starts any that missed a slot (workflow_dispatch), then re-starts itself so it doesn't depend on cron.
+on:
+  schedule:
+    - cron: "*/10 * * * *"     # backstop, in case the self-restart chain breaks
+  workflow_dispatch:
+permissions:
+  actions: write
+  contents: read
+concurrency:
+  group: keeper
+  cancel-in-progress: false
+jobs:
+  keep:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/workflows
+      - name: Start any job that missed its slot
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          pip install --break-system-packages -q croniter pyyaml
+          python3 - <<'PY'
+          import glob, json, os, subprocess, time, datetime as dt
+          import yaml
+          from croniter import croniter
+          REPO = os.environ["REPO"]
+          SKIP = {"keeper.yml", "site-check.yml"}
+          def gh(*a):
+              r = subprocess.run(["gh", "api", *a], capture_output=True, text=True)
+              return json.loads(r.stdout) if r.returncode == 0 and r.stdout.strip() else None
+          jobs = {}
+          for p in sorted(glob.glob(".github/workflows/*.yml")):
+              f = os.path.basename(p)
+              if f in SKIP:
+                  continue
+              y = yaml.safe_load(open(p)); on = y.get(True) or y.get("on") or {}
+              crons = [c["cron"] for c in (on.get("schedule") or [])]
+              if crons and "workflow_dispatch" in on:
+                  jobs[f] = crons
+          print("watching", len(jobs), "workflows")
+          T_END = time.time() + 50 * 60
+          while True:
+              now = dt.datetime.now(dt.timezone.utc)
+              for f, crons in jobs.items():
+                  slot = max(croniter(c, now).get_prev(dt.datetime) for c in crons)
+                  if (now - slot).total_seconds() < 8 * 60:      # give GitHub's own trigger a few minutes first
+                      continue
+                  runs = gh(f"repos/{REPO}/actions/workflows/{f}/runs?per_page=3") or {}
+                  rs = runs.get("workflow_runs") or []
+                  if any(r["status"] in ("queued", "in_progress", "waiting", "pending", "requested") for r in rs):
+                      continue
+                  last = max((dt.datetime.fromisoformat(r["created_at"].replace("Z", "+00:00")) for r in rs), default=None)
+                  if last and last >= slot - dt.timedelta(minutes=2):
+                      continue
+                  late = (now - slot).total_seconds() / 60
+                  ok = subprocess.run(["gh", "api", "-X", "POST", f"repos/{REPO}/actions/workflows/{f}/dispatches", "-f", "ref=main"], capture_output=True, text=True).returncode == 0
+                  print(f"{now:%H:%M} {f}: missed the {slot:%H:%M} UTC slot ({late:.0f} min ago), last run {last:%d %b %H:%M}" if last else f"{f}: no runs", "→ started" if ok else "→ dispatch FAILED")
+              if time.time() > T_END:
+                  break
+              time.sleep(5 * 60)
+          PY
+      - name: Restart myself
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST "repos/${{ github.repository }}/actions/workflows/keeper.yml/dispatches" -f ref=main || true
