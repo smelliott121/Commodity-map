@@ -42,12 +42,14 @@ jobs:
               y = yaml.safe_load(open(p)); on = y.get(True) or y.get("on") or {}
               crons = [c["cron"] for c in (on.get("schedule") or [])]
               if crons and "workflow_dispatch" in on:
-                  jobs[f] = crons
+                  ins = ((on.get("workflow_dispatch") or {}).get("inputs") or {})
+                  # manual-run options (e.g. the alerts "send a test message" switch) are turned off for automatic runs
+                  jobs[f] = (crons, [f"inputs[{k}]=false" for k, v in ins.items() if (v or {}).get("type") == "boolean" or str((v or {}).get("default")).lower() in ("true", "false")])
           print("watching", len(jobs), "workflows")
           T_END = time.time() + 50 * 60
           while True:
               now = dt.datetime.now(dt.timezone.utc)
-              for f, crons in jobs.items():
+              for f, (crons, extra) in jobs.items():
                   slot = max(croniter(c, now).get_prev(dt.datetime) for c in crons)
                   if (now - slot).total_seconds() < 8 * 60:      # give GitHub's own trigger a few minutes first
                       continue
@@ -59,7 +61,7 @@ jobs:
                   if last and last >= slot - dt.timedelta(minutes=2):
                       continue
                   late = (now - slot).total_seconds() / 60
-                  ok = subprocess.run(["gh", "api", "-X", "POST", f"repos/{REPO}/actions/workflows/{f}/dispatches", "-f", "ref=main"], capture_output=True, text=True).returncode == 0
+                  ok = subprocess.run(["gh", "api", "-X", "POST", f"repos/{REPO}/actions/workflows/{f}/dispatches", "-f", "ref=main", *sum((["-F", x] for x in extra), [])], capture_output=True, text=True).returncode == 0
                   print(f"{now:%H:%M} {f}: missed the {slot:%H:%M} UTC slot ({late:.0f} min ago), last run {last:%d %b %H:%M}" if last else f"{f}: no runs", "→ started" if ok else "→ dispatch FAILED")
               if time.time() > T_END:
                   break
